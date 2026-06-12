@@ -49,22 +49,23 @@ class CNICrawler:
                 response = await client.get(url, headers=self._headers())
                 response.raise_for_status()
 
-            content_type = response.headers.get("content-type", "")
+                content_type = response.headers.get("content-type", "")
 
-            if "text/html" in content_type:
-                page_data = await self._process_html(url, response.text)
-                if page_data:
-                    self.results.append(page_data)
+                if "text/html" in content_type:
+                    html = response.text
+                    page_data = self._process_html(url, html)
+                    if page_data:
+                        self.results.append(page_data)
 
-                links = self._extract_links(url, response.text)
-                for link in links:
-                    await asyncio.sleep(self.delay)
-                    await self._crawl_page(link, depth + 1)
+                    links = self._extract_links(url, html)
+                    for link in links:
+                        await asyncio.sleep(self.delay)
+                        await self._crawl_page(link, depth + 1)
 
-            elif "application/pdf" in content_type:
-                pdf_data = self._process_pdf(url, response.content)
-                if pdf_data:
-                    self.results.append(pdf_data)
+                elif "application/pdf" in content_type:
+                    pdf_data = self._process_pdf(url, response.content)
+                    if pdf_data:
+                        self.results.append(pdf_data)
 
         except httpx.HTTPStatusError as e:
             logger.warning(f"HTTP error for {url}: {e.response.status_code}")
@@ -95,7 +96,7 @@ class CNICrawler:
                     links.append(clean_url)
         return links
 
-    async def _process_html(self, url: str, html: str) -> dict[str, Any] | None:
+    def _process_html(self, url: str, html: str) -> dict[str, Any] | None:
         soup = BeautifulSoup(html, "lxml")
         title_tag = soup.find("title")
         title = title_tag.get_text(strip=True) if title_tag else ""

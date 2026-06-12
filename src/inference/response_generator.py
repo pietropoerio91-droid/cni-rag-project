@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, AsyncGenerator
 
@@ -20,5 +21,15 @@ class ResponseGenerator:
 
     async def astream_generate(self, prompt: str, **kwargs: Any) -> AsyncGenerator[str, None]:
         messages = [{"role": "user", "content": prompt}]
-        for chunk in self.client.stream(messages, **kwargs):
+
+        loop = asyncio.get_running_loop()
+        sync_gen = self.client.stream(messages, **kwargs)
+
+        while True:
+            chunk = await loop.run_in_executor(None, lambda: next(sync_gen, _SENTINEL))
+            if chunk is _SENTINEL:
+                break
             yield chunk
+
+
+_SENTINEL = object()

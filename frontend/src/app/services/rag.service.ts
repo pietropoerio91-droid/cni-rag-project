@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { QueryRequest, QueryResponse, HealthResponse, IngestResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
@@ -18,22 +18,45 @@ export class RagService {
 
   queryStream(request: QueryRequest): Observable<string> {
     return new Observable<string>((observer) => {
-      const eventSource = new EventSourcePolyfill(`${this.apiUrl}/query/stream`, {
-        method: 'POST',
-        body: JSON.stringify(request),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const xhr = new XMLHttpRequest();
+      let lastIndex = 0;
 
-      eventSource.onmessage = (event) => {
-        observer.next(event.data);
+      xhr.open('POST', `${this.apiUrl}/query/stream`);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.responseType = 'text';
+
+      xhr.onprogress = () => {
+        const newData = xhr.responseText.slice(lastIndex);
+        lastIndex = xhr.responseText.length;
+
+        const lines = newData.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const parsed = JSON.parse(line.slice(6));
+              observer.next(parsed);
+            } catch {
+              observer.next(line.slice(6));
+            }
+          }
+        }
       };
 
-      eventSource.onerror = (error) => {
-        observer.error(error);
-        eventSource.close();
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          observer.complete();
+        } else {
+          observer.error(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+        }
       };
 
-      return () => eventSource.close();
+      xhr.onerror = () => {
+        observer.error(new Error('Errore di connessione al server'));
+      };
+
+      xhr.send(JSON.stringify(request));
+
+      return () => xhr.abort();
     });
   }
 
@@ -52,27 +75,5 @@ export class RagService {
   private handleError(error: HttpErrorResponse) {
     const message = error.error?.detail || error.message || 'Errore sconosciuto';
     return throwError(() => new Error(message));
-  }
-}
-
-class EventSourcePolyfill {
-  private xhr: XMLHttpRequest;
-  private lastIndex = 0;
-
-  constructor(url: string, options: { method: string; body: string; headers: Record<string, string> }) {
-    this.xhr = new XMLHttpRequest();
-    this.xhr.open(options.method, url);
-    for (const [key, value] of Object.entries(options.headers)) {
-      this.xhr.setRequestHeader(key, value);
-    }
-    this.xhr.responseType = 'text';
-    this.xhr.send(options.body);
-  }
-
-  onmessage: ((event: { data: string }) => void) | null = null;
-  onerror: ((error: any) => void) | null = null;
-
-  close() {
-    this.xhr.abort();
   }
 }

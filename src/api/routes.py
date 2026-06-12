@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -61,7 +62,7 @@ async def query_stream(request: QueryRequest):
 
     async def event_generator():
         async for event in chain.astream(request.question):
-            yield {"event": event["type"], "data": str(event)}
+            yield {"event": event["type"], "data": json.dumps(event)}
 
     return EventSourceResponse(event_generator())
 

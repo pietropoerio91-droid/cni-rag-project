@@ -83,8 +83,10 @@ class RAGChain:
         return {"prompt": prompt}
 
     def _generate(self, state: RAGState) -> dict[str, Any]:
-        safe_prompt = self.pii_filter.filter(str(state["prompt"]))
-        response = self.response_generator.generate(state["prompt"])
+        filtered_prompt = []
+        for msg in state["prompt"]:
+            filtered_prompt.append({"role": msg["role"], "content": self.pii_filter.filter(msg["content"])})
+        response = self.response_generator.generate(filtered_prompt)
         self.monitor.log_event(state["trace_id"], "generate", {"response_length": len(response)})
         return {"response": response}
 
@@ -117,31 +119,23 @@ class RAGChain:
 
     async def astream(self, question: str):
         trace_id = self.monitor.start_trace()
-        initial_state: RAGState = {
-            "question": question,
-            "category": "",
-            "retrieved_docs": [],
-            "reranked_docs": [],
-            "prompt": [],
-            "response": "",
-            "citations": [],
-            "trace_id": trace_id,
-        }
 
         category = self.query_classifier.classify(question)
-        initial_state["category"] = category
-        initial_state["retrieved_docs"] = self.hybrid_retriever.retrieve(question)
-        initial_state["reranked_docs"] = self.reranker.rerank(question, initial_state["retrieved_docs"])
+        retrieved = self.hybrid_retriever.retrieve(question)
+        reranked = self.reranker.rerank(question, retrieved)
 
-        prompt = self.prompt_builder.build_stream_prompt(question, initial_state["reranked_docs"])
+        safe_question = self.pii_filter.filter(question)
 
-        yield {"type": "metadata", "category": category, "sources": initial_state["reranked_docs"]}
+        prompt = self.prompt_builder.build_stream_prompt(safe_question, reranked)
+
+        yield {"type": "metadata", "category": category, "sources": reranked}
 
         full_response = ""
         async for chunk in self.response_generator.astream_generate(prompt):
-            full_response += chunk
-            yield {"type": "chunk", "content": chunk}
+            safe_chunk = self.pii_filter.filter(chunk)
+            full_response += safe_chunk
+            yield {"type": "chunk", "content": safe_chunk}
 
-        citations = self.citation_builder.build(initial_state["reranked_docs"], full_response)
+        citations = self.citation_builder.build(reranked, full_response)
         self.monitor.end_trace(trace_id, {"response_length": len(full_response)})
         yield {"type": "done", "citations": citations, "trace_id": trace_id}

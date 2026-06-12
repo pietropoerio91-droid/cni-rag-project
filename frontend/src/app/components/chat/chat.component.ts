@@ -358,31 +358,27 @@ export class ChatComponent implements OnInit {
       timestamp: new Date(),
     };
     this.messages.push(userMsg);
+
+    const assistantMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+    this.messages.push(assistantMsg);
     this.isLoading = true;
 
     this.ragService.query({ question }).subscribe({
       next: (response) => {
-        const assistantMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: response.response,
-          citations: response.citations,
-          category: response.category,
-          timestamp: new Date(),
-        };
-        this.messages.push(assistantMsg);
+        assistantMsg.content = response.response;
+        assistantMsg.citations = response.citations;
+        assistantMsg.category = response.category;
         this.isLoading = false;
         this.scrollToBottom();
       },
       error: (err) => {
-        const errorMsg: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `❌ Errore: ${err.message}`,
-          error: true,
-          timestamp: new Date(),
-        };
-        this.messages.push(errorMsg);
+        assistantMsg.content = `❌ Errore: ${err.message}`;
+        assistantMsg.error = true;
         this.isLoading = false;
         this.scrollToBottom();
       },
