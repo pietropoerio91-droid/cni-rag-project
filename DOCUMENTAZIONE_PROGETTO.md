@@ -918,6 +918,33 @@ curl http://localhost:8000/api/v1/health
 
 ---
 
+---
+
+## Changelog Fix Applicati
+
+### 2024-06-12 — Fix post-generazione
+
+| # | Bug | File | Gravità |
+|---|---|---|---|
+| 1 | EventSourcePolyfill non emetteva eventi (XHR senza listener) | `frontend/src/app/services/rag.service.ts` | **CRITICAL** |
+| 2 | `safe_prompt` calcolato ma inutilizzato in `_generate` | `src/rag/rag_chain.py:85-87` | **HIGH** |
+| 3 | Nessun PII filtering nel path streaming `astream` | `src/rag/rag_chain.py:118-147` | **HIGH** |
+| 4 | `response` letta fuori dal `async with` context del client HTTP | `src/ingestion/crawler.py:48-67` | MEDIUM |
+| 5 | `sync for` in `async def` bloccava event loop in `astream_generate` | `src/inference/response_generator.py:23` | MEDIUM |
+| 6 | `str(event)` produceva Python repr non JSON-valido nello SSE | `src/api/routes.py:64` | MEDIUM |
+| 7 | Chat component aspettava risposta completa prima di mostrare messaggio | `frontend/src/app/components/chat/chat.component.ts` | LOW |
+
+**Fix applicati:**
+1. Sostituito EventSourcePolyfill con XHR `onprogress` che legge incrementalmente `responseText` e fa `JSON.parse` sulle linee `data:`
+2. `_generate` ora filtra ogni messaggio del prompt con `pii_filter.filter()` prima di inviarlo al LLM
+3. `astream` ora applica `pii_filter.filter()` su domanda e su ogni chunk della risposta
+4. L'intero blocco di elaborazione della response (`content_type`, `_process_html`, link extraction) ora è indentato dentro `async with`
+5. `astream_generate` usa `loop.run_in_executor(None, next, sync_gen)` per non bloccare l'event loop
+6. Streaming SSE ora usa `json.dumps(event)` invece di `str(event)`
+7. Il messaggio dell'assistant viene creato subito (vuoto) e popolato quando arriva la risposta
+
+---
+
 ## Riepilogo File Generati
 
 | Modulo | Files | Linee di codice |
