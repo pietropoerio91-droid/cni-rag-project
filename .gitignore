@@ -24,6 +24,10 @@ data/raw/
 data/processed/
 data/chunks/
 
+# Node
+node_modules/
+frontend/node_modules/
+
 # Logs
 *.log
 

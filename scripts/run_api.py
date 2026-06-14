@@ -35,6 +35,7 @@ def run_api(host: str, port: int, reload: bool):
         host=host,
         port=port,
         reload=reload,
+        reload_excludes=["*node_modules*", "*.git/*"],
         log_level="info",
     )
 
