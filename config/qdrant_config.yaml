@@ -1,0 +1,12 @@
+qdrant:
+  mode: local
+  path: ./data/qdrant_db
+  memory: false
+  collection_name: cni_documents
+  vectors:
+    size: 384
+    distance: Cosine
+  optimizers:
+    default_segment_number: 2
+    memmap_threshold_kb: 20000
+  on_disk: false
