@@ -8,5 +8,5 @@ qdrant:
     distance: Cosine
   optimizers:
     default_segment_number: 2
-    memmap_threshold_kb: 20000
+    memmap_threshold: 20000
   on_disk: false

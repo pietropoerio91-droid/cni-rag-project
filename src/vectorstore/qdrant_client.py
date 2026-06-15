@@ -51,12 +51,12 @@ class QdrantClientManager:
                 collection_name=self.collection_name,
                 vectors_config=VectorParams(
                     size=vectors_config.get("size", 384),
-                    distance=Distance[vectors_config.get("distance", "Cosine")],
+                    distance=Distance[vectors_config.get("distance", "Cosine").upper()],
                     on_disk=qdrant_config.get("on_disk", False),
                 ),
                 optimizers_config=OptimizersConfigDiff(
                     default_segment_number=opts_config.get("default_segment_number", 2),
-                    memmap_threshold_kb=opts_config.get("memmap_threshold_kb", 20000),
+                    memmap_threshold=opts_config.get("memmap_threshold", 20000),
                 ),
                 hnsw_config=HnswConfigDiff(m=16, ef_construct=100),
             )

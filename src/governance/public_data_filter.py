@@ -17,9 +17,8 @@ ALLOWED_CATEGORIES = {
 }
 
 DENIED_KEYWORDS = [
-    "password", "login", "credenziali", "username",
-    "riservato", "confidenziale", "segret",
-    "interno", "non-pubblico",
+    "credenziali",
+    "non-pubblico",
 ]
 
 
