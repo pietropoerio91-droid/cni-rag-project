@@ -52,7 +52,8 @@ async def query(request: QueryRequest):
             trace_id=result["trace_id"],
         )
     except Exception as e:
-        logger.error(f"Query error: {e}")
+        import traceback
+        logger.error(f"Query error: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

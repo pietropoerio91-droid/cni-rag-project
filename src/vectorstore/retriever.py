@@ -25,16 +25,16 @@ class VectorRetriever:
         k = top_k or self.top_k
         query_vector = self.embedding_model.embed_query(query)
 
-        search_result = self.client.search(
+        search_result = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=k,
             score_threshold=self.score_threshold,
             query_filter=filter_condition,
         )
 
         results = []
-        for scored_point in search_result:
+        for scored_point in search_result.points:
             results.append({
                 "content": scored_point.payload.get("content", ""),
                 "source": scored_point.payload.get("source", ""),
