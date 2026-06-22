@@ -31,7 +31,7 @@ console = Console()
 
 @click.command()
 @click.option("--crawl/--no-crawl", default=True, help="Run crawler before ingestion")
-@click.option("--max-pages", default=100, help="Maximum pages to crawl")
+@click.option("--max-pages", default=500, help="Maximum pages to crawl")
 @click.option("--input", "input_dir", default="data/raw", help="Input directory with raw documents")
 def run_ingestion(crawl: bool, max_pages: int, input_dir: str):
     """Process crawled documents: clean, chunk, embed, and index."""
@@ -63,13 +63,16 @@ def run_ingestion(crawl: bool, max_pages: int, input_dir: str):
     console.print("[yellow]Phase 2: Filtering and cleaning...[/yellow]")
     valid_docs = []
     for doc in documents:
-        if not public_filter.is_public(doc.get("url", ""), doc.get("content", "")):
+        url = doc.get("url", "")
+        if not public_filter.is_public(url, doc.get("content", "")):
+            logger.warning(f"Filtered by public_data_filter: {url}")
             continue
-        ok, _ = quality.check(doc.get("content", ""))
+        ok, issues = quality.check(doc.get("content", ""))
         if not ok:
+            logger.warning(f"Filtered by quality check for {url}: {issues}")
             continue
         doc["content"] = cleaner.clean(doc.get("content", ""))
-        doc["meta"]["category"] = public_filter.categorize(doc.get("url", ""), doc.get("content", ""))
+        doc["meta"]["category"] = public_filter.categorize(url, doc.get("content", ""))
         valid_docs.append(doc)
     console.print(f"[green]  Valid documents: {len(valid_docs)}[/green]")
 

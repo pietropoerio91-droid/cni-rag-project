@@ -2,6 +2,8 @@ import logging
 import uuid
 from typing import Any
 
+from qdrant_client.http.models import PointStruct
+
 from src.vectorstore.qdrant_client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
@@ -33,11 +35,11 @@ class VectorIndexer:
             if category:
                 payload["category"] = category
 
-            points.append({
-                "id": point_id,
-                "vector": embedding,
-                "payload": payload,
-            })
+            points.append(PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload=payload,
+            ))
 
         if points:
             self.client.upsert(

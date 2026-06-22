@@ -23,6 +23,11 @@ Thumbs.db
 data/raw/
 data/processed/
 data/chunks/
+data/qdrant_db/
+
+# Node
+node_modules/
+frontend/node_modules/
 
 # Logs
 *.log
@@ -32,3 +37,8 @@ data/chunks/
 
 # Docker
 *.pid
+
+# Angular cache
+.angular/cache/
+frontend/.angular/cache/
+
