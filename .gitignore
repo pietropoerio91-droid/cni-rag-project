@@ -38,3 +38,7 @@ frontend/node_modules/
 # Docker
 *.pid
 
+# Angular cache
+.angular/cache/
+frontend/.angular/cache/
+

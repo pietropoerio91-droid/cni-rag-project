@@ -1,6 +1,7 @@
 qdrant:
-  mode: local
-  path: ./data/qdrant_db
+  mode: docker
+  host: localhost
+  port: 6333
   memory: false
   collection_name: cni_documents
   vectors:

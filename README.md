@@ -34,7 +34,8 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 - **Frontend**: Angular 18
 - **LLM**: Llama 3.2 via LM Studio (locale)
 - **Embeddings**: all-MiniLM-L6-v2 (sentence-transformers)
-- **Vector Store**: Qdrant (locale/in-memory)
+- **Vector Store**: Qdrant (locale SQLite o Docker)
+- **Qdrant UI**: http://localhost:6333/dashboard (solo in modalità Docker)
 - **Orchestrator**: LangGraph
 - **Framework RAG**: LangChain
 
@@ -79,6 +80,7 @@ cni-rag-project/
 1. **Python 3.11+**
 2. **LM Studio** con modello Llama 3.2 (o compatibile) in esecuzione su `http://localhost:1234`
 3. **Node.js 20+** (per frontend Angular)
+4. **Docker** (opzionale, per Qdrant via Docker invece che locale)
 
 ## Setup Rapido
 
@@ -99,14 +101,26 @@ pip install -r requirements.txt
 cp .env.example .env
 # Modifica .env se necessario
 
-# 5. Avvia LM Studio con un modello Llama (es. llama-3.2-3b-instruct)
+# 5. (Opzionale) Avvia Qdrant via Docker (per UI e persistenza)
+docker-compose up -d qdrant
+# Poi imposta QDRANT_MODE=docker in .env
+# e configura config/qdrant_config.yaml con mode: docker
+
+# 6. Avvia LM Studio con un modello Llama (es. llama-3.2-3b-instruct)
 #    su http://localhost:1234
 
-# 6. (Opzionale) Esegui crawling e ingestion
-python scripts/run_ingestion.py
+# 7. (Opzionale) Crawling + Ingestion
+python scripts/run_ingestion.py          # Crawl + indicizzazione (completo)
+python scripts/run_ingestion.py --no-crawl  # Solo indicizzazione (se già crawlsito)
+python scripts/run_crawler.py               # Solo crawling
 
 # 7. Avvia API server
 python scripts/run_api.py
+
+# 9. Avvia frontend Angular
+cd frontend
+npm install
+ng serve
 ```
 
 ## API Endpoints
