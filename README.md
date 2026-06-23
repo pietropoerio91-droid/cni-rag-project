@@ -79,10 +79,23 @@ cni-rag-project/
 
 1. **Python 3.11+**
 2. **LM Studio** con modello Llama 3.2 (o compatibile) in esecuzione su `http://localhost:1234`
-3. **Node.js 20+** (per frontend Angular)
+   - In LM Studio, abilita **CORS** nelle impostazioni (sezione "Serve" → "Enable CORS")
+3. **Node.js 20+** e **Angular CLI** (`npm install -g @angular/cli`)
 4. **Docker** (opzionale, per Qdrant via Docker invece che locale)
 
 ## Setup Rapido
+
+> ⚠️ La prima indicizzazione può richiedere diversi minuti (crawling + embedding). Pazientare.
+
+### Unico comando (Windows)
+
+```powershell
+.\run.ps1
+```
+
+Attiva venv, installa dipendenze, fa ingestion se necessario, avvia API e frontend.
+
+### Passo per passo
 
 ```bash
 # 1. Clona il repo
@@ -99,22 +112,21 @@ pip install -r requirements.txt
 
 # 4. Configura ambiente
 cp .env.example .env
-# Modifica .env se necessario
+# Modifica .env se necessario (default: Qdrant locale, nessun Docker richiesto)
 
-# 5. (Opzionale) Avvia Qdrant via Docker (per UI e persistenza)
+# 5. (Opzionale) Avvia Qdrant via Docker (per UI dashboard)
 docker-compose up -d qdrant
 # Poi imposta QDRANT_MODE=docker in .env
-# e configura config/qdrant_config.yaml con mode: docker
 
 # 6. Avvia LM Studio con un modello Llama (es. llama-3.2-3b-instruct)
 #    su http://localhost:1234
 
 # 7. (Opzionale) Crawling + Ingestion
-python scripts/run_ingestion.py          # Crawl + indicizzazione (completo)
-python scripts/run_ingestion.py --no-crawl  # Solo indicizzazione (se già crawlsito)
-python scripts/run_crawler.py               # Solo crawling
+python scripts/run_ingestion.py              # Crawl + indicizzazione (completo)
+python scripts/run_ingestion.py --no-crawl   # Solo indicizzazione (se già crawlsito)
+python scripts/run_crawler.py                # Solo crawling
 
-# 7. Avvia API server
+# 8. Avvia API server
 python scripts/run_api.py
 
 # 9. Avvia frontend Angular
