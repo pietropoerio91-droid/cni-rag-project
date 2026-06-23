@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
@@ -12,11 +12,16 @@ import { ChatMessage } from '../../models/rag.models';
     <div class="chat-container">
       <div class="messages-area" #messagesArea>
         <div class="welcome" *ngIf="messages.length === 0">
-          <div class="welcome-icon">🏛️</div>
-          <h2>Consulta i dati pubblici del CNI</h2>
+          <h2>Benvenuto</h2>
           <p class="welcome-text">
-            Fai una domanda su normativa, organi, commissioni, formazione e altri dati pubblici
-            del Consiglio Nazionale degli Ingegneri.
+            Questo sistema consente la consultazione intelligente dei dati pubblici
+            del Consiglio Nazionale degli Ingegneri. I documenti presenti nel sito
+            <strong>www.cni.it</strong> sono stati indicizzati e sono interrogabili
+            tramite intelligenza artificiale.
+          </p>
+          <p class="welcome-text-secondary">
+            Puoi chiedere informazioni su normativa, organi istituzionali, commissioni,
+            formazione professionale, albo, servizi e documenti ufficiali.
           </p>
           <div class="suggestions">
             <button class="suggestion-chip" *ngFor="let s of suggestions" (click)="sendQuestion(s)">
@@ -69,15 +74,6 @@ import { ChatMessage } from '../../models/rag.models';
             </svg>
           </button>
         </div>
-        <div class="input-footer">
-          <button class="action-button" (click)="checkHealth()" title="Stato connessione">
-            <span class="status-led" [class.online]="apiOnline"></span>
-            {{ apiOnline ? 'API Online' : 'API Offline' }}
-          </button>
-          <button class="action-button" (click)="ingestData()" [disabled]="isLoading" title="Importa dati CNI">
-            📥 Indicizza Dati
-          </button>
-        </div>
       </div>
     </div>
   `,
@@ -101,10 +97,6 @@ import { ChatMessage } from '../../models/rag.models';
       max-width: 600px;
       margin: 0 auto;
     }
-    .welcome-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
     .welcome h2 {
       font-size: 22px;
       font-weight: 600;
@@ -115,6 +107,12 @@ import { ChatMessage } from '../../models/rag.models';
       color: var(--text-secondary);
       font-size: 15px;
       line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .welcome-text-secondary {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.6;
       margin-bottom: 32px;
     }
     .suggestions {
@@ -282,46 +280,12 @@ import { ChatMessage } from '../../models/rag.models';
       opacity: 0.4;
       cursor: not-allowed;
     }
-    .input-footer {
-      display: flex;
-      gap: 12px;
-      margin-top: 8px;
-      padding-left: 4px;
-    }
-    .action-button {
-      font-size: 12px;
-      color: var(--text-secondary);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      transition: background 0.2s;
-    }
-    .action-button:hover:not(:disabled) {
-      background: var(--bg);
-    }
-    .action-button:disabled {
-      opacity: 0.4;
-    }
-    .status-led {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--error);
-    }
-    .status-led.online {
-      background: var(--success);
-    }
   `]
 })
-export class ChatComponent implements OnInit {
-  @Output() apiStatusChange = new EventEmitter<boolean>();
-
+export class ChatComponent {
   messages: ChatMessage[] = [];
   currentQuestion = '';
   isLoading = false;
-  apiOnline = false;
 
   suggestions = [
     'Quali sono gli organi del CNI?',
@@ -331,10 +295,6 @@ export class ChatComponent implements OnInit {
   ];
 
   constructor(private ragService: RagService) {}
-
-  ngOnInit() {
-    this.checkHealth();
-  }
 
   onEnter(event: Event) {
     const keyboardEvent = event as KeyboardEvent;
@@ -385,40 +345,10 @@ export class ChatComponent implements OnInit {
     });
   }
 
-  checkHealth() {
-    this.ragService.health().subscribe({
-      next: (health) => {
-        this.apiOnline = health.llm_connected && health.status === 'ok';
-        this.apiStatusChange.emit(this.apiOnline);
-      },
-      error: () => {
-        this.apiOnline = false;
-        this.apiStatusChange.emit(false);
-      },
-    });
-  }
-
-  ingestData() {
-    this.isLoading = true;
-    const msg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '⏳ Avvio indicizzazione dati CNI...',
-      timestamp: new Date(),
-    };
-    this.messages.push(msg);
-
-    this.ragService.ingest().subscribe({
-      next: (response) => {
-        msg.content = `✅ Indicizzazione completata!\n\n- Documenti processati: ${response.documents_crawled}\n- Chunk indicizzati: ${response.chunks_indexed}\n- ${response.message}`;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        msg.content = `❌ Errore indicizzazione: ${err.message}`;
-        msg.error = true;
-        this.isLoading = false;
-      },
-    });
+  resetHome() {
+    this.messages = [];
+    this.currentQuestion = '';
+    this.isLoading = false;
   }
 
   private scrollToBottom() {
