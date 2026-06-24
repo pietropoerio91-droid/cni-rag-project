@@ -35,5 +35,6 @@ class HealthResponse(BaseModel):
 class IngestResponse(BaseModel):
     status: str
     documents_crawled: int
+    documents_total: int = 0
     chunks_indexed: int
     message: str

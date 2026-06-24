@@ -118,10 +118,19 @@ async def ingest():
 
         import asyncio
 
-        raw_docs = await crawler.crawl()
+        existing_docs = downloader.load_documents()
+
+        new_docs = await crawler.crawl()
+
+        seen_urls = {doc.get("url", "") for doc in existing_docs if doc.get("url")}
+        for doc in new_docs:
+            url = doc.get("url", "")
+            if url and url not in seen_urls:
+                existing_docs.append(doc)
+                seen_urls.add(url)
 
         processed_docs = []
-        for doc in raw_docs:
+        for doc in existing_docs:
             if not public_filter.is_public(doc.get("url", ""), doc.get("content", "")):
                 continue
             ok, _ = quality.check(doc.get("content", ""))
@@ -140,9 +149,10 @@ async def ingest():
 
         return IngestResponse(
             status="success",
-            documents_crawled=len(processed_docs),
+            documents_crawled=len(new_docs),
+            documents_total=len(processed_docs),
             chunks_indexed=indexed_count,
-            message=f"Crawled {len(processed_docs)} documents, indexed {indexed_count} chunks",
+            message=f"Crawled {len(new_docs)} new, indexed {len(processed_docs)} total docs ({indexed_count} chunks)",
         )
     except Exception as e:
         logger.error(f"Ingest error: {e}")
