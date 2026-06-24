@@ -118,6 +118,8 @@ async def ingest():
 
         import asyncio
 
+        indexer.clear_index()
+
         existing_docs = downloader.load_documents()
 
         new_docs = await crawler.crawl()

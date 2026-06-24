@@ -66,4 +66,4 @@ quality:
   max_content_length: 100000
   required_languages:
     - it
-  max_repetition_ratio: 0.3
+  max_repetition_ratio: 0.65
