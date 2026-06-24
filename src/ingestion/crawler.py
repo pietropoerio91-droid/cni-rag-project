@@ -17,12 +17,15 @@ class CNICrawler:
         config = ConfigLoader.get_rag_config()
         crawler_config = config.get("crawler", {})
         self.base_url = crawler_config.get("base_url", "https://www.cni.it")
-        self.max_depth = crawler_config.get("max_depth", 3)
-        self.max_pages = crawler_config.get("max_pages", 100)
-        self.delay = crawler_config.get("delay", 1.0)
+        self.max_depth = crawler_config.get("max_depth", 5)
+        self.max_pages = crawler_config.get("max_pages", 1000)
+        self.delay = crawler_config.get("delay", 0.3)
         self.timeout = crawler_config.get("timeout", 30)
         self.allowed_domains = crawler_config.get("allowed_domains", ["www.cni.it", "cni.it"])
         self.included_paths = crawler_config.get("included_paths", [])
+        self.priority_paths = crawler_config.get("priority_paths", ["/media-ing/"])
+        self.priority_max_depth = crawler_config.get("priority_max_depth", 8)
+        self.max_links_per_page = crawler_config.get("max_links_per_page", 100)
         self.visited: set[str] = set()
         self.results: list[dict[str, Any]] = []
         self._queue: asyncio.Queue = None
@@ -31,7 +34,12 @@ class CNICrawler:
     async def crawl(self) -> list[dict[str, Any]]:
         logger.info(f"Starting crawl of {self.base_url} (max depth: {self.max_depth}, max pages: {self.max_pages})")
         self._queue = asyncio.Queue()
-        await self._queue.put((self.base_url, 0))
+        await self._queue.put((self.base_url, 0, False))
+
+        for priority_path in self.priority_paths:
+            priority_url = urljoin(self.base_url, priority_path.lstrip("/"))
+            if priority_url not in self.visited:
+                await self._queue.put((priority_url, 0, True))
 
         workers = [asyncio.create_task(self._worker()) for _ in range(self._concurrency)]
         await self._queue.join()
@@ -45,14 +53,20 @@ class CNICrawler:
     async def _worker(self) -> None:
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
             while True:
-                url, depth = await self._queue.get()
+                url, depth, is_priority = await self._queue.get()
                 try:
-                    await self._process_url(client, url, depth)
+                    await self._process_url(client, url, depth, is_priority)
                 finally:
                     self._queue.task_done()
 
-    async def _process_url(self, client: httpx.AsyncClient, url: str, depth: int) -> None:
-        if depth > self.max_depth:
+    def _is_priority_path(self, url: str) -> bool:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/").lower()
+        return any(pp in path for pp in self.priority_paths)
+
+    async def _process_url(self, client: httpx.AsyncClient, url: str, depth: int, is_priority: bool = False) -> None:
+        effective_max_depth = self.priority_max_depth if (is_priority or self._is_priority_path(url)) else self.max_depth
+        if depth > effective_max_depth:
             return
         if len(self.visited) >= self.max_pages:
             return
@@ -62,7 +76,7 @@ class CNICrawler:
             return
 
         self.visited.add(url)
-        logger.info(f"Visiting [{len(self.visited)}/{self.max_pages}] {url} (depth {depth})")
+        logger.info(f"Visiting [{len(self.visited)}/{self.max_pages}] {url} (depth {depth}, max {effective_max_depth})")
 
         try:
             response = await client.get(url, headers=self._headers())
@@ -79,7 +93,8 @@ class CNICrawler:
                 links = self._extract_links(url, html)
                 for link in links:
                     await asyncio.sleep(self.delay)
-                    await self._queue.put((link, depth + 1))
+                    link_is_priority = is_priority or self._is_priority_path(link)
+                    await self._queue.put((link, depth + 1, link_is_priority))
 
             elif "application/pdf" in content_type:
                 pdf_data = self._process_pdf(url, response.content)
@@ -127,7 +142,7 @@ class CNICrawler:
         soup = BeautifulSoup(html, "lxml")
         links: list[str] = []
         for anchor in soup.find_all("a", href=True):
-            if len(links) >= 50:
+            if len(links) >= self.max_links_per_page:
                 break
             href = anchor["href"]
             full_url = urljoin(base_url, href)
@@ -136,6 +151,7 @@ class CNICrawler:
                 clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
                 if self._is_allowed(clean_url) and clean_url not in self.visited:
                     links.append(clean_url)
+        links.sort(key=lambda u: not self._is_priority_path(u))
         return links
 
     def _process_html(self, url: str, html: str) -> dict[str, Any] | None:
@@ -164,9 +180,16 @@ class CNICrawler:
             if name and content:
                 meta[name] = content
 
-        return {"url": url, "title": title, "content": text, "meta": meta}
+        return {
+            "url": url,
+            "title": title,
+            "content": text,
+            "raw_html": html,
+            "meta": meta,
+        }
 
     def _process_pdf(self, url: str, content: bytes) -> dict[str, Any] | None:
+        import base64
         import fitz
         try:
             doc = fitz.open(stream=content, filetype="pdf")
@@ -178,6 +201,7 @@ class CNICrawler:
                 "url": url,
                 "title": url.split("/")[-1],
                 "content": text,
+                "raw_pdf": base64.b64encode(content).decode("ascii"),
                 "meta": {"source": url, "type": "pdf"},
             }
         except Exception as e:

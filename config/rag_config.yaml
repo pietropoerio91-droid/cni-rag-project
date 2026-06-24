@@ -42,8 +42,8 @@ vector_store:
 
 crawler:
   base_url: https://www.cni.it
-  max_depth: 3
-  max_pages: 500
+  max_depth: 5
+  max_pages: 1000
   respect_robots_txt: true
   delay: 0.3
   timeout: 10
@@ -51,6 +51,14 @@ crawler:
     - www.cni.it
     - cni.it
   included_paths: []
+  priority_paths:
+    - /media-ing/news
+    - /media-ing/comunicati-stampa
+    - /media-ing/rassegna-stampa
+    - /media-ing/
+    - /cni
+  priority_max_depth: 8
+  max_links_per_page: 150
 
 quality:
   min_content_length: 50

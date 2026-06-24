@@ -31,7 +31,7 @@ console = Console()
 
 @click.command()
 @click.option("--crawl/--no-crawl", default=True, help="Run crawler before ingestion")
-@click.option("--max-pages", default=500, help="Maximum pages to crawl")
+@click.option("--max-pages", default=1000, help="Maximum pages to crawl")
 @click.option("--input", "input_dir", default="data/raw", help="Input directory with raw documents")
 def run_ingestion(crawl: bool, max_pages: int, input_dir: str):
     """Process crawled documents: clean, chunk, embed, and index."""
