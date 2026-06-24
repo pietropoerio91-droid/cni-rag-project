@@ -43,7 +43,8 @@ vector_store:
 crawler:
   base_url: https://www.cni.it
   max_depth: 5
-  max_pages: 1000
+  max_pages: 5000
+  focus_priority: true
   respect_robots_txt: true
   delay: 0.3
   timeout: 10

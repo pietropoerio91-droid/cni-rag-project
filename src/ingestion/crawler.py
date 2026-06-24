@@ -25,6 +25,7 @@ class CNICrawler:
         self.included_paths = crawler_config.get("included_paths", [])
         self.priority_paths = crawler_config.get("priority_paths", ["/media-ing/"])
         self.priority_max_depth = crawler_config.get("priority_max_depth", 8)
+        self.focus_priority = crawler_config.get("focus_priority", True)
         self.max_links_per_page = crawler_config.get("max_links_per_page", 100)
         self.visited: set[str] = set()
         self.results: list[dict[str, Any]] = []
@@ -90,7 +91,7 @@ class CNICrawler:
                 if page_data:
                     self.results.append(page_data)
 
-                links = self._extract_links(url, html)
+                links = self._extract_links(url, html, is_priority)
                 for link in links:
                     await asyncio.sleep(self.delay)
                     link_is_priority = is_priority or self._is_priority_path(link)
@@ -138,7 +139,7 @@ class CNICrawler:
                 return False
         return True
 
-    def _extract_links(self, base_url: str, html: str) -> list[str]:
+    def _extract_links(self, base_url: str, html: str, on_priority_page: bool = False) -> list[str]:
         soup = BeautifulSoup(html, "lxml")
         links: list[str] = []
         for anchor in soup.find_all("a", href=True):
@@ -147,12 +148,25 @@ class CNICrawler:
             href = anchor["href"]
             full_url = urljoin(base_url, href)
             parsed = urlparse(full_url)
-            if parsed.scheme in ("http", "https") and not parsed.fragment:
-                clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/")
-                if self._is_allowed(clean_url) and clean_url not in self.visited:
-                    links.append(clean_url)
+            if parsed.scheme not in ("http", "https") or parsed.fragment:
+                continue
+            clean_url = self._normalize_url(full_url)
+            if not self._is_allowed(clean_url) or clean_url in self.visited:
+                continue
+            if self.focus_priority and on_priority_page and not self._is_priority_path(clean_url):
+                continue
+            links.append(clean_url)
         links.sort(key=lambda u: not self._is_priority_path(u))
         return links
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/")
+        query = parsed.query
+        if not query:
+            return f"{parsed.scheme}://{parsed.netloc}{path}"
+        return f"{parsed.scheme}://{parsed.netloc}{path}?{query}"
 
     def _process_html(self, url: str, html: str) -> dict[str, Any] | None:
         soup = BeautifulSoup(html, "lxml")
