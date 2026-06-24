@@ -60,10 +60,18 @@ class CNICrawler:
                 finally:
                     self._queue.task_done()
 
+    @staticmethod
+    def _current_year() -> str:
+        from datetime import date
+        return str(date.today().year)
+
     def _is_priority_path(self, url: str) -> bool:
         parsed = urlparse(url)
         path = parsed.path.rstrip("/").lower()
         return any(pp in path for pp in self.priority_paths)
+
+    def _is_current_year_url(self, url: str) -> bool:
+        return self._current_year() in url
 
     async def _process_url(self, client: httpx.AsyncClient, url: str, depth: int, is_priority: bool = False) -> None:
         effective_max_depth = self.priority_max_depth if (is_priority or self._is_priority_path(url)) else self.max_depth
@@ -156,7 +164,10 @@ class CNICrawler:
             if self.focus_priority and on_priority_page and not self._is_priority_path(clean_url):
                 continue
             links.append(clean_url)
-        links.sort(key=lambda u: not self._is_priority_path(u))
+        links.sort(key=lambda u: (
+            not self._is_priority_path(u),
+            not self._is_current_year_url(u),
+        ))
         return links
 
     @staticmethod
