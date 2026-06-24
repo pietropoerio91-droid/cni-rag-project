@@ -124,7 +124,7 @@ class CNICrawler:
         ".woff", ".woff2", ".ttf", ".eot",
     }
 
-    DENIED_PATTERNS = ["/wp-admin", "/wp-json", "/wp-login", "/xmlrpc", "/feed/"]
+    DENIED_PATTERNS = ["/administrator", "/wp-admin", "/wp-json", "/wp-login", "/xmlrpc"]
 
     def _is_allowed(self, url: str) -> bool:
         parsed = urlparse(url)
