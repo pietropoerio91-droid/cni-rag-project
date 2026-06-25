@@ -32,8 +32,9 @@ console = Console()
 @click.command()
 @click.option("--crawl/--no-crawl", default=True, help="Run crawler before ingestion")
 @click.option("--max-pages", default=1000, help="Maximum pages to crawl")
+@click.option("--clear/--no-clear", default=False, help="Clear existing index before ingestion")
 @click.option("--input", "input_dir", default="data/raw", help="Input directory with raw documents")
-def run_ingestion(crawl: bool, max_pages: int, input_dir: str):
+def run_ingestion(crawl: bool, max_pages: int, clear: bool, input_dir: str):
     """Process crawled documents: clean, chunk, embed, and index."""
     setup_logging()
     logger = logging.getLogger(__name__)
@@ -75,6 +76,12 @@ def run_ingestion(crawl: bool, max_pages: int, input_dir: str):
         doc["meta"]["category"] = public_filter.categorize(url, doc.get("content", ""))
         valid_docs.append(doc)
     console.print(f"[green]  Valid documents: {len(valid_docs)}[/green]")
+
+    if clear:
+        console.print("[yellow]Clearing existing index...[/yellow]")
+        indexer = VectorIndexer()
+        indexer.clear_index()
+        console.print("[green]  Index cleared[/green]")
 
     console.print("[yellow]Phase 3: Chunking...[/yellow]")
     chunker = DocumentChunker()
