@@ -1,5 +1,5 @@
 qdrant:
-  mode: docker
+  mode: local
   host: localhost
   port: 6333
   memory: false
