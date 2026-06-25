@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse } from '../models/rag.models';
+import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
@@ -68,6 +68,26 @@ export class RagService {
 
   ingest(): Observable<IngestResponse> {
     return this.http.post<IngestResponse>(`${this.apiUrl}/ingest`, {}).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  getQdrantStats(): Observable<QdrantStatsResponse> {
+    return this.http.get<QdrantStatsResponse>(`${this.apiUrl}/qdrant/stats`).pipe(
+      catchError(() => throwError(() => new Error('Qdrant non raggiungibile')))
+    );
+  }
+
+  getQdrantAnalytics(): Observable<QdrantAnalyticsResponse> {
+    return this.http.get<QdrantAnalyticsResponse>(`${this.apiUrl}/qdrant/analytics`).pipe(
+      catchError(() => throwError(() => new Error('Analytics non disponibili')))
+    );
+  }
+
+  getQdrantDocuments(offset = 0, limit = 20, search?: string): Observable<QdrantDocumentsResponse> {
+    let params = `?offset=${offset}&limit=${limit}`;
+    if (search) params += `&search=${encodeURIComponent(search)}`;
+    return this.http.get<QdrantDocumentsResponse>(`${this.apiUrl}/qdrant/documents${params}`).pipe(
       catchError(this.handleError)
     );
   }

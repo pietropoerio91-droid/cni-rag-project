@@ -18,7 +18,7 @@ class ModelFactory:
         config = ConfigLoader.get_rag_config()
         emb_config = config.get("embedding", {})
 
-        model_name = os.getenv("EMBEDDING_MODEL") or emb_config.get("model_name", "all-MiniLM-L6-v2")
+        model_name = os.getenv("EMBEDDING_MODEL") or emb_config.get("model_name", "paraphrase-multilingual-MiniLM-L12-v2")
         device = os.getenv("EMBEDDING_DEVICE") or emb_config.get("device", "cpu")
 
         logger.info(f"Loading embedding model: {model_name} on {device}")

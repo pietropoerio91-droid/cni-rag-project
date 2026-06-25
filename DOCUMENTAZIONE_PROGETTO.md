@@ -70,9 +70,9 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 |---|---|---|
 | Backend | Python 3.11+ + FastAPI | API server |
 | Frontend | Angular 18 | Interfaccia utente |
-| LLM | Llama 3.2 / Mistral 7B / Qwen 2.5 via LM Studio | Generazione risposte |
-| Embeddings | paraphrase-multilingual-MiniLM-L12-v2 | Vettorizzazione testo multilingua |
-| Vector Store | Qdrant (Docker) | Database vettoriale |
+| LLM | via LM Studio (es. Llama 3.2 3B, Mistral 7B, Qwen 2.5 7B) | Generazione risposte |
+| Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) | Vettorizzazione testo multilingua |
+| Vector Store | Qdrant (Docker, `localhost:6333`) | Database vettoriale |
 | Orchestratore | LangGraph | Pipeline RAG |
 | Framework RAG | LangChain | Chunking, prompt |
 | Documenti | httpx + BeautifulSoup + trafilatura | Crawling e parsing |
@@ -216,7 +216,7 @@ Factory pattern per creare modelli LLM e di embedding.
 
 **Classi:**
 - `ModelFactory` — metodi statici:
-  - `create_embeddings()` → HuggingFaceEmbeddings (all-MiniLM-L6-v2)
+  - `create_embeddings()` → HuggingFaceEmbeddings (legge `EMBEDDING_MODEL` da `.env` o `rag_config.yaml`)
   - `create_llm()` → LLM da LM Studio (ChatOpenAI) o LlamaCpp
 
 **Provider supportati:**
@@ -261,7 +261,7 @@ Verifica la qualità del contenuto testuale.
 **Controlli:**
 - Lunghezza minima (default: 50 caratteri)
 - Lunghezza massima (default: 100000 caratteri)
-- Repetition ratio (default: max 0.3)
+- Repetition ratio (default: max 0.65)
 - Lingua richiesta (default: italiano)
 
 ### `src/governance/monitoring.py`
@@ -283,11 +283,11 @@ Crawler asincrono del sito CNI basato su `httpx` + `BeautifulSoup`.
 
 **Configurazione** (da `rag_config.yaml`):
 - `base_url`: https://www.cni.it
-- `max_depth`: 3 livelli
-- `max_pages`: 100 pagine
-- `delay`: 1 secondo tra richieste
+- `max_depth`: 5 livelli
+- `max_pages`: 5000 pagine
+- `delay`: 0.3 secondi tra richieste
+- `max_links_per_page`: 150
 - `allowed_domains`: www.cni.it, cni.it
-- `included_paths`: /chi-siamo, /organi, /commissioni, ecc.
 
 **Flusso:**
 1. GET della pagina HTML
@@ -336,8 +336,8 @@ Pulisce il testo da boilerplate.
 Suddivide documenti in chunk usando `RecursiveCharacterTextSplitter` di LangChain.
 
 **Configurazione** (da `rag_config.yaml`):
-- `chunk_size`: 512 caratteri
-- `chunk_overlap`: 64 caratteri
+- `chunk_size`: 1500 caratteri
+- `chunk_overlap`: 200 caratteri
 - `separators`: ["\n\n", "\n", ".", " ", ""]
 
 **Output chunk:** `{content, metadata: {source, title, chunk_index, total_chunks}}`
@@ -360,8 +360,8 @@ Genera embeddings vettoriali usando `sentence-transformers`.
 Gestisce connessione a Qdrant (locale o remoto).
 
 **Modalità:**
-- `local` → salva su `./data/qdrant_db`
-- `remote` → connessione a host:port
+- `docker` → connessione a `localhost:6333` (container Qdrant)
+- `local` → salva su `./data/qdrant_db` (file-based, senza Docker)
 
 **All'avvio:**
 1. Crea directory se locale
@@ -388,8 +388,8 @@ Recupera documenti simili da Qdrant.
 - `hybrid_retrieve(query, top_k)` → alias
 
 **Configurazione:**
-- `top_k`: 5
-- `score_threshold`: 0.5
+- `top_k`: 20
+- `score_threshold`: 0.3
 
 ---
 
@@ -426,11 +426,11 @@ Combina classificazione query + retrieval vettoriale.
 Riordina i risultati retrieved usando un cross-encoder.
 
 **Configurazione:**
-- `enabled`: true
-- `top_k`: 3
+- `enabled`: false (disabilitato perché il cross-encoder è allenato su inglese, degrada la qualità su italiano)
+- `top_k`: 10 (usa lo score vettoriale diretto)
 - `model`: cross-encoder/ms-marco-MiniLM-L-6-v2
 
-**Fallback:** Se cross-encoder non disponibile, ordina per score vettoriale.
+**Quando abilitato:** Se cross-encoder non disponibile, ordina per score vettoriale.
 
 ### `src/rag/prompt_builder.py` — `PromptBuilder`
 
@@ -537,7 +537,7 @@ Costruisce citazioni dai documenti usati per generare la risposta.
 - `QueryResponse`: `{response, citations[], category, trace_id}`
 - `CitationResponse`: `{title, source, relevance_score, excerpt}`
 - `HealthResponse`: `{status, version, documents_indexed, llm_connected}`
-- `IngestResponse`: `{status, documents_crawled, chunks_indexed, message}`
+- `IngestResponse`: `{status, documents_crawled, documents_total, chunks_indexed, message}`
 - `ErrorResponse`: `{detail, code}`
 
 ### `src/api/routes.py` — FastAPI Router
@@ -550,6 +550,10 @@ Costruisce citazioni dai documenti usati per generare la risposta.
 | POST | `/api/v1/query/stream` | Query in streaming SSE |
 | GET | `/api/v1/health` | Stato del sistema |
 | POST | `/api/v1/ingest` | Crawl e indicizzazione |
+| GET | `/api/v1/qdrant/stats` | Statistiche collezione Qdrant |
+| GET | `/api/v1/qdrant/documents` | Documenti indicizzati (paginazione + ricerca) |
+| GET | `/api/v1/qdrant/documents/{id}` | Dettaglio documento |
+| GET | `/qdrant` | Pagina HTML Qdrant Browser |
 
 **Dettaglio endpoint:**
 
@@ -608,7 +612,8 @@ Pipeline completa di ingestion.
 
 **Opzioni CLI:**
 - `--crawl/--no-crawl` (default: crawl)
-- `--max-pages` (default: 100)
+- `--max-pages` (default: 1000)
+- `--clear/--no-clear` (default: no-clear) — cancella l'indice prima di re-indicizzare
 - `--input` (default: data/raw)
 
 **Fasi:**
@@ -800,8 +805,8 @@ Variabili d'ambiente:
 ```
 LM_STUDIO_BASE_URL=http://localhost:1234/v1
 LLM_MODEL=llama-3.2-3b-instruct
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-QDRANT_MODE=local
+EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
+QDRANT_MODE=docker
 QDRANT_PATH=./data/qdrant_db
 API_PORT=8000
 API_CORS_ORIGINS=http://localhost:4200

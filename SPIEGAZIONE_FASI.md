@@ -79,7 +79,7 @@ Il file `.env` è caricato automaticamente all'import tramite `load_dotenv()`.
 
 Factory pattern per creare i due modelli principali:
 
-1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `all-MiniLM-L6-v2`. Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Può eseguire su CPU o GPU.
+1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `paraphrase-multilingual-MiniLM-L12-v2`. Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Può eseguire su CPU o GPU.
 
 2. **LLM**: supporta due provider:
    - **LM Studio** (default): si connette a `http://localhost:1234/v1` via `ChatOpenAI` di LangChain, usando la stessa API di OpenAI. I parametri (temperature=0.2, max_tokens=2048, top_p=0.95) sono pensati per risposte coerenti e deterministiche.
@@ -166,7 +166,7 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 
 1. **Lunghezza minima** (default 50 caratteri): scarta pagine troppo corte (es. redirect, pagine vuote)
 2. **Lunghezza massima** (default 100000 caratteri): evita documenti anomali
-3. **Repetition Ratio**: calcola `1 - (parole_univoche / parole_totali)`. Se > 0.3 (30% di parole ripetute), scarta. Questo cattura pagine con boilerplate estremo o contenuti generati.
+3. **Repetition Ratio**: calcola `1 - (parole_univoche / parole_totali)`. Se > 0.65 (65% di parole ripetute), scarta. Questo cattura pagine con boilerplate estremo o contenuti generati.
 4. **Lingua**: il campo `required_languages: ["it"]` è configurato ma non implementato attivamente (potenziale miglioramento).
 
 **Perché:** Il crawler può raccogliere pagine di bassa qualità, pagine di errore, o pagine con contenuti duplicati. Vogliamo solo testi informativi di qualità.
@@ -266,9 +266,9 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 ```
 
 **Perché:**
-- I modelli di embedding lavorano meglio su testi brevi (512 caratteri è ideale per MiniLM)
-- L'overlap (64 caratteri = ~12.5%) evita di tagliare frasi o concetti a metà
-- Il retrieval su chunk piccoli è più preciso: cerca nel paragrafo giusto, non nell'intero documento
+- Chunk da 1500 caratteri danno abbastanza contesto al LLM per capire il documento
+- L'overlap (200 caratteri = ~13%) evita di tagliare frasi o concetti a metà
+- Il retrieval su chunk è più preciso: cerca nel paragrafo giusto, non nell'intero documento
 - I separatori ricorsivi garantiscono che ogni chunk sia quanto più semanticamente coerente possibile
 
 ---
@@ -295,10 +295,10 @@ generate_batch(texts) -> list[list[float]]  # batch embedding
 process_chunks(chunks) -> chunks        # aggiunge campo "embedding" a ogni chunk
 ```
 
-**Perché `all-MiniLM-L6-v2`?**
-- Efficiente (6 layer, modello piccolo): gira su CPU in pochi ms
-- 384 dimensioni è un buon compromesso tra accuratezza e velocità
-- Supporta italiano bene (addestrato su dati multilingua)
+**Perché `paraphrase-multilingual-MiniLM-L12-v2`?**
+- 12 layer (vs 6 del precedente `all-MiniLM-L6-v2`): più accurato
+- Multilingua: supporta italiano nativamente (il precedente era solo inglese)
+- 384 dimensioni: buon compromesso tra accuratezza e velocità
 - Normalizzato: permette similarità coseno via dot product
 
 **Cosa NON usiamo:** Non usiamo modelli più grandi come `text-embedding-3-large` (OpenAI) perché vogliamo mantenere tutto locale, senza API esterne.
@@ -411,11 +411,11 @@ CATEGORIES = {
 3. Chiama `VectorRetriever.retrieve()` con il filtro
 
 **Passo 2 — VectorRetriever.retrieve():**
-1. **Embedding della query:** converte la domanda in un vettore di 384 dimensioni usando lo stesso modello `all-MiniLM-L6-v2`
+1. **Embedding della query:** converte la domanda in un vettore di 384 dimensioni usando lo stesso modello di embedding
 2. **Ricerca in Qdrant:** chiama `client.query_points()` con:
    - `query`: il vettore della domanda
-   - `limit`: `top_k` (default 5)
-   - `score_threshold`: 0.5 (scarta risultati con similarità < 0.5)
+    - `limit`: `top_k` (default 20)
+    - `score_threshold`: 0.3 (scarta risultati con similarità < 0.3)
    - `query_filter`: filtro per categoria (se presente)
 
 3. **Calcolo similarità:** Qdrant usa la **distanza coseno**:
@@ -446,7 +446,7 @@ CATEGORIES = {
 
 Non è un vero hybrid search BM25 + vettoriale (non implementiamo sparse retrieval), ma l'approccio è comunque efficace perché restringe il dominio prima della ricerca semantica.
 
-**Perché score_threshold = 0.5?** Per evitare di restituire documenti non pertinenti. Se nessun documento supera 0.5, la risposta sarà basata solo sul prompt system, e il LLM dirà di non avere informazioni sufficienti.
+**Perché score_threshold = 0.3?** Per evitare di escludere documenti rilevanti con similarità moderata. Con embedding multilingua, documenti italiani validi possono avere score tra 0.3 e 0.5. Una soglia a 0.5 li escludeva ingiustamente.
 
 ---
 
@@ -455,26 +455,22 @@ Non è un vero hybrid search BM25 + vettoriale (non implementiamo sparse retriev
 ### File: `src/rag/reranker.py`
 **Classe:** `Reranker`
 
-**Cosa facciamo:** Riordiniamo i risultati del retrieval usando un modello più preciso per migliorare la qualità.
+**Cosa facciamo:** Riordiniamo i risultati del retrieval per tenere solo i migliori.
 
-**Problema:** Il retrieval vettoriale con MiniLM è veloce ma approssimativo. Calcola la similarità tra la query e ogni chunk in modo indipendente, ma non considera la **relazione incrociata** tra query e chunk.
+**Stato attuale:** Il reranker è **disabilitato** (`enabled: false`) perché il cross-encoder disponibile (`ms-marco-MiniLM-L-6-v2`) è allenato su query inglesi. Applicato a documenti italiani, degrada la qualità invece di migliorarla. Usiamo direttamente lo score di similarità coseno del retrieval vettoriale, più affidabile per testi italiani.
 
-**Soluzione:** Usiamo un **cross-encoder**: `cross-encoder/ms-marco-MiniLM-L-6-v2`.
-
-**Come funziona un cross-encoder?**
-- Invece di codificare separatamente query e documento (come fa il bi-encoder MiniLM), il cross-encoder prende la **coppia** (query, documento) in un unico forward pass
+**Come funzionerebbe (se abilitato):**
+- Invece di codificare separatamente query e documento (come fa il bi-encoder), il cross-encoder prende la **coppia** (query, documento) in un unico forward pass
 - Calcola un punteggio di rilevanza diretto, più accurato
-- Svantaggio: è più lento (O(n) per n documenti, mentre il bi-encoder è O(1) per la query + O(n) per similarità vettoriale)
+- Svantaggio: è più lento (O(n) per n documenti)
 
-**Processo:**
+**Processo (se abilitato):**
 1. Per ogni documento retrieved, crea una coppia `(query, content)`
 2. Il cross-encoder predice un punteggio per ogni coppia
 3. Ordina i documenti per punteggio decrescente
-4. Mantiene solo i top `top_k` (default 3)
+4. Mantiene solo i top `top_k` (default 10)
 
-**Fallback:** Se il cross-encoder non è disponibile (errore di caricamento), ordina per score vettoriale.
-
-**Perché:** Migliora la precisione. Dei 5 documenti retrieved, solo i 3 più pertinenti passano al LLM. Questo riduce il rumore nel contesto e migliora la qualità della risposta.
+**Perché disabilitato:** Il cross-encoder inglese su testi italiani produce punteggi inaffidabili. Meglio usare lo score vettoriale diretto.
 
 ---
 
@@ -785,13 +781,13 @@ Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
 
 | Aspetto | Valore | Perché |
 |---------|--------|--------|
-| Dimensione embedding | 384 | MiniLM L6 - bilancia accuracy/velocità |
+| Dimensione embedding | 384 | Multilingual MiniLM L12 - bilancia accuracy/velocità |
 | Similarità | Coseno | Standard per embedding normalizzati |
-| chunk_size | 512 | Ideale per MiniLM, cattura paragrafi |
-| chunk_overlap | 64 (12.5%) | Evita tagli netti nel testo |
-| top_k retrieval | 5 | Abbastanza contesto senza eccedere |
-| top_k reranker | 3 | Solo i più pertinenti al LLM |
-| score_threshold | 0.5 | Filtra rumore |
+| chunk_size | 1500 | Più contesto per il LLM, chunk più significativi |
+| chunk_overlap | 200 (13%) | Evita tagli netti nel testo |
+| top_k retrieval | 20 | Recupera più documenti, il LLM seleziona |
+| reranker | disabilitato | Cross-encoder inglese danneggia testi italiani |
+| score_threshold | 0.3 | Soglia più bassa per non perdere documenti rilevanti |
 | Temperature LLM | 0.2 | Risposte fattuali e precise |
-| Max pagine crawl | 500 | Copertura ragionevole del sito CNI |
-| Profondità crawl | 3 | Homepage → sezioni → sottosezioni |
+| Max pagine crawl | 5000 | Copertura completa del sito CNI |
+| Profondità crawl | 5 | Homepage → sezioni → sottosezioni → pagine |

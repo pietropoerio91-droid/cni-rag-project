@@ -1,4 +1,5 @@
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -84,6 +85,63 @@ async def qdrant_documents(
                     d[k] = v
             docs.append(d)
         return {"documents": docs, "offset": next_offset or 0, "total": None}
+
+
+@router.get("/analytics")
+async def qdrant_analytics(mgr: QdrantClientManager = Depends(get_qdrant_manager)):
+    client = mgr.get_client()
+    categories: Counter = Counter()
+    sources: Counter = Counter()
+    content_lengths: list[int] = []
+
+    next_offset = 0
+    limit = 200
+    while True:
+        points, next_offset = client.scroll(
+            collection_name=mgr.collection_name,
+            limit=limit,
+            offset=next_offset,
+            with_payload=True,
+        )
+        if not points:
+            break
+        for pt in points:
+            payload = pt.payload or {}
+            cat = payload.get("category", "unknown")
+            categories[cat] += 1
+            src = payload.get("source", "unknown")
+            sources[src] += 1
+            content = payload.get("content", "")
+            content_lengths.append(len(content))
+        if next_offset is None or next_offset == 0:
+            break
+
+    total = len(content_lengths)
+    avg_len = round(sum(content_lengths) / total, 1) if total else 0
+
+    import statistics
+    len_buckets = {
+        "0-500": 0, "500-1000": 0, "1000-1500": 0,
+        "1500-2000": 0, "2000-3000": 0, "3000+": 0,
+    }
+    for cl in content_lengths:
+        if cl <= 500: len_buckets["0-500"] += 1
+        elif cl <= 1000: len_buckets["500-1000"] += 1
+        elif cl <= 1500: len_buckets["1000-1500"] += 1
+        elif cl <= 2000: len_buckets["1500-2000"] += 1
+        elif cl <= 3000: len_buckets["2000-3000"] += 1
+        else: len_buckets["3000+"] += 1
+
+    top_sources = sources.most_common(10)
+
+    return {
+        "total_documents": total,
+        "avg_content_length": avg_len,
+        "median_content_length": round(statistics.median(content_lengths), 1) if total else 0,
+        "categories": dict(categories.most_common()),
+        "content_length_buckets": len_buckets,
+        "top_sources": [{"name": s, "count": c} for s, c in top_sources],
+    }
 
 
 @router.get("/documents/{point_id}")

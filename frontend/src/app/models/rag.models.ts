@@ -45,3 +45,37 @@ export interface StreamEvent {
   type: string;
   data: string;
 }
+
+export interface QdrantStatsResponse {
+  collection: string;
+  mode: string;
+  points_count: number;
+  vectors_count: number;
+}
+
+export interface QdrantDocument {
+  id: string;
+  score: number;
+  title?: string;
+  source?: string;
+  category?: string;
+  content?: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
+export interface QdrantDocumentsResponse {
+  documents: QdrantDocument[];
+  offset?: number;
+  total?: number | null;
+  search?: string;
+}
+
+export interface QdrantAnalyticsResponse {
+  total_documents: number;
+  avg_content_length: number;
+  median_content_length: number;
+  categories: Record<string, number>;
+  content_length_buckets: Record<string, number>;
+  top_sources: { name: string; count: number }[];
+}

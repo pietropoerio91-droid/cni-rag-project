@@ -1,12 +1,12 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ChatComponent } from './components/chat/chat.component';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { RagService } from './services/rag.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ChatComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   template: `
     <div class="app-layout">
       <header class="app-header">
@@ -17,6 +17,10 @@ import { RagService } from './services/rag.service';
               <span class="brand-subtitle">Consultazione dati pubblici</span>
             </div>
           </div>
+          <nav class="nav-links">
+            <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" (click)="goHome()">Chat</a>
+            <a class="nav-link" routerLink="/statistiche" routerLinkActive="active">Statistiche</a>
+          </nav>
           <div class="header-actions">
             <div class="dropdown" #dropdown>
               <button class="icon-btn" (click)="toggleMenu()" title="Impostazioni">
@@ -64,7 +68,7 @@ import { RagService } from './services/rag.service';
         </div>
       </header>
       <main class="app-main">
-        <app-chat></app-chat>
+        <router-outlet></router-outlet>
       </main>
     </div>
   `,
@@ -90,6 +94,27 @@ import { RagService } from './services/rag.service';
       align-items: center;
       gap: 12px;
       height: 60px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .nav-link {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-link:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+    .nav-link.active {
+      background: var(--primary-light);
+      color: var(--primary);
     }
     .icon-btn {
       width: 36px;
@@ -227,13 +252,11 @@ import { RagService } from './services/rag.service';
     }
     .app-main {
       flex: 1;
-      overflow: hidden;
+      overflow-y: auto;
     }
   `]
 })
 export class AppComponent implements OnInit {
-  @ViewChild(ChatComponent) chatComponent!: ChatComponent;
-
   apiConnected = false;
   documentsIndexed = 0;
   lastIndexingDate: Date | null = null;
@@ -241,10 +264,10 @@ export class AppComponent implements OnInit {
   menuOpen = false;
   isIngesting = false;
 
-  constructor(private ragService: RagService) {}
+  constructor(private ragService: RagService, private router: Router) {}
 
   goHome() {
-    this.chatComponent?.resetHome();
+    this.router.navigate(['/']);
   }
 
   ngOnInit() {

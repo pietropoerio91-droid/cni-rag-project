@@ -5,10 +5,11 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 ## Architettura
 
 ```
-┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  Crawler    │───>│   Cleaner    │───>│   Chunker    │───>│  Embedder    │
-│  (httpx+BS) │    │  (trafilatura)│   │  (langchain) │    │ (MiniLM-L6)  │
-└─────────────┘    └──────────────┘    └──────────────┘    └──────┬───────┘
+┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐
+│  Crawler    │───>│   Cleaner    │───>│   Chunker    │───>│  Embedder        │
+│  (httpx+BS) │    │  (trafilatura)│   │  (langchain) │    │  (multilingual)  │
+│             │    │              │    │  (1500 char)  │    │  (384-dim)       │
+└─────────────┘    └──────────────┘    └──────────────┘    └────────┬─────────┘
                                                                    │
                                                          ┌─────────▼────────┐
                                                          │  Qdrant Vector   │
@@ -32,9 +33,9 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 
 - **Backend**: Python + FastAPI
 - **Frontend**: Angular 18
-- **LLM**: Llama 3.2 / Mistral 7B / Qwen 2.5 via LM Studio (locale)
-- **Embeddings**: paraphrase-multilingual-MiniLM-L12-v2 (sentence-transformers, multilingua)
-- **Vector Store**: Qdrant (Docker)
+- **LLM**: via LM Studio (locale) — es. Llama 3.2 3B, Mistral 7B, Qwen 2.5 7B
+- **Embeddings**: `paraphrase-multilingual-MiniLM-L12-v2` (sentence-transformers, 384-dim, multilingua)
+- **Vector Store**: Qdrant (Docker, container su `localhost:6333`)
 - **Qdrant UI**: http://localhost:6333/dashboard
 - **Orchestrator**: LangGraph
 - **Framework RAG**: LangChain
@@ -95,6 +96,12 @@ cni-rag-project/
 
 Attiva venv, installa dipendenze, fa ingestion se necessario, avvia API e frontend.
 
+### Con un comando
+
+```powershell
+.\run.ps1              # Avvia tutto (API + frontend)
+```
+
 ### Passo per passo
 
 ```bash
@@ -110,26 +117,19 @@ python -m venv .venv
 # 3. Installa dipendenze
 pip install -r requirements.txt
 
-# 4. Configura ambiente
-cp .env.example .env
-# Modifica .env se necessario (default: Qdrant locale, nessun Docker richiesto)
+# 4. Avvia Qdrant (Docker)
+docker compose up -d qdrant
 
-# 5. (Opzionale) Avvia Qdrant via Docker (per UI dashboard)
-docker-compose up -d qdrant
-# Poi imposta QDRANT_MODE=docker in .env
+# 5. Avvia LM Studio con un modello LLM su http://localhost:1234
 
-# 6. Avvia LM Studio con un modello Llama (es. llama-3.2-3b-instruct)
-#    su http://localhost:1234
+# 6. Ingestion (prima volta)
+python scripts/run_ingestion.py                     # Crawl + indicizzazione
+python scripts/run_ingestion.py --no-crawl --clear  # Re-indicizza senza crawl
 
-# 7. (Opzionale) Crawling + Ingestion
-python scripts/run_ingestion.py              # Crawl + indicizzazione (completo)
-python scripts/run_ingestion.py --no-crawl   # Solo indicizzazione (se già crawlsito)
-python scripts/run_crawler.py                # Solo crawling
-
-# 8. Avvia API server
+# 7. Avvia API server
 python scripts/run_api.py
 
-# 9. Avvia frontend Angular
+# 8. Avvia frontend Angular
 cd frontend
 npm install
 ng serve
@@ -143,6 +143,9 @@ ng serve
 | `/api/v1/query/stream` | POST | Query in streaming SSE |
 | `/api/v1/ingest` | POST | Crawl e indicizzazione |
 | `/api/v1/health` | GET | Stato del sistema |
+| `/api/v1/qdrant/stats` | GET | Statistiche collezione Qdrant |
+| `/api/v1/qdrant/documents` | GET | Documenti indicizzati (con paginazione e ricerca) |
+| `/qdrant` | GET | Pagina HTML per esplorare i documenti |
 
 ### Esempio Query
 
@@ -160,7 +163,9 @@ npm install
 ng serve
 ```
 
-L'app Angular sarà disponibile su `http://localhost:4200`.
+L'app Angular sarà disponibile su `http://localhost:4200`:
+- **Chat** (`/`) — Interfaccia principale per fare domande
+- **Statistiche** (`/statistiche`) — Metriche live del database vettoriale (punti, vettori, documenti con ricerca)
 
 ## Licenza
 
