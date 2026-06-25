@@ -17,7 +17,20 @@ logger = logging.getLogger(__name__)
 
 
 class QdrantClientManager:
+    _instance: "QdrantClientManager | None" = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        if getattr(self, "_initialized", False):
+            return
+        self._initialized = True
+        self._init_client()
+
+    def _init_client(self):
         config = ConfigLoader.get_qdrant_config()
         qdrant_config = config.get("qdrant", {})
         self.mode = qdrant_config.get("mode", "local")
@@ -70,3 +83,8 @@ class QdrantClientManager:
     def delete_collection(self) -> None:
         self.client.delete_collection(self.collection_name)
         logger.info(f"Deleted collection: {self.collection_name}")
+
+    def reinitialize(self) -> None:
+        self.client.close()
+        self._initialized = False
+        self._init_client()

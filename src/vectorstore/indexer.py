@@ -58,6 +58,6 @@ class VectorIndexer:
 
     def clear_index(self) -> None:
         self.manager.delete_collection()
-        self.manager = QdrantClientManager()
+        self.manager.reinitialize()
         self.client = self.manager.get_client()
         logger.info("Index cleared and recreated")

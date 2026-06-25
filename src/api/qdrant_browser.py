@@ -2,14 +2,24 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
+from qdrant_client import QdrantClient
 
 from src.vectorstore.qdrant_client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/qdrant", tags=["qdrant"])
+
+_qdrant_manager: QdrantClientManager | None = None
+
+
+def get_qdrant_manager() -> QdrantClientManager:
+    global _qdrant_manager
+    if _qdrant_manager is None:
+        _qdrant_manager = QdrantClientManager()
+    return _qdrant_manager
 
 
 @router.get("", response_class=HTMLResponse)
@@ -19,8 +29,7 @@ async def qdrant_browse_page():
 
 
 @router.get("/stats")
-async def qdrant_stats():
-    mgr = QdrantClientManager()
+async def qdrant_stats(mgr: QdrantClientManager = Depends(get_qdrant_manager)):
     client = mgr.get_client()
     info = client.get_collection(mgr.collection_name)
     return {
@@ -36,8 +45,8 @@ async def qdrant_documents(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     search: str | None = None,
+    mgr: QdrantClientManager = Depends(get_qdrant_manager),
 ):
-    mgr = QdrantClientManager()
     client = mgr.get_client()
 
     if search:
@@ -78,8 +87,7 @@ async def qdrant_documents(
 
 
 @router.get("/documents/{point_id}")
-async def qdrant_document_detail(point_id: str):
-    mgr = QdrantClientManager()
+async def qdrant_document_detail(point_id: str, mgr: QdrantClientManager = Depends(get_qdrant_manager)):
     client = mgr.get_client()
     points = client.retrieve(
         collection_name=mgr.collection_name,
