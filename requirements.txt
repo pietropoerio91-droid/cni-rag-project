@@ -37,7 +37,7 @@ langfuse>=2.16.1
 click>=8.1.0
 rich>=13.7.0
 tqdm>=4.66.0
-streamlit>=1.32.0
+
 
 # Benchmarking & analysis
 pandas>=2.1.0

@@ -115,7 +115,7 @@ Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  Sistema avviato!" -ForegroundColor Green
 Write-Host "  API:         http://localhost:8000" -ForegroundColor Green
 Write-Host "  Frontend:    http://localhost:4200" -ForegroundColor Green
-Write-Host "  Qdrant UI:   http://localhost:8501" -ForegroundColor Green
+Write-Host "  Qdrant:      http://localhost:8000/qdrant" -ForegroundColor Green
 Write-Host "  Docs API:    http://localhost:8000/docs" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  Premi Ctrl+C per fermare tutto.`n" -ForegroundColor Yellow
@@ -127,17 +127,10 @@ $frontendJob = Start-Job -ScriptBlock {
     ng serve
 } -ArgumentList $ScriptDir
 
-$qdrantJob = Start-Job -ScriptBlock {
-    param($dir)
-    Set-Location $dir
-    .venv\Scripts\Activate.ps1
-    streamlit run scripts/qdrant_explorer.py --server.port 8501 --server.headless true
-} -ArgumentList $ScriptDir
-
 # Aspetta che un job finisca (Ctrl+C)
-Wait-Job $apiJob, $frontendJob, $qdrantJob
+Wait-Job $apiJob, $frontendJob
 
-Stop-Job $apiJob, $frontendJob, $qdrantJob
-Remove-Job $apiJob, $frontendJob, $qdrantJob
+Stop-Job $apiJob, $frontendJob
+Remove-Job $apiJob, $frontendJob
 
 Write-Host "`nSistema fermato." -ForegroundColor Gray

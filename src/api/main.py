@@ -4,6 +4,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.qdrant_browser import router as qdrant_router
 from src.api.routes import router
 from src.core.logging import setup_logging
 
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(router, prefix="/api/v1")
+    app.include_router(qdrant_router, prefix="/api/v1")
 
     @app.on_event("startup")
     async def startup():
