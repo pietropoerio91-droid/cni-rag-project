@@ -32,7 +32,7 @@ class PublicDataFilter:
 
         url_lower = url.lower()
 
-        denied_patterns = ["/wp-admin", "/wp-json", "/wp-login", "/private", "/restricted"]
+        denied_patterns = ["/administrator", "/component/", "/wp-admin", "/wp-json", "/wp-login", "/private", "/restricted"]
         if any(p in url_lower for p in denied_patterns):
             logger.info(f"Skipping restricted URL: {url}")
             return False
