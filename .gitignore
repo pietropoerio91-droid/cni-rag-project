@@ -42,6 +42,9 @@ frontend/node_modules/
 .angular/cache/
 frontend/.angular/cache/
 
+# Angular build output
+frontend/dist/
+
 # Debug scripts
 check_*.py
 compute_*.py
