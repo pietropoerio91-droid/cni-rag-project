@@ -118,7 +118,7 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
      - Estrarre il testo da `<main>` o `<article>` o `<body>`
      - Scartare pagine con meno di 50 caratteri di contenuto
      - Estrarre meta-tag (description, keywords, ecc.)
-   - Poi estrae tutti i link `<a href>` dalla pagina (max 50 link per pagina)
+   - Poi estrae tutti i link `<a href>` dalla pagina (max 150 link per pagina, da `rag_config.yaml`)
    - Per ogni link, dopo un delay configurabile (default 0.3s), lo aggiunge alla coda con profondità+1
 
 4. **Per PDF:**
@@ -437,7 +437,7 @@ CATEGORIES = {
 
    Qdrant restituisce un `score` (valore tra -1 e 1, ma tipicamente 0-1 con vettori normalizzati positivi). Più alto = più simile.
 
-4. **Filtro threshold:** risultati con score < 0.5 vengono scartati
+4. **Filtro threshold:** risultati con score < 0.3 vengono scartati
 5. **Risultato:** lista di dict con `{content, source, title, score, chunk_index, category}`
 
 **Perché "ibrido":** Il termine "ibrido" si riferisce alla combinazione di:
@@ -748,14 +748,14 @@ Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
 │     → embedding della query con MiniLM → vettore 384 dim                        │
 │     → filtro Qdrant: category="organi"                                           │
 │     → search in Qdrant con similarità coseno                                     │
-│     → top 5 risultati con score > 0.5                                            │
+│     → top 20 risultati con score > 0.3                                           │
 │                                                                                  │
 │  5. RERANK (reranker.py)                                                         │
-│     → cross-encoder valuta coppie (query, documento)                            │
-│     → riordina per pertinenza → mantiene top 3                                  │
+│     → pass-through (reranker disabilitato per italiano)                          │
+│     → mantiene top 10 documenti dall'originale retrieval                         │
 │                                                                                  │
 │  6. BUILD PROMPT (prompt_builder.py)                                             │
-│     → costruisce system prompt con i 3 documenti come contesto                  │
+│     → costruisce system prompt con fino a 10 documenti come contesto            │
 │     → formato: [Documento 1 - titolo] \n Fonte: URL \n contenuto...             │
 │                                                                                  │
 │  7. GENERATE (llm_client.py + response_generator.py)                            │

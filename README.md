@@ -144,7 +144,9 @@ ng serve
 | `/api/v1/ingest` | POST | Crawl e indicizzazione |
 | `/api/v1/health` | GET | Stato del sistema |
 | `/api/v1/qdrant/stats` | GET | Statistiche collezione Qdrant |
+| `/api/v1/qdrant/analytics` | GET | Analytics avanzati (categorie, lunghezze, top fonti) |
 | `/api/v1/qdrant/documents` | GET | Documenti indicizzati (con paginazione e ricerca) |
+| `/api/v1/qdrant/documents/{id}` | GET | Dettaglio di un documento specifico |
 | `/qdrant` | GET | Pagina HTML per esplorare i documenti |
 
 ### Esempio Query

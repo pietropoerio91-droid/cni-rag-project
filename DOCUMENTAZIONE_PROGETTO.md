@@ -2,7 +2,7 @@
 
 **Titolo:** Architettura RAG per l'estrazione e la consultazione intelligente dei dati pubblici del Consiglio Nazionale degli Ingegneri  
 **Repository:** `https://github.com/pietropoerio91-droid/cni-rag-project`  
-**Branch:** `feature/indicizzazione`
+**Branch:** `feature/setup-mac`
 
 ---
 
@@ -116,9 +116,12 @@ cni-rag-project/
 │       └── app/
 │           ├── app.component.ts
 │           ├── app.config.ts
+│           ├── app.routes.ts
 │           ├── components/
-│           │   └── chat/
-│           │       └── chat.component.ts
+│           │   ├── chat/
+│           │   │   └── chat.component.ts
+│           │   └── statistiche/
+│           │       └── statistiche.component.ts
 │           ├── models/
 │           │   └── rag.models.ts
 │           └── services/
@@ -551,6 +554,7 @@ Costruisce citazioni dai documenti usati per generare la risposta.
 | GET | `/api/v1/health` | Stato del sistema |
 | POST | `/api/v1/ingest` | Crawl e indicizzazione |
 | GET | `/api/v1/qdrant/stats` | Statistiche collezione Qdrant |
+| GET | `/api/v1/qdrant/analytics` | Analytics avanzati (categorie, lunghezza media, top fonti) |
 | GET | `/api/v1/qdrant/documents` | Documenti indicizzati (paginazione + ricerca) |
 | GET | `/api/v1/qdrant/documents/{id}` | Dettaglio documento |
 | GET | `/qdrant` | Pagina HTML Qdrant Browser |
@@ -601,10 +605,10 @@ Esegue l'intera pipeline di ingestion e restituisce riepilogo.
 Crawl del sito CNI.
 
 **Opzioni CLI:**
-- `--max-pages` (default: 100)
-- `--max-depth` (default: 3)
+- `--max-pages` (default: None — usa valore da `rag_config.yaml`: 5000)
+- `--max-depth` (default: None — usa valore da `rag_config.yaml`: 5)
 - `--output` (default: data/raw)
-- `--delay` (default: 1.0)
+- `--delay` (default: None — usa valore da `rag_config.yaml`: 0.3)
 
 ### `scripts/run_ingestion.py`
 
@@ -646,6 +650,18 @@ Avvia il server API.
 
 ## 11. Frontend Angular
 
+### `frontend/src/app/components/statistiche/statistiche.component.ts`
+
+Pagina Statistiche (`/statistiche`) con analisi visuale dei documenti indicizzati.
+
+**Dati mostrati:**
+- Riepilogo: documenti totali, lunghezza media, lunghezza mediana, numero categorie
+- Grafico a barre: documenti per categoria
+- Grafico a barre: distribuzione lunghezza contenuti (bucket 0-500, 500-1000, ecc.)
+- Grafico a barre: top 10 fonti per numero di documenti
+
+**API chiamate:** `getQdrantAnalytics()` → `GET /api/v1/qdrant/analytics`
+
 ### `frontend/src/app/components/chat/chat.component.ts`
 
 Componente chat interattiva standalone.
@@ -672,8 +688,12 @@ Servizio HTTP per comunicare con la API.
 
 **Metodi:**
 - `query(request)` → POST `/api/v1/query`
+- `queryStream(request)` → POST `/api/v1/query/stream` (SSE via XHR)
 - `health()` → GET `/api/v1/health`
 - `ingest()` → POST `/api/v1/ingest`
+- `getQdrantStats()` → GET `/api/v1/qdrant/stats`
+- `getQdrantAnalytics()` → GET `/api/v1/qdrant/analytics`
+- `getQdrantDocuments(offset, limit, search?)` → GET `/api/v1/qdrant/documents`
 
 **Streaming:** Implementa EventSource polyfill con XHR per lo streaming SSE.
 
@@ -683,10 +703,14 @@ Interfacce TypeScript:
 - `Citation`, `QueryResponse`, `QueryRequest`
 - `HealthResponse`, `IngestResponse`
 - `ChatMessage`, `StreamEvent`
+- `QdrantStatsResponse` — collezione, modalità, punti, vettori
+- `QdrantDocument` — id, score, titolo, fonte, categoria, contenuto
+- `QdrantDocumentsResponse` — documenti, offset, totale, ricerca
+- `QdrantAnalyticsResponse` — documenti totali, lunghezza media/mediana, categorie, bucket lunghezze, top fonti
 
 ### `frontend/src/app/app.component.ts`
 
-Componente root con header e status LED.
+Componente root con header, navigazione (Chat, Statistiche) e menu impostazioni.
 
 ---
 
