@@ -32,10 +32,10 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 
 - **Backend**: Python + FastAPI
 - **Frontend**: Angular 18
-- **LLM**: Llama 3.2 via LM Studio (locale)
-- **Embeddings**: all-MiniLM-L6-v2 (sentence-transformers)
-- **Vector Store**: Qdrant (locale SQLite o Docker)
-- **Qdrant UI**: http://localhost:6333/dashboard (solo in modalità Docker)
+- **LLM**: Llama 3.2 / Mistral 7B / Qwen 2.5 via LM Studio (locale)
+- **Embeddings**: paraphrase-multilingual-MiniLM-L12-v2 (sentence-transformers, multilingua)
+- **Vector Store**: Qdrant (Docker)
+- **Qdrant UI**: http://localhost:6333/dashboard
 - **Orchestrator**: LangGraph
 - **Framework RAG**: LangChain
 
@@ -78,10 +78,10 @@ cni-rag-project/
 ## Prerequisiti
 
 1. **Python 3.11+**
-2. **LM Studio** con modello Llama 3.2 (o compatibile) in esecuzione su `http://localhost:1234`
+2. **Docker** (per Qdrant) — avvia con `docker compose up -d qdrant`
+3. **LM Studio** con un modello LLM in esecuzione su `http://localhost:1234`
    - In LM Studio, abilita **CORS** nelle impostazioni (sezione "Serve" → "Enable CORS")
-3. **Node.js 20+** e **Angular CLI** (`npm install -g @angular/cli`)
-4. **Docker** (opzionale, per Qdrant via Docker invece che locale)
+4. **Node.js 20+** e **Angular CLI** (`npm install -g @angular/cli`)
 
 ## Setup Rapido
 

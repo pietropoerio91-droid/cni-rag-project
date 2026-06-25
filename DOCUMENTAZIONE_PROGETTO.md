@@ -70,9 +70,9 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 |---|---|---|
 | Backend | Python 3.11+ + FastAPI | API server |
 | Frontend | Angular 18 | Interfaccia utente |
-| LLM | Llama 3.2 via LM Studio | Generazione risposte |
-| Embeddings | all-MiniLM-L6-v2 | Vettorizzazione testo |
-| Vector Store | Qdrant (locale) | Database vettoriale |
+| LLM | Llama 3.2 / Mistral 7B / Qwen 2.5 via LM Studio | Generazione risposte |
+| Embeddings | paraphrase-multilingual-MiniLM-L12-v2 | Vettorizzazione testo multilingua |
+| Vector Store | Qdrant (Docker) | Database vettoriale |
 | Orchestratore | LangGraph | Pipeline RAG |
 | Framework RAG | LangChain | Chunking, prompt |
 | Documenti | httpx + BeautifulSoup + trafilatura | Crawling e parsing |

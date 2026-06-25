@@ -1,5 +1,35 @@
 # Spiegazione Dettagliata del Progetto RAG per CNI
 
+## Glossario — Cosa significano i termini tecnici
+
+| Termine | Significato |
+|---------|-------------|
+| **RAG** (Retrieval-Augmented Generation) | Tecnica che combina **recupero** di documenti (retrieval) + **generazione** testo (LLM). Il modello cerca informazioni in un database prima di rispondere, riducendo le allucinazioni. |
+| **LLM** (Large Language Model) | Modello di AI che genera testo. Qui usiamo modelli open-source via LM Studio (es. Llama 3.2, Mistral 7B). |
+| **Crawling / Crawler** | Processo che **scarica automaticamente** le pagine web. Il crawler parte dalla homepage del CNI e segue i link ricorsivamente. |
+| **Chunk / Chunking** | **Frammentazione** di un documento lungo in pezzi più piccoli (chunk). Ogni chunk viene vettorizzato separatamente per permettere ricerche precise. |
+| **Embedding** | **Vettore numerico** (es. 384 numeri) che rappresenta il significato di un testo. Testi simili hanno vettori vicini nello spazio. |
+| **Vettore** | Array di numeri che rappresenta un punto in uno spazio multidimensionale. Esempio: `[0.23, -0.45, 0.12, ..., 0.89]` (384 elementi). |
+| **Similarità coseno** | Misura di quanto due vettori sono "vicini" (coseno dell'angolo tra loro). Valore da -1 a 1: 1 = identici, 0 = non correlati, -1 = opposti. |
+| **Vector Store / Database vettoriale** | Database specializzato nel memorizzare e cercare vettori per similarità. Qui usiamo **Qdrant**. |
+| **Indicizzazione (Indexing)** | Processo di inserimento dei chunk vettorizzati nel database vettoriale. |
+| **Retrieval** | **Ricerca** dei chunk più simili semanticamente a una domanda. |
+| **Reranking** | **Riordinamento** dei risultati del retrieval usando un modello più accurato (cross-encoder) per tenere solo i migliori. |
+| **Cross-encoder** | Modello che valuta la **coppia** (domanda, documento) insieme, calcolando un punteggio di pertinenza più preciso del semplice embedding. |
+| **Prompt** | **Istruzione** che diamo al LLM per guidare la sua risposta. Include i documenti recovered come contesto. |
+| **System prompt** | Messaggio iniziale che definisce il **comportamento** del LLM (es. "rispondi solo basandoti sui documenti forniti"). |
+| **LangGraph** | Framework per creare **grafi di elaborazione** a stati. Qui orchestriamo i passaggi del RAG (classifica → recupera → riordina → genera). |
+| **Temperature** | Parametro del LLM che controlla la **creatività**: bassa (0.2) = risposte precise, alta (1.0) = più creative. |
+| **HNSW** (Hierarchical Navigable Small World) | Algoritmo di **indicizzazione vettoriale** che permette ricerche velocissime su milioni di vettori, organizzandoli in una struttura a grafo multi-livello. |
+| **Ingestion** | Pipeline completa che va dal caricamento dei documenti fino all'indicizzazione nel database vettoriale. |
+| **Pipeline** | Sequenza di passaggi di elaborazione collegati (es. crawl → pulisci → chunk → embed → indicizza). |
+| **SSE** (Server-Sent Events) | Protocollo per **streaming** di dati dal server al client. Qui usato per mostrare la risposta del LLM in tempo reale, token dopo token. |
+| **PII** (Personally Identifiable Information) | Dati personali sensibili (email, telefono, codice fiscale) che devono essere filtrati prima di essere inviati al LLM o mostrati all'utente. |
+| **Boilerplate** | Contenuto ripetitivo delle pagine web (footer, cookie banner, menu) che va rimosso per pulire il testo. |
+| **RecursiveCharacterTextSplitter** | Algoritmo di chunking che prova a dividere il testo in punti logici (prima paragrafi, poi frasi, poi parole) per mantenere la coerenza semantica. |
+
+---
+
 ## Indice delle Fasi
 
 1. [Configurazione](#1-configurazione-core)
@@ -210,8 +240,8 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 **Cosa facciamo:** Suddividiamo ogni documento in pezzi più piccoli (chunk) per poterli vettorizzare e recuperare efficientemente.
 
 **Configurazione** (da `rag_config.yaml`):
-- `chunk_size`: 512 caratteri
-- `chunk_overlap`: 64 caratteri (sovrapposizione tra chunk consecutivi)
+- `chunk_size`: 1500 caratteri (aumentato da 512 per dare più contesto al LLM)
+- `chunk_overlap`: 200 caratteri (sovrapposizione tra chunk consecutivi)
 - `separators`: `["\n\n", "\n", ".", " ", ""]`
 
 **Come:** Usiamo `RecursiveCharacterTextSplitter` di LangChain. Questo splitter:
@@ -250,12 +280,13 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 
 **Cosa facciamo:** Trasformiamo ogni chunk di testo in un vettore numerico (embedding) che cattura il significato semantico del testo.
 
-**Modello:** `all-MiniLM-L6-v2` di **sentence-transformers**
+**Modello:** `paraphrase-multilingual-MiniLM-L12-v2` di **sentence-transformers**
 
 **Caratteristiche:**
 - Dimensione output: **384 dimensioni** (vettore di 384 numeri floating-point)
 - Normalizzazione: attiva (così possiamo usare dot product come similarità)
 - Batch: 32 chunk per volta
+- **Multilingua**: supporta italiano, molto meglio del precedente `all-MiniLM-L6-v2` (modello solo inglese)
 
 **Metodi:**
 ```python
