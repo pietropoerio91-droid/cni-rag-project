@@ -27,7 +27,7 @@ def run_api(host: str, port: int, reload: bool):
     console.print(f"  Port: {port}")
     console.print(f"  Reload: {reload}")
     console.print()
-    console.print("[yellow]Make sure LM Studio is running on http://localhost:1234[/yellow]")
+    console.print("[yellow]Make sure Ollama is running (http://localhost:11434)[/yellow]")
     console.print()
 
     uvicorn.run(

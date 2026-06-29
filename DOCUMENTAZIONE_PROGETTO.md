@@ -2,7 +2,8 @@
 
 **Titolo:** Architettura RAG per l'estrazione e la consultazione intelligente dei dati pubblici del Consiglio Nazionale degli Ingegneri  
 **Repository:** `https://github.com/pietropoerio91-droid/cni-rag-project`  
-**Branch:** `feature/setup-mac`
+**Documentazione riferita al branch:** `feature/setup-mac` (macOS)  
+**Piattaforma target:** macOS (Ollama + Qdrant locale) — branch `feature/setup-windows` per configurazione Windows
 
 ---
 
@@ -58,7 +59,7 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 │  FASE 4: QUERY                                                       │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
 │  │Classifier│→│Retriever │→│Reranker  │→│Prompt    │→│LLM     │ │
-│  │(keyword) │  │(hybrid)  │  │(cross-  │  │Builder   │  │(Llama) │ │
+│  │(keyword) │  │(hybrid)  │  │(cross-  │  │Builder   │  │(Ollama)│ │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └────────┘ │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -68,14 +69,16 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 
 | Componente | Tecnologia | Ruolo |
 |---|---|---|
-| Backend | Python 3.11+ + FastAPI | API server |
+| Backend | Python 3.12 + FastAPI | API server |
 | Frontend | Angular 18 | Interfaccia utente |
-| LLM | via LM Studio (es. Llama 3.2 3B, Mistral 7B, Qwen 2.5 7B) | Generazione risposte |
-| Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) | Vettorizzazione testo multilingua |
-| Vector Store | Qdrant (Docker, `localhost:6333`) | Database vettoriale |
+| LLM | Qwen 2.5 3B via Ollama (`localhost:11434`) | Generazione risposte |
+| Embeddings | `all-MiniLM-L6-v2` (384-dim) | Vettorizzazione testo |
+| Vector Store | Qdrant (modalità locale SQLite, `data/qdrant_db`) | Database vettoriale |
 | Orchestratore | LangGraph | Pipeline RAG |
 | Framework RAG | LangChain | Chunking, prompt |
 | Documenti | httpx + BeautifulSoup + trafilatura | Crawling e parsing |
+
+**Hardware:** 8 GB RAM, CPU Intel/Apple Silicon, GPU non richiesta, Docker non richiesto.
 
 ---
 
@@ -157,7 +160,7 @@ cni-rag-project/
 │   │
 │   ├── inference/               # Modulo inferenza
 │   │   ├── citation_builder.py  # Costruzione citazioni
-│   │   ├── llm_client.py        # Client LLM (LM Studio)
+│   │   ├── llm_client.py        # Client LLM (Ollama/compatibile OpenAI)
 │   │   └── response_generator.py # Generazione risposte
 │   │
 │   ├── ingestion/               # Modulo ingestion
@@ -220,10 +223,10 @@ Factory pattern per creare modelli LLM e di embedding.
 **Classi:**
 - `ModelFactory` — metodi statici:
   - `create_embeddings()` → HuggingFaceEmbeddings (legge `EMBEDDING_MODEL` da `.env` o `rag_config.yaml`)
-  - `create_llm()` → LLM da LM Studio (ChatOpenAI) o LlamaCpp
+   - `create_llm()` → LLM via ChatOpenAI (su Ollama/LM Studio) o LlamaCpp
 
 **Provider supportati:**
-- `lm_studio` → ChatOpenAI su `http://localhost:1234/v1`
+- `lm_studio` → ChatOpenAI su endpoint configurato (default Ollama `http://localhost:11434/v1`)
 - `llama_cpp` → LlamaCpp da file locale
 
 ---
@@ -363,8 +366,8 @@ Genera embeddings vettoriali usando `sentence-transformers`.
 Gestisce connessione a Qdrant (locale o remoto).
 
 **Modalità:**
-- `docker` → connessione a `localhost:6333` (container Qdrant)
-- `local` → salva su `./data/qdrant_db` (file-based, senza Docker)
+- `local` → salva su `./data/qdrant_db` (file-based SQLite, **modalità attiva**)
+- `docker` → connessione a `localhost:6333` (container Qdrant, solo branch Windows)
 
 **All'avvio:**
 1. Crea directory se locale
@@ -825,13 +828,20 @@ Test integrazione RAG:
 
 ### `.env.example`
 
-Variabili d'ambiente:
+Variabili d'ambiente (setup macOS):
 ```
-LM_STUDIO_BASE_URL=http://localhost:1234/v1
-LLM_MODEL=llama-3.2-3b-instruct
-EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
-QDRANT_MODE=docker
+# Ollama
+LM_STUDIO_BASE_URL=http://localhost:11434/v1
+LLM_MODEL=qwen2.5:3b
+
+# Embedding
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+# Qdrant locale (SQLite, senza Docker)
+QDRANT_MODE=local
 QDRANT_PATH=./data/qdrant_db
+
+# API
 API_PORT=8000
 API_CORS_ORIGINS=http://localhost:4200
 ```
@@ -864,7 +874,9 @@ Configurazione logging con formati e handler.
 
 ---
 
-## 16. Docker
+## 16. Docker (solo branch Windows)
+
+> Su macOS Docker **non è richiesto**. Questa sezione è mantenuta per il branch `feature/setup-windows`.
 
 ### `Dockerfile`
 
@@ -890,20 +902,25 @@ Configurazione logging con formati e handler.
 
 ---
 
-## 17. Flusso di Esecuzione
+## 17. Flusso di Esecuzione (macOS)
 
 ### Setup Iniziale
 
 ```bash
-# 1. Avvia LM Studio con modello Llama
-# 2. Crea virtual env
-python -m venv .venv
-.venv\Scripts\activate  # Windows
+# 1. Avvia Ollama (se non già in esecuzione)
+ollama serve
 
-# 3. Installa dipendenze
+# 2. Scarica il modello LLM
+ollama pull qwen2.5:3b
+
+# 3. Crea virtual env
+python -m venv .venv
+source .venv/bin/activate
+
+# 4. Installa dipendenze
 pip install -r requirements.txt
 
-# 4. Configura .env
+# 5. Configura .env
 cp .env.example .env
 ```
 

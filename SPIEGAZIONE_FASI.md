@@ -5,7 +5,7 @@
 | Termine | Significato |
 |---------|-------------|
 | **RAG** (Retrieval-Augmented Generation) | Tecnica che combina **recupero** di documenti (retrieval) + **generazione** testo (LLM). Il modello cerca informazioni in un database prima di rispondere, riducendo le allucinazioni. |
-| **LLM** (Large Language Model) | Modello di AI che genera testo. Qui usiamo modelli open-source via LM Studio (es. Llama 3.2, Mistral 7B). |
+| **LLM** (Large Language Model) | Modello di AI che genera testo. Qui usiamo Qwen 2.5 3B via Ollama. |
 | **Crawling / Crawler** | Processo che **scarica automaticamente** le pagine web. Il crawler parte dalla homepage del CNI e segue i link ricorsivamente. |
 | **Chunk / Chunking** | **Frammentazione** di un documento lungo in pezzi più piccoli (chunk). Ogni chunk viene vettorizzato separatamente per permettere ricerche precise. |
 | **Embedding** | **Vettore numerico** (es. 384 numeri) che rappresenta il significato di un testo. Testi simili hanno vettori vicini nello spazio. |
@@ -79,10 +79,10 @@ Il file `.env` è caricato automaticamente all'import tramite `load_dotenv()`.
 
 Factory pattern per creare i due modelli principali:
 
-1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `paraphrase-multilingual-MiniLM-L12-v2`. Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Può eseguire su CPU o GPU.
+1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `all-MiniLM-L6-v2`. Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Può eseguire su CPU.
 
 2. **LLM**: supporta due provider:
-   - **LM Studio** (default): si connette a `http://localhost:1234/v1` via `ChatOpenAI` di LangChain, usando la stessa API di OpenAI. I parametri (temperature=0.2, max_tokens=2048, top_p=0.95) sono pensati per risposte coerenti e deterministiche.
+   - **Ollama** (default): si connette a `http://localhost:11434/v1` via `ChatOpenAI` di LangChain, usando API compatibile OpenAI. Modello: `qwen2.5:3b`. I parametri (temperature=0.2, max_tokens=2048, top_p=0.95) sono pensati per risposte coerenti e deterministiche.
    - **LlamaCpp**: carica un modello locale via `LlamaCpp`.
 
 ### File: `src/core/logging.py`
@@ -280,13 +280,12 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 
 **Cosa facciamo:** Trasformiamo ogni chunk di testo in un vettore numerico (embedding) che cattura il significato semantico del testo.
 
-**Modello:** `paraphrase-multilingual-MiniLM-L12-v2` di **sentence-transformers**
+**Modello:** `all-MiniLM-L6-v2` di **sentence-transformers**
 
 **Caratteristiche:**
 - Dimensione output: **384 dimensioni** (vettore di 384 numeri floating-point)
 - Normalizzazione: attiva (così possiamo usare dot product come similarità)
 - Batch: 32 chunk per volta
-- **Multilingua**: supporta italiano, molto meglio del precedente `all-MiniLM-L6-v2` (modello solo inglese)
 
 **Metodi:**
 ```python
@@ -295,10 +294,10 @@ generate_batch(texts) -> list[list[float]]  # batch embedding
 process_chunks(chunks) -> chunks        # aggiunge campo "embedding" a ogni chunk
 ```
 
-**Perché `paraphrase-multilingual-MiniLM-L12-v2`?**
-- 12 layer (vs 6 del precedente `all-MiniLM-L6-v2`): più accurato
-- Multilingua: supporta italiano nativamente (il precedente era solo inglese)
+**Perché `all-MiniLM-L6-v2`?**
+- Leggero (6 layer, ~80MB): ideale per CPU con 8GB RAM
 - 384 dimensioni: buon compromesso tra accuratezza e velocità
+- Buona copertura multilingua per testi in italiano
 - Normalizzato: permette similarità coseno via dot product
 
 **Cosa NON usiamo:** Non usiamo modelli più grandi come `text-embedding-3-large` (OpenAI) perché vogliamo mantenere tutto locale, senza API esterne.
@@ -531,7 +530,7 @@ Domanda: {domanda dell'utente}
 ### File: `src/inference/response_generator.py`
 **Classe:** `ResponseGenerator`
 
-**Cosa facciamo:** Inviamo il prompt al LLM (Llama 3.2 via LM Studio) e otteniamo la risposta.
+**Cosa facciamo:** Inviamo il prompt al LLM (Qwen 2.5 3B via Ollama) e otteniamo la risposta.
 
 **Pipeline:**
 1. **PII Filter** (in `rag_chain.py`): prima di inviare il prompt, filtriamo ogni messaggio con `PIIFilter` per rimuovere dati sensibili (email, telefoni, codici fiscali, partite IVA)
@@ -545,7 +544,7 @@ Domanda: {domanda dell'utente}
 - `frequency_penalty`: 0
 - `presence_penalty`: 0
 
-**Provider: LM Studio** su `http://localhost:1234/v1`. LM Studio carica il modello `llama-3.2-3b-instruct` localmente e fornisce un'API compatibile con OpenAI.
+**Provider: Ollama** su `http://localhost:11434/v1`. Ollama carica il modello `qwen2.5:3b` localmente e fornisce un'API compatibile con OpenAI.
 
 **Streaming asincrono** (`astream_generate`):
 - Usa un sync generator per lo streaming (LangChain non supporta nativamente async stream per tutti i modelli)
@@ -553,8 +552,8 @@ Domanda: {domanda dell'utente}
 - Ogni chunk viene filtrato per PII prima di essere inviato al client
 
 **Perché:**
-- Llama 3.2 3B è un modello piccolo, veloce e gira su laptop
-- LM Studio evita di esporre dati a API esterne (tutto locale)
+- Qwen 2.5 3B è un modello piccolo, veloce e gira su laptop con 8GB RAM
+- Ollama evita di esporre dati a API esterne (tutto locale)
 - Temperature bassa per risposte fattuali (non creative)
 - Streaming per UX migliore (l'utente vede la risposta mentre viene generata)
 
@@ -760,7 +759,7 @@ Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
 │                                                                                  │
 │  7. GENERATE (llm_client.py + response_generator.py)                            │
 │     → filtra PII dal prompt                                                      │
-│     → invia a Llama 3.2 via LM Studio (localhost:1234)                          │
+│     → invia a Qwen 2.5 3B via Ollama (localhost:11434)                          │
 │     → temperatura 0.2 → risposta deterministica                                 │
 │                                                                                  │
 │  8. CITATIONS (citation_builder.py)                                              │
