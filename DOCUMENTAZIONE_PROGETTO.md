@@ -831,7 +831,7 @@ Test integrazione RAG:
 Variabili d'ambiente (setup macOS):
 ```
 # Ollama
-LM_STUDIO_BASE_URL=http://localhost:11434/v1
+LLM_BASE_URL=http://localhost:11434/v1
 LLM_MODEL=qwen2.5:3b
 
 # Embedding

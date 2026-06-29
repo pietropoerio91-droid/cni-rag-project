@@ -7,11 +7,11 @@ embedding:
     provider: sentence_transformers
 
 llm:
-  lm_studio:
+  ollama:
     name: qwen2.5:3b
     context_length: 32768
     endpoint: http://localhost:11434/v1
-    api_key_env: LM_STUDIO_API_KEY
+    api_key_env: LLM_API_KEY
     parameters:
       temperature: 0.2
       max_tokens: 2048

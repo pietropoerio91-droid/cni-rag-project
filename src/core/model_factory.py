@@ -36,22 +36,22 @@ class ModelFactory:
         config = ConfigLoader.get_rag_config()
         llm_config = config.get("llm", {})
 
-        provider = os.getenv("LLM_PROVIDER") or llm_config.get("provider", "lm_studio")
-        base_url = os.getenv("LM_STUDIO_BASE_URL") or llm_config.get("base_url", "http://localhost:1234/v1")
-        model = os.getenv("LLM_MODEL") or llm_config.get("model", "llama-3.2-3b-instruct")
+        provider = os.getenv("LLM_PROVIDER") or llm_config.get("provider", "ollama")
+        base_url = os.getenv("LLM_BASE_URL") or llm_config.get("base_url", "http://localhost:11434/v1")
+        model = os.getenv("LLM_MODEL") or llm_config.get("model", "qwen2.5:3b")
 
-        if provider == "lm_studio":
-            return ModelFactory._create_lm_studio_llm(base_url, model, llm_config)
+        if provider in ("ollama", "lm_studio"):
+            return ModelFactory._create_openai_compatible_llm(base_url, model, llm_config)
         elif provider == "llama_cpp":
             return ModelFactory._create_llama_cpp_llm(model, llm_config)
         else:
             raise ValueError(f"Unsupported LLM provider: {provider}")
 
     @staticmethod
-    def _create_lm_studio_llm(base_url: str, model: str, config: dict[str, Any]) -> BaseLLM:
+    def _create_openai_compatible_llm(base_url: str, model: str, config: dict[str, Any]) -> BaseLLM:
         from langchain_openai import ChatOpenAI
 
-        logger.info(f"Connecting to LM Studio at {base_url} with model {model}")
+        logger.info(f"Connecting to LLM at {base_url} with model {model}")
         params = config.get("parameters", {})
         return ChatOpenAI(
             base_url=base_url,
