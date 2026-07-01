@@ -37,7 +37,6 @@ async def qdrant_stats(mgr: QdrantClientManager = Depends(get_qdrant_manager)):
         "collection": mgr.collection_name,
         "mode": mgr.mode,
         "points_count": info.points_count,
-        "vectors_count": info.vectors_count,
     }
 
 

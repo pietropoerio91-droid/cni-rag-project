@@ -13,8 +13,8 @@ import { RagService } from './services/rag.service';
         <div class="header-content">
           <div class="header-brand" (click)="goHome()" title="Torna alla home">
             <div class="brand-text">
-              <span class="brand-title">Consiglio Nazionale degli Ingegneri</span>
-              <span class="brand-subtitle">Consultazione dati pubblici</span>
+              <span class="brand-title">CNI — Consultazione Dati Pubblici</span>
+              <span class="brand-subtitle">Consiglio Nazionale degli Ingegneri</span>
             </div>
           </div>
           <nav class="nav-links">

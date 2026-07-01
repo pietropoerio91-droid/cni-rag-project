@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
 import { ChatMessage } from '../../models/rag.models';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat',
@@ -12,17 +13,27 @@ import { ChatMessage } from '../../models/rag.models';
     <div class="chat-container">
       <div class="messages-area" #messagesArea>
         <div class="welcome" *ngIf="messages.length === 0">
-          <h2>Benvenuto</h2>
+          <h2>{{ displayTitle }}<span class="cursor-blink" *ngIf="titleTyping"></span></h2>
           <p class="welcome-text">
-            Questo sistema consente la consultazione intelligente dei dati pubblici
-            del Consiglio Nazionale degli Ingegneri. I documenti presenti nel sito
-            <strong>www.cni.it</strong> sono stati indicizzati e sono interrogabili
-            tramite intelligenza artificiale.
+            Sistema di consultazione intelligente dei dati pubblici del
+            <strong>Consiglio Nazionale degli Ingegneri</strong>.
+            I documenti del sito <strong>www.cni.it</strong> sono indicizzati
+            e interrogabili tramite intelligenza artificiale.
           </p>
-          <p class="welcome-text-secondary">
-            Puoi chiedere informazioni su normativa, organi istituzionali, commissioni,
-            formazione professionale, albo, servizi e documenti ufficiali.
-          </p>
+          <div class="stats-bar" *ngIf="stats">
+            <span class="stat-item">
+              <strong>{{ stats.docs }}</strong> documenti indicizzati
+            </span>
+            <span class="stat-sep"></span>
+            <span class="stat-item">
+              <strong>{{ stats.categories }}</strong> categorie
+            </span>
+            <span class="stat-sep"></span>
+            <span class="stat-item">
+              <strong>{{ stats.sources }}</strong> fonti
+            </span>
+          </div>
+          <p class="welcome-tip">{{ currentTip }}</p>
           <div class="suggestions">
             <button class="suggestion-chip" *ngFor="let s of suggestions" (click)="sendQuestion(s)">
               {{ s }}
@@ -102,18 +113,57 @@ import { ChatMessage } from '../../models/rag.models';
       font-weight: 600;
       margin-bottom: 12px;
       color: var(--text);
+      min-height: 28px;
+    }
+    .cursor-blink {
+      display: inline-block;
+      width: 2px;
+      height: 22px;
+      background: var(--primary);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 0.7s step-end infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
     }
     .welcome-text {
       color: var(--text-secondary);
       font-size: 15px;
       line-height: 1.7;
-      margin-bottom: 12px;
+      margin-bottom: 20px;
     }
     .welcome-text-secondary {
       color: var(--text-secondary);
       font-size: 14px;
       line-height: 1.6;
       margin-bottom: 32px;
+    }
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .stat-item strong {
+      color: var(--primary);
+    }
+    .stat-sep {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      margin: 0 16px;
+    }
+    .welcome-tip {
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-style: italic;
+      margin-bottom: 24px;
+      min-height: 20px;
+      transition: opacity 0.3s;
     }
     .suggestions {
       display: flex;
@@ -282,19 +332,76 @@ import { ChatMessage } from '../../models/rag.models';
     }
   `]
 })
-export class ChatComponent {
+export class ChatComponent implements OnInit, OnDestroy {
   messages: ChatMessage[] = [];
   currentQuestion = '';
   isLoading = false;
+  stats: { docs: number; categories: number; sources: number } | null = null;
+  currentTip = 'Prova a chiedere "Quali servizi offre il CNI?" per iniziare';
+  displayTitle = '';
+  titleTyping = true;
+  private tipInterval: ReturnType<typeof setInterval> | null = null;
+  private sub = new Subscription();
+
+  tips = [
+    'Prova a chiedere "Quali sono gli organi del CNI?" per iniziare',
+    'Puoi fare domande su formazione, servizi e sicurezza sul lavoro',
+    'Le risposte includono citazioni con link ai documenti originali',
+    'Chiedi "Che cos\'è un near miss?" per temi di sicurezza sul lavoro',
+    'I documenti provengono dal sito ufficiale www.cni.it',
+    'Prova "Quali servizi offre il CNI?" per scoprire i servizi agli ingegneri',
+  ];
 
   suggestions = [
     'Quali sono gli organi del CNI?',
-    'Cosa dice la normativa per gli ingegneri?',
+    'Quali servizi offre il CNI?',
     'Come funziona la formazione continua?',
-    'Quali commissioni esistono?',
+    'Che cos\'è un near miss per la sicurezza?',
+    'Chi è il presidente del CNI?',
+    'Quali sono i temi trattati dal CNI?',
   ];
 
   constructor(private ragService: RagService) {}
+
+  ngOnInit() {
+    this.typeTitle();
+    this.tipInterval = setInterval(() => this.nextTip(), 6000);
+    this.sub.add(
+      this.ragService.getQdrantAnalytics().subscribe({
+        next: (a) => {
+          this.stats = {
+            docs: a.total_documents,
+            categories: Object.keys(a.categories).length,
+            sources: a.top_sources.length,
+          };
+        },
+      })
+    );
+  }
+
+  private typeTitle() {
+    const text = 'Benvenuto';
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < text.length) {
+        this.displayTitle += text[i];
+        i++;
+      } else {
+        clearInterval(interval);
+        this.titleTyping = false;
+      }
+    }, 50);
+  }
+
+  ngOnDestroy() {
+    if (this.tipInterval) clearInterval(this.tipInterval);
+    this.sub.unsubscribe();
+  }
+
+  private nextTip() {
+    const available = this.tips.filter(t => t !== this.currentTip);
+    this.currentTip = available[Math.floor(Math.random() * available.length)];
+  }
 
   onEnter(event: Event) {
     const keyboardEvent = event as KeyboardEvent;

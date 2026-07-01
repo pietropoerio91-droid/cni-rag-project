@@ -6,6 +6,7 @@ from langchain_core.language_models import BaseLLM
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
+from src.core.config_loader import ConfigLoader
 from src.governance.monitoring import RAGMonitor
 from src.governance.pii_filter import PIIFilter
 from src.inference.citation_builder import CitationBuilder
@@ -27,6 +28,7 @@ class RAGState(TypedDict):
     response: str
     citations: list[dict[str, Any]]
     trace_id: str
+    fallback_triggered: bool
 
 
 class RAGChain:
@@ -40,6 +42,13 @@ class RAGChain:
         self.citation_builder = CitationBuilder()
         self.pii_filter = PIIFilter()
         self.monitor = RAGMonitor()
+
+        config = ConfigLoader.get_rag_config()
+        self.fallback_threshold = config.get("fallback", {}).get("score_threshold", 0.5)
+        self.fallback_message = config.get("fallback", {}).get(
+            "message",
+            "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda.",
+        )
 
         self.graph = self._build_graph()
 
@@ -79,14 +88,29 @@ class RAGChain:
         return {"reranked_docs": docs}
 
     def _build_prompt(self, state: RAGState) -> dict[str, Any]:
-        prompt = self.prompt_builder.build_prompt(state["question"], state["reranked_docs"])
-        return {"prompt": prompt}
+        docs = state["reranked_docs"]
+        if not docs:
+            return {"prompt": [], "response": self.fallback_message, "fallback_triggered": True}
+
+        max_score = max(d.get("score", 0) for d in docs)
+        if max_score < self.fallback_threshold:
+            logger.info(
+                "Fallback triggered for '%s': max_score=%.3f < threshold=%.2f",
+                state["question"], max_score, self.fallback_threshold,
+            )
+            return {"prompt": [], "response": self.fallback_message, "fallback_triggered": True}
+
+        prompt = self.prompt_builder.build_prompt(state["question"], docs)
+        return {"prompt": prompt, "fallback_triggered": False}
 
     def _generate(self, state: RAGState) -> dict[str, Any]:
-        filtered_prompt = []
-        for msg in state["prompt"]:
-            filtered_prompt.append({"role": msg["role"], "content": self.pii_filter.filter(msg["content"])})
-        response = self.response_generator.generate(filtered_prompt)
+        if state.get("fallback_triggered"):
+            response = state["response"]
+        else:
+            filtered_prompt = []
+            for msg in state["prompt"]:
+                filtered_prompt.append({"role": msg["role"], "content": self.pii_filter.filter(msg["content"])})
+            response = self.response_generator.generate(filtered_prompt)
         self.monitor.log_event(state["trace_id"], "generate", {"response_length": len(response)})
         return {"response": response}
 
@@ -105,6 +129,7 @@ class RAGChain:
             "response": "",
             "citations": [],
             "trace_id": trace_id,
+            "fallback_triggered": False,
         }
 
         final_state = self.graph.invoke(initial_state)
@@ -124,11 +149,20 @@ class RAGChain:
         retrieved = self.hybrid_retriever.retrieve(question)
         reranked = self.reranker.rerank(question, retrieved)
 
+        yield {"type": "metadata", "category": category, "sources": reranked}
+
+        if not reranked or max(d.get("score", 0) for d in reranked) < self.fallback_threshold:
+            msg = self.fallback_message
+            self.monitor.log_event(trace_id, "generate", {"response_length": len(msg), "fallback": True})
+            yield {"type": "chunk", "content": msg}
+            citations = self.citation_builder.build(reranked, msg)
+            self.monitor.end_trace(trace_id, {"response_length": len(msg)})
+            yield {"type": "done", "citations": citations, "trace_id": trace_id}
+            return
+
         safe_question = self.pii_filter.filter(question)
 
         prompt = self.prompt_builder.build_stream_prompt(safe_question, reranked)
-
-        yield {"type": "metadata", "category": category, "sources": reranked}
 
         full_response = ""
         async for chunk in self.response_generator.astream_generate(prompt):

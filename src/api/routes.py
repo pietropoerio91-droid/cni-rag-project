@@ -73,10 +73,11 @@ async def health():
     try:
         indexer = get_vector_indexer()
         count = indexer.count_points()
-        llm_connected = True
+        llm_connected = False
         try:
-            llm = ModelFactory.create_llm()
-            llm.invoke("test")
+            import httpx
+            r = httpx.get("http://localhost:11434/api/tags", timeout=5)
+            llm_connected = r.status_code == 200
         except Exception:
             llm_connected = False
         return HealthResponse(
