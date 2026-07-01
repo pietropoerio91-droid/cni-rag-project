@@ -142,6 +142,38 @@ npm install
 chmod +x run.sh && ./run.sh
 ```
 
+## Avvio Rapido su Mac (dopo il primo setup)
+
+Comandi giornalieri per riavviare i servizi dopo un riavvio del sistema:
+
+```bash
+# 1. Assicurati che Ollama sia in esecuzione
+ollama serve
+
+# 2. Avvia API server in screen
+screen -dmS api bash -c "cd /Users/pietropoerio/Desktop/cni-rag-project && python3 scripts/run_api.py --no-reload --port 8000 > /tmp/api_uvicorn.log 2>&1"
+
+# 3. Avvia frontend Angular (in un altro terminale)
+/tmp/node-v20.12.0-darwin-x64/bin/node /tmp/node-v20.12.0-darwin-x64/bin/npm run start --prefix /Users/pietropoerio/Desktop/cni-rag-project/frontend
+
+# 4. Verifica
+curl http://localhost:8000/api/v1/health && echo ""
+```
+
+> Nota: Node.js è installato in `/tmp/node-v20.12.0-darwin-x64/bin/`. Se il frontend non si avvia, verifica il percorso con `ls /tmp/node-v20.12.0-darwin-x64/bin/node`.
+
+Se vuoi rientrare nella sessione screen dell'API:
+```bash
+screen -r api
+# Per staccarti senza fermare: Ctrl+A, D
+```
+
+Per fermare i servizi:
+```bash
+kill $(lsof -t -i :8000) 2>/dev/null   # ferma API
+kill $(lsof -t -i :4200) 2>/dev/null   # ferma frontend
+```
+
 ## API Endpoints
 
 | Endpoint | Metodo | Descrizione |

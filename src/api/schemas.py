@@ -11,6 +11,7 @@ class CitationResponse(BaseModel):
     source: str
     relevance_score: float
     excerpt: str
+    content_overlap: float | None = None
 
 
 class QueryResponse(BaseModel):
