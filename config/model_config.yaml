@@ -1,7 +1,7 @@
 embedding:
   paraphrase-multilingual-MiniLM-L12-v2:
     name: paraphrase-multilingual-MiniLM-L12-v2
-    dimension: 768
+    dimension: 384
     max_seq_length: 128
     normalize: true
     provider: sentence_transformers

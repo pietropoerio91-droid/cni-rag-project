@@ -42,7 +42,7 @@ fallback:
 vector_store:
   collection_name: cni_documents
   distance: cosine
-  size: 768
+  size: 384
 
 crawler:
   base_url: https://www.cni.it
