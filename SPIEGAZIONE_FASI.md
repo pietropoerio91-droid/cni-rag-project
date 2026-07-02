@@ -18,7 +18,11 @@
 | **Cross-encoder** | Modello che valuta la **coppia** (domanda, documento) insieme, calcolando un punteggio di pertinenza più preciso del semplice embedding. |
 | **Prompt** | **Istruzione** che diamo al LLM per guidare la sua risposta. Include i documenti recovered come contesto. |
 | **System prompt** | Messaggio iniziale che definisce il **comportamento** del LLM (es. "rispondi solo basandoti sui documenti forniti"). |
-| **LangGraph** | Framework per creare **grafi di elaborazione** a stati. Qui orchestriamo i passaggi del RAG (classifica → recupera → riordina → genera). |
+| **LangGraph** | Framework per creare **grafi di elaborazione** a stati. Qui orchestriamo i passaggi del RAG (classifica → recupera → riordina → valuta → genera → verifica → cita). |
+| **Corrective RAG** | Variante RAG che **corregge** il retrieval: se i documenti non sono pertinenti, riscrive la query e riprova. Implementato via LangGraph con `grade_docs` + `query_rewriter`. |
+| **Self-RAG** | Variante RAG che **autovaluta** la risposta generata. Dopo la generazione, il LLM verifica l'accuratezza e rigenera se trova imprecisioni. |
+| **Grade Documents** | Passaggio in cui il LLM valuta se i documenti retrieved contengono informazioni sufficienti per rispondere. Se no, scatta il Corrective RAG. |
+| **Query Rewriting** | Riscrittura della domanda utente in forma più specifica per migliorare il retrieval al secondo tentativo. |
 | **Temperature** | Parametro del LLM che controlla la **creatività**: bassa (0.2) = risposte precise, alta (1.0) = più creative. |
 | **HNSW** (Hierarchical Navigable Small World) | Algoritmo di **indicizzazione vettoriale** che permette ricerche velocissime su milioni di vettori, organizzandoli in una struttura a grafo multi-livello. |
 | **Ingestion** | Pipeline completa che va dal caricamento dei documenti fino all'indicizzazione nel database vettoriale. |
@@ -79,7 +83,7 @@ Il file `.env` è caricato automaticamente all'import tramite `load_dotenv()`.
 
 Factory pattern per creare i due modelli principali:
 
-1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `all-MiniLM-L6-v2`. Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Può eseguire su CPU.
+1. **Embeddings**: usa `HuggingFaceEmbeddings` di LangChain con `paraphrase-multilingual-MiniLM-L12-v2` (12 layer, 50+ lingue). Questo modello trasforma ogni testo in un vettore di 384 dimensioni. Sostituisce `all-MiniLM-L6-v2` per migliore comprensione dell'italiano, mantenendo la stessa dimensione 384.
 
 2. **LLM**: supporta due provider:
    - **Ollama** (default): si connette a `http://localhost:11434/v1` via `ChatOpenAI` di LangChain, usando API compatibile OpenAI. Modello: `qwen2.5:3b`. I parametri (temperature=0.2, max_tokens=2048, top_p=0.95) sono pensati per risposte coerenti e deterministiche.
@@ -127,9 +131,10 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 
 5. **Filtri URL** (metodo `_is_allowed()`):
    - Solo domini `www.cni.it` e `cni.it`
-   - Blocca: `/wp-admin`, `/wp-json`, `/wp-login`, `/xmlrpc`, `/feed/`
+   - Blocca: `/wp-admin`, `/wp-json`, `/wp-login`, `/xmlrpc`, `/feed/`, `/en/` (versione inglese del sito, esclusa per focalizzarci su contenuti italiani)
    - Blocca estensioni non testuali: `.xml`, `.css`, `.js`, immagini, video, ecc.
-   - Se `included_paths` è configurato, filtra solo quei path
+   - `included_paths` configurato: `/media-ing`, `/cni`, `/temi`, `/contatti`, `/servizi` — solo questi path vengono crawlti
+   - `priority_paths` con `priority_max_depth: 12` per dare priorità a `/media-ing` e `/cni`
 
 **Perché:** Vogliamo solo contenuti testuali pubblici del CNI. Il crawler è progettato per essere gentile (delay, 5 worker, timeout 30s) e rispettare i limiti di pagine.
 
@@ -280,10 +285,12 @@ Carica `logging_config.yaml`, crea la directory `logs/`, configura handler e for
 
 **Cosa facciamo:** Trasformiamo ogni chunk di testo in un vettore numerico (embedding) che cattura il significato semantico del testo.
 
-**Modello:** `all-MiniLM-L6-v2` di **sentence-transformers**
+**Modello:** `paraphrase-multilingual-MiniLM-L12-v2` di **sentence-transformers**
 
 **Caratteristiche:**
 - Dimensione output: **384 dimensioni** (vettore di 384 numeri floating-point)
+- Layer: 12 (vs 6 del precedente `all-MiniLM-L6-v2`)
+- Lingue: 50+ (copertura multilingua significativamente migliore)
 - Normalizzazione: attiva (così possiamo usare dot product come similarità)
 - Batch: 32 chunk per volta
 
@@ -294,10 +301,11 @@ generate_batch(texts) -> list[list[float]]  # batch embedding
 process_chunks(chunks) -> chunks        # aggiunge campo "embedding" a ogni chunk
 ```
 
-**Perché `all-MiniLM-L6-v2`?**
-- Leggero (6 layer, ~80MB): ideale per CPU con 8GB RAM
-- 384 dimensioni: buon compromesso tra accuratezza e velocità
-- Buona copertura multilingua per testi in italiano
+**Perché `paraphrase-multilingual-MiniLM-L12-v2`?**
+- Stessa dimensione 384 del precedente modello — nessuna modifica al database vettoriale
+- 12 layer vs 6: comprensione semantica più profonda
+- Addestrato su 50+ lingue, con enfasi su traduzioni e parafrasi cross-lingua
+- Progettato specificamente per similarità semantica multilingua (perfetto per testi italiani)
 - Normalizzato: permette similarità coseno via dot product
 
 **Cosa NON usiamo:** Non usiamo modelli più grandi come `text-embedding-3-large` (OpenAI) perché vogliamo mantenere tutto locale, senza API esterne.
@@ -349,6 +357,8 @@ Per ogni chunk:
 - Filtri sui payload (category, source) integrati
 - HNSW index per ricerca approssimata veloce (anni vs lineare)
 - Può girare 100% locale senza Docker
+
+**Stato attuale:** 5890 documenti crawlti → 17098 chunk indicizzati nella collezione `cni_documents`.
 
 ---
 
@@ -454,22 +464,22 @@ Non è un vero hybrid search BM25 + vettoriale (non implementiamo sparse retriev
 ### File: `src/rag/reranker.py`
 **Classe:** `Reranker`
 
-**Cosa facciamo:** Riordiniamo i risultati del retrieval per tenere solo i migliori.
+**Cosa facciamo:** Riordiniamo i risultati del retrieval usando un cross-encoder per selezionare solo i documenti più pertinenti da passare al LLM.
 
-**Stato attuale:** Il reranker è **disabilitato** (`enabled: false`) perché il cross-encoder disponibile (`ms-marco-MiniLM-L-6-v2`) è allenato su query inglesi. Applicato a documenti italiani, degrada la qualità invece di migliorarla. Usiamo direttamente lo score di similarità coseno del retrieval vettoriale, più affidabile per testi italiani.
+**Stato attuale:** Il reranker è **abilitato** (`enabled: true`). Prende i `top_k=10` documenti dal retrieval vettoriale, li riordina con il cross-encoder, e mantiene i `top_k=5` finali.
 
-**Come funzionerebbe (se abilitato):**
-- Invece di codificare separatamente query e documento (come fa il bi-encoder), il cross-encoder prende la **coppia** (query, documento) in un unico forward pass
-- Calcola un punteggio di rilevanza diretto, più accurato
-- Svantaggio: è più lento (O(n) per n documenti)
+**Come funziona:**
+- Il bi-encoder (usato nel retrieval) codifica query e documento separatamente, poi calcola similarità coseno tra i due vettori. Veloce ma meno preciso.
+- Il cross-encoder prende la **coppia** (query, documento) in un unico forward pass, calcolando un punteggio di rilevanza diretto. Più lento (O(n) per n documenti) ma più accurato.
 
-**Processo (se abilitato):**
-1. Per ogni documento retrieved, crea una coppia `(query, content)`
-2. Il cross-encoder predice un punteggio per ogni coppia
-3. Ordina i documenti per punteggio decrescente
-4. Mantiene solo i top `top_k` (default 10)
+**Processo:**
+1. Riceve ~10 documenti dal retrieval vettoriale
+2. Per ogni documento, crea una coppia `(query, content)`
+3. Il cross-encoder (`cross-encoder/ms-marco-MiniLM-L-6-v2`) predice uno score di pertinenza per ogni coppia
+4. Ordina i documenti per score decrescente
+5. Mantiene solo i top `top_k=5`
 
-**Perché disabilitato:** Il cross-encoder inglese su testi italiani produce punteggi inaffidabili. Meglio usare lo score vettoriale diretto.
+**Perché abilitato:** Il cross-encoder, pur essendo allenato su inglese, aiuta a selezionare i documenti più pertinenti dal pool di 10 retrieved, riducendo il rumore nei 5 documenti finali inviati al LLM. Il grade_docs successivo (Corrective RAG) funge da ulteriore filtro di qualità.
 
 ---
 
@@ -657,45 +667,167 @@ Directory `frontend/`:
 ### File: `src/rag/rag_chain.py`
 **Classe:** `RAGChain`
 
-**Cosa facciamo:** Orchestriamo l'intero flusso RAG usando **LangGraph**, un framework per costruire grafi di stato.
+**Cosa facciamo:** Orchestriamo l'intero flusso RAG usando **LangGraph**, un framework per costruire grafi di stato con archi condizionali.
 
-**Il grafo:**
+**Il grafo (9 nodi, 3 archi condizionali):**
 
 ```
-classify ──► retrieve ──► rerank ──► build_prompt ──► generate ──► build_citations ──► END
+                    ┌─────────────────────────────────────────────┐
+                    │                    START                    │
+                    │              classify (QueryClassifier)     │
+                    └─────────────────────┬───────────────────────┘
+                                          │
+                    ┌─────────────────────▼───────────────────────┐
+                    │              retrieve (HybridRetriever)     │
+                    └─────────────────────┬───────────────────────┘
+                                          │
+                    ┌─────────────────────▼───────────────────────┐
+                    │              rerank (Cross-Encoder)          │
+                    │              top_k 10 → top_k 5             │
+                    └─────────────────────┬───────────────────────┘
+                                          │
+                    ┌─────────────────────▼───────────────────────┐
+                    │           grade_docs (Qwen valuta)          │
+                    └──────────────┬──────────────────┬───────────┘
+                                   │                  │
+                             pertinente         non pertinente
+                                   │                  │
+                                   │    ┌─────────────▼───────────┐
+                                   │    │  rewrite_query (Qwen)   │
+                                   │    └─────────────┬───────────┘
+                                   │                  │
+                                   │            retry_count ≤ 1?
+                                   │              ┌────┴────┐
+                                   │            retry    fallback
+                                   │              │          │
+                                   │    ┌─────────▼──┐  ┌────▼────┐
+                                   │    │  retrieve  │  │ fallback │
+                                   │    │  → rerank  │  │ → END   │
+                                   │    │  → grade   │  └─────────┘
+                                   │    └─────────┬──┘
+                                   │         pertinente
+                                   │              │
+                    ┌───────────────┴──────────────┘
+                    │
+      ┌─────────────▼──────────────────┐
+      │     build_prompt (PromptBuilder)│
+      └─────────────┬──────────────────┘
+                    │
+      ┌─────────────▼──────────────────┐
+      │  generate (PIIFilter + Qwen)   │
+      └─────────────┬──────────────────┘
+                    │
+      ┌─────────────▼──────────────────┐
+      │   self_check (Qwen valuta)     │
+      └─────────────┬──────────────────┘
+                    │
+              ┌─────┴────┐
+          accurata   inaccurata + !fix_attempted
+              │              │
+              │    ┌─────────▼──────────┐
+              │    │  generate (fix)    │
+              │    └─────────┬──────────┘
+              │              │
+              │    ┌─────────▼──────────┐
+              │    │  self_check (no)   │
+              │    │  → accurata        │
+              │    └────────────────────┘
+              │
+      ┌───────▼──────────────────────┐
+      │  build_citations (Citation)  │
+      └──────────────┬───────────────┘
+                     │
+                [END] - RISPOSTA
 ```
 
 **Stato (RAGState):**
 ```python
 {
-    "question": str,           # domanda utente
-    "category": str,           # categoria classificata
-    "retrieved_docs": list,    # documenti retrieved
-    "reranked_docs": list,     # documenti riordinati
-    "prompt": list,            # messaggi prompt [{role, content}]
-    "response": str,           # risposta LLM
-    "citations": list,         # citazioni
-    "trace_id": str,           # ID univoco per tracing
+    "question": str,              # domanda utente (può essere riscritta)
+    "category": str,              # categoria classificata
+    "retrieved_docs": list,       # documenti retrieved
+    "reranked_docs": list,        # documenti riordinati
+    "prompt": list,               # messaggi prompt [{role, content}]
+    "response": str,              # risposta LLM
+    "citations": list,            # citazioni
+    "trace_id": str,              # ID univoco per tracing
+    "fallback_triggered": bool,  # se True, risposta = messaggio fallback
+    "grade_result": str,          # "pertinente" | "non pertinente"
+    "retry_count": int,           # 0, 1, 2 (max 1 rewrite + retry)
+    "self_check_result": str,     # "accurata" | "inaccurata"
+    "fix_attempted": bool,        # True dopo 1 tentativo di fix
 }
 ```
 
 **Ogni nodo:**
-1. **classify** → `QueryClassifier.classify()` + log evento
-2. **retrieve** → `HybridRetriever.retrieve()` + log evento
-3. **rerank** → `Reranker.rerank()` + log evento
-4. **build_prompt** → `PromptBuilder.build_prompt()`
-5. **generate** → filtra PII, chiama `ResponseGenerator.generate()` + log evento
-6. **build_citations** → `CitationBuilder.build()`
+1. **classify** → `QueryClassifier.classify()` + log monitoring
+2. **retrieve** → `HybridRetriever.retrieve(query)` — top_k=10
+3. **rerank** → `Reranker.rerank(query, docs)` — cross-encoder → top_k=5
+4. **grade_docs** → `GradeDocs.grade(question, docs)` — LLM valuta se docs sono pertinenti
+5. **rewrite_query** → `QueryRewriter.rewrite(question)` — LLM riscrive query per retry
+6. **build_prompt** → `PromptBuilder.build_prompt(question, docs)` — costruisce system + user
+7. **generate** → filtra PII, chiama `ResponseGenerator.generate(prompt)`; se fix_attempted, aggiunge istruzione di correzione
+8. **self_check** → `SelfRAG.check(question, response, docs)` — LLM valuta accuratezza
+9. **build_citations** → `CitationBuilder.build(docs, response)`
+10. **fallback** → restituisce messaggio "Non ho trovato informazioni sufficienti..."
+
+**Archi condizionali (decisioni automatiche del grafo):**
+- `grade_docs` → `"pertinente"` → `build_prompt`; `"non pertinente"` → `rewrite_query`
+- `rewrite_query` → `retry_count <= 1` → `retrieve` (retry con query riscritta); altrimenti → `fallback`
+- `self_check` → `"accurata"` → `build_citations`; `"inaccurata" + !fix_attempted` → `generate` (con fix prompt)
 
 **Metodi pubblici:**
-- `query(question)` → esecuzione sincrona del grafo
-- `astream(question)` → generator asincrono per streaming SSE (non usa LangGraph, esegue i passi manualmente per avere più controllo sullo streaming)
+- `query(question)` → esecuzione sincrona del grafo (invoke del LangGraph)
+- `astream(question)` → generator asincrono per streaming SSE (non usa LangGraph, esegue i passi manualmente per avere controllo sullo streaming token-by-token)
 
-**Perché LangGraph?**
-- Pipeline chiara e dichiarativa
-- Facile da estendere (aggiungere nodi, cambiare ordine)
-- Ogni nodo è testabile isolatamente
-- Supporto nativo per tracing e monitoring
+**Perché Corrective RAG + Self-RAG?**
+1. **Corrective RAG**: se i documenti retrieved non sono pertinenti, riscriviamo la query e riproviamo una volta. Questo recupera domande che al primo tentativo non trovavano risposta.
+2. **Self-RAG**: dopo la generazione, il LLM valuta la propria risposta. Se trova imprecisioni, rigenera con un'istruzione di correzione. Questo riduce le allucinazioni.
+3. **Limite di 1 retry e 1 fix**: evitiamo loop infiniti. Se al secondo tentativo non trova documenti, va in fallback. Se il fix non basta, la risposta viene comunque inviata.
+
+### Nuovi moduli RAG
+
+### `src/rag/grade_docs.py` — `GradeDocs`
+
+**Cosa facciamo:** Valutiamo se i documenti retrieved contengono informazioni sufficienti per rispondere alla domanda.
+
+**Come:** Chiediamo a Qwen 2.5 3B di classificare la pertinenza dei documenti, con un prompt specifico:
+
+```
+Sei un valutatore di rilevanza. Data una domanda e un insieme di documenti,
+determina se i documenti contengono informazioni sufficienti per rispondere.
+Rispondi solo con 'pertinente' o 'non pertinente'.
+```
+
+**Output:** una stringa: `"pertinente"` o `"non pertinente"`.
+
+### `src/rag/query_rewriter.py` — `QueryRewriter`
+
+**Cosa facciamo:** Riscriviamo la domanda utente in forma più specifica per migliorare il retrieval quando grade_docs fallisce.
+
+**Come:** Chiediamo a Qwen di riscrivere la query:
+
+```
+Riscrivi la seguente domanda in modo più specifico e dettagliato per migliorare
+la ricerca nei documenti. Mantieni il significato originale ma aggiungi contesto.
+```
+
+**Output:** stringa riscritta (es. "organi del CNI" → "quali sono gli organi istituzionali del Consiglio Nazionale degli Ingegneri e quali funzioni svolgono").
+
+### `src/rag/self_rag.py` — `SelfRAG`
+
+**Cosa facciamo:** Valutiamo l'accuratezza della risposta generata confrontandola con i documenti originali.
+
+**Come:** Chiediamo a Qwen di verificare:
+
+```
+Confronta la risposta con i documenti forniti. Identifica eventuali affermazioni
+non supportate, inesattezze o allucinazioni. Rispondi solo con 'accurata' o 'inaccurata'.
+```
+
+**Se inaccurata:** rigeneriamo la risposta aggiungendo al system prompt: *"La risposta precedente conteneva imprecisioni o allucinazioni. Correggi basandoti ESCLUSIVAMENTE sui documenti forniti. Non inventare nulla."*
+
+**Limite:** 1 solo tentativo di correzione. Se ancora inaccurata, la risposta viene comunque inviata.
 
 ### File: `src/governance/pii_filter.py`
 **Classe:** `PIIFilter`
@@ -723,7 +855,7 @@ classify ──► retrieve ──► rerank ──► build_prompt ──► ge
 Tracciamento richieste con timing. Crea una traccia per ogni query con:
 - UUID univoco
 - Timestamp inizio/fine
-- Eventi intermedi con dati
+- Eventi intermedi con dati (classify, retrieve, grade_docs, rewrite, generate, self_check)
 - Durata in millisecondi
 
 ---
