@@ -1,5 +1,5 @@
 embedding:
-  model_name: all-MiniLM-L6-v2
+  model_name: paraphrase-multilingual-MiniLM-L12-v2
   device: cpu
   normalize_embeddings: true
   batch_size: 32
@@ -42,7 +42,7 @@ fallback:
 vector_store:
   collection_name: cni_documents
   distance: cosine
-  size: 384
+  size: 768
 
 crawler:
   base_url: https://www.cni.it
@@ -60,11 +60,13 @@ crawler:
     - /cni
     - /temi
     - /contatti
+    - /servizi
   priority_paths:
     - /media-ing/
     - /cni
     - /temi
     - /contatti
+    - /servizi
   priority_max_depth: 12
   max_links_per_page: 300
 
