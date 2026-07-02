@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse } from '../models/rag.models';
+import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
@@ -69,6 +69,12 @@ export class RagService {
   ingest(): Observable<IngestResponse> {
     return this.http.post<IngestResponse>(`${this.apiUrl}/ingest`, {}).pipe(
       catchError(this.handleError)
+    );
+  }
+
+  getIngestStatus(): Observable<IngestStatus> {
+    return this.http.get<IngestStatus>(`${this.apiUrl}/ingest/status`).pipe(
+      catchError(() => throwError(() => new Error('Status non disponibile')))
     );
   }
 

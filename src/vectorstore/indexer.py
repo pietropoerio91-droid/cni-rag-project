@@ -56,6 +56,11 @@ class VectorIndexer:
         collection_info = self.client.get_collection(self.collection_name)
         return collection_info.points_count
 
+    def close(self) -> None:
+        self.manager.client.close()
+        self.manager._initialized = False
+        logger.info("Qdrant client closed")
+
     def clear_index(self) -> None:
         self.manager.delete_collection()
         self.manager.reinitialize()

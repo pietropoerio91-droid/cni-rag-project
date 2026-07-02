@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Subscription, interval } from 'rxjs';
 import { RagService } from './services/rag.service';
+import { IngestStatus } from './models/rag.models';
 
 @Component({
   selector: 'app-root',
@@ -50,12 +52,28 @@ import { RagService } from './services/rag.service';
                   </span>
                 </div>
                 <div class="menu-divider"></div>
-                <button class="menu-item action" (click)="ingestData()" [disabled]="isIngesting">
-                  <span>{{ isIngesting ? '⏳ Indicizzazione...' : '📥 Indicizza Dati' }}</span>
+                <button class="menu-item action" (click)="ingestData()" [disabled]="isIngesting || ingestStatus.running">
+                  <span>{{ ingestStatus.running ? '⏳ ' + phaseLabel : (isIngesting ? '⏳ Avvio...' : '📥 Indicizza Dati') }}</span>
                   <span class="tip-trigger" (click)="$event.stopPropagation()" data-tip="Scarica e indicizza i documenti pubblici dal sito cni.it per mantenerli aggiornati">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                   </span>
                 </button>
+                <div class="ingest-progress" *ngIf="ingestStatus.running">
+                  <div class="progress-bar">
+                    <div class="progress-fill" [style.width.%]="ingestStatus.progress_pct"></div>
+                  </div>
+                  <div class="progress-info">
+                    <span class="progress-msg">{{ ingestStatus.message }}</span>
+                    <span class="progress-pct">{{ ingestStatus.progress_pct }}%</span>
+                  </div>
+                  <div class="progress-details" *ngIf="ingestStatus.documents_found > 0">
+                    <span>{{ ingestStatus.documents_found }} documenti</span>
+                    <span *ngIf="ingestStatus.chunks_indexed > 0"> · {{ ingestStatus.chunks_indexed }} chunk</span>
+                  </div>
+                </div>
+                <div class="ingest-done" *ngIf="ingestStatus.phase === 'done' && !ingestStatus.running">
+                  <span class="done-msg">✅ {{ ingestStatus.message }}</span>
+                </div>
                 <button class="menu-item action" (click)="checkHealth()">
                   <span>🔄 Verifica Connessione</span>
                   <span class="tip-trigger" (click)="$event.stopPropagation()" data-tip="Verifica che il sistema sia operativo e pronto a rispondere alle domande">
@@ -254,17 +272,72 @@ import { RagService } from './services/rag.service';
       flex: 1;
       overflow-y: auto;
     }
+    .ingest-progress {
+      padding: 8px 12px;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .progress-details {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .ingest-done {
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--success);
+    }
   `]
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   apiConnected = false;
   documentsIndexed = 0;
   lastIndexingDate: Date | null = null;
   lastCheck: Date | null = null;
   menuOpen = false;
   isIngesting = false;
+  ingestStatus: IngestStatus = { running: false, phase: '', progress_pct: 0, documents_found: 0, documents_total: 0, chunks_indexed: 0, message: '', started_at: null, finished_at: null };
+  private statusSub: Subscription | null = null;
+
+  phaseLabels: Record<string, string> = {
+    init: 'Avvio...',
+    clear: 'Pulisco indice...',
+    crawl: 'Scarico documenti...',
+    filter: 'Filtro documenti...',
+    save: 'Salvo documenti...',
+    chunk: 'Creo chunk...',
+    embed: 'Genero embeddings...',
+    index: 'Indicizzo...',
+    done: 'Completato',
+    error: 'Errore',
+  };
+
+  get phaseLabel(): string {
+    return this.phaseLabels[this.ingestStatus.phase] || this.ingestStatus.phase;
+  }
 
   constructor(private ragService: RagService, private router: Router) {}
+
+  ngOnDestroy() {
+    this.statusSub?.unsubscribe();
+  }
 
   goHome() {
     this.router.navigate(['/']);
@@ -272,6 +345,7 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
     this.checkHealth();
+    this.statusSub = interval(2000).subscribe(() => this.pollStatus());
   }
 
   toggleMenu() {
@@ -292,15 +366,24 @@ export class AppComponent implements OnInit {
     });
   }
 
+  pollStatus() {
+    this.ragService.getIngestStatus().subscribe({
+      next: (status) => {
+        this.ingestStatus = status;
+        if (!status.running && status.phase === 'done') {
+          this.lastIndexingDate = new Date();
+          this.documentsIndexed = status.chunks_indexed;
+          this.checkHealth();
+        }
+      },
+    });
+  }
+
   ingestData() {
-    this.isIngesting = true;
-    this.menuOpen = false;
+    this.menuOpen = true;
     this.ragService.ingest().subscribe({
-      next: (response) => {
+      next: () => {
         this.isIngesting = false;
-        this.documentsIndexed = response.chunks_indexed;
-        this.lastIndexingDate = new Date();
-        this.checkHealth();
       },
       error: () => {
         this.isIngesting = false;

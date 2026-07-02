@@ -81,6 +81,7 @@ def run_ingestion(crawl: bool, max_pages: int, clear: bool, input_dir: str):
         console.print("[yellow]Clearing existing index...[/yellow]")
         indexer = VectorIndexer()
         indexer.clear_index()
+        indexer.close()
         console.print("[green]  Index cleared[/green]")
 
     console.print("[yellow]Phase 3: Chunking...[/yellow]")

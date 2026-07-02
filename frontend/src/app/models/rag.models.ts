@@ -31,6 +31,18 @@ export interface IngestResponse {
   message: string;
 }
 
+export interface IngestStatus {
+  running: boolean;
+  phase: string;
+  progress_pct: number;
+  documents_found: number;
+  documents_total: number;
+  chunks_indexed: number;
+  message: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';

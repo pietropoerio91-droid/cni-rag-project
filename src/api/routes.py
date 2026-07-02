@@ -1,8 +1,11 @@
+import asyncio
 import json
 import logging
 import os
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from src.api.schemas import (
@@ -22,6 +25,30 @@ router = APIRouter()
 
 _rag_chain: RAGChain | None = None
 _vector_indexer: VectorIndexer | None = None
+
+_ingest_status: dict[str, str | int | float | None] = {
+    "running": False,
+    "phase": "",
+    "progress_pct": 0,
+    "documents_found": 0,
+    "documents_total": 0,
+    "chunks_indexed": 0,
+    "message": "",
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+class IngestStatusResponse(BaseModel):
+    running: bool
+    phase: str
+    progress_pct: float
+    documents_found: int
+    documents_total: int
+    chunks_indexed: int
+    message: str
+    started_at: str | None = None
+    finished_at: str | None = None
 
 
 def get_rag_chain() -> RAGChain:
@@ -95,68 +122,118 @@ async def health():
         )
 
 
+@router.get("/ingest/status", response_model=IngestStatusResponse)
+async def ingest_status():
+    return IngestStatusResponse(
+        running=_ingest_status.get("running", False),
+        phase=_ingest_status.get("phase", ""),
+        progress_pct=_ingest_status.get("progress_pct", 0),
+        documents_found=_ingest_status.get("documents_found", 0),
+        documents_total=_ingest_status.get("documents_total", 0),
+        chunks_indexed=_ingest_status.get("chunks_indexed", 0),
+        message=_ingest_status.get("message", ""),
+        started_at=str(_ingest_status.get("started_at")) if _ingest_status.get("started_at") else None,
+        finished_at=str(_ingest_status.get("finished_at")) if _ingest_status.get("finished_at") else None,
+    )
+
+
 @router.post("/ingest", response_model=IngestResponse)
 async def ingest():
-    from src.ingestion.crawler import CNICrawler
-    from src.ingestion.cleaner import TextCleaner
-    from src.ingestion.chunker import DocumentChunker
-    from src.ingestion.downloader import Downloader
-    from src.ingestion.embedder import EmbeddingGenerator
-    from src.ingestion.parser import DocumentParser
-    from src.governance.public_data_filter import PublicDataFilter
-    from src.governance.quality_check import QualityChecker
+    if _ingest_status.get("running"):
+        raise HTTPException(status_code=409, detail="Indicizzazione già in corso")
 
-    try:
-        crawler = CNICrawler()
-        cleaner = TextCleaner()
-        parser = DocumentParser()
-        chunker = DocumentChunker()
-        embedder = EmbeddingGenerator()
-        indexer = get_vector_indexer()
-        downloader = Downloader()
-        public_filter = PublicDataFilter()
-        quality = QualityChecker()
+    async def _run_ingest():
+        from src.ingestion.chunker import DocumentChunker
+        from src.ingestion.cleaner import TextCleaner
+        from src.ingestion.crawler import CNICrawler
+        from src.ingestion.downloader import Downloader
+        from src.ingestion.embedder import EmbeddingGenerator
+        from src.ingestion.parser import DocumentParser
+        from src.governance.public_data_filter import PublicDataFilter
+        from src.governance.quality_check import QualityChecker
 
-        import asyncio
+        try:
+            _ingest_status.update({"running": True, "phase": "init", "progress_pct": 0, "message": "Avvio indicizzazione...", "started_at": datetime.now(), "documents_found": 0})
 
-        indexer.clear_index()
+            crawler = CNICrawler()
+            cleaner = TextCleaner()
+            parser = DocumentParser()
+            chunker = DocumentChunker()
+            embedder = EmbeddingGenerator()
+            downloader = Downloader()
+            public_filter = PublicDataFilter()
+            quality = QualityChecker()
+            indexer = get_vector_indexer()
 
-        existing_docs = downloader.load_documents()
+            _ingest_status.update({"phase": "clear", "message": "Pulisco indice esistente..."})
+            indexer.clear_index()
 
-        new_docs = await crawler.crawl()
+            _ingest_status.update({"phase": "crawl", "message": "Scarico documenti da cni.it..."})
+            new_docs = await crawler.crawl()
+            _ingest_status.update({"documents_found": len(new_docs), "progress_pct": 20})
 
-        seen_urls = {doc.get("url", "") for doc in existing_docs if doc.get("url")}
-        for doc in new_docs:
-            url = doc.get("url", "")
-            if url and url not in seen_urls:
-                existing_docs.append(doc)
-                seen_urls.add(url)
+            existing_docs = downloader.load_documents()
+            seen_urls = {doc.get("url", "") for doc in existing_docs if doc.get("url")}
+            for doc in new_docs:
+                url = doc.get("url", "")
+                if url and url not in seen_urls:
+                    existing_docs.append(doc)
+                    seen_urls.add(url)
+            _ingest_status.update({"documents_total": len(existing_docs), "progress_pct": 30})
 
-        processed_docs = []
-        for doc in existing_docs:
-            if not public_filter.is_public(doc.get("url", ""), doc.get("content", "")):
-                continue
-            ok, _ = quality.check(doc.get("content", ""))
-            if not ok:
-                continue
-            cleaned = cleaner.clean(doc.get("content", ""))
-            doc["content"] = cleaned
-            doc["meta"]["category"] = public_filter.categorize(doc.get("url", ""), cleaned)
-            processed_docs.append(doc)
+            _ingest_status.update({"phase": "filter", "message": "Filtro e pulisco documenti..."})
+            processed_docs = []
+            for i, doc in enumerate(existing_docs):
+                if not public_filter.is_public(doc.get("url", ""), doc.get("content", "")):
+                    continue
+                ok, _ = quality.check(doc.get("content", ""))
+                if not ok:
+                    continue
+                cleaned = cleaner.clean(doc.get("content", ""))
+                doc["content"] = cleaned
+                doc["meta"]["category"] = public_filter.categorize(doc.get("url", ""), cleaned)
+                processed_docs.append(doc)
+                if i % 100 == 0:
+                    _ingest_status.update({"documents_found": len(processed_docs)})
+            _ingest_status.update({"documents_found": len(processed_docs), "progress_pct": 50})
 
-        downloader.save_documents(processed_docs)
+            _ingest_status.update({"phase": "save", "message": "Salvo documenti..."})
+            downloader.save_documents(processed_docs)
+            _ingest_status.update({"progress_pct": 55})
 
-        chunks = chunker.chunk_documents(processed_docs)
-        chunks_with_embeddings = embedder.process_chunks(chunks)
-        indexed_count = indexer.index_chunks(chunks_with_embeddings)
+            _ingest_status.update({"phase": "chunk", "message": "Creo chunk..."})
+            chunks = chunker.chunk_documents(processed_docs)
+            _ingest_status.update({"progress_pct": 65})
 
-        return IngestResponse(
-            status="success",
-            documents_crawled=len(new_docs),
-            documents_total=len(processed_docs),
-            chunks_indexed=indexed_count,
-            message=f"Crawled {len(new_docs)} new, indexed {len(processed_docs)} total docs ({indexed_count} chunks)",
-        )
-    except Exception as e:
-        logger.error(f"Ingest error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            _ingest_status.update({"phase": "embed", "message": "Genero embeddings..."})
+            chunks_with_embeddings = embedder.process_chunks(chunks)
+            _ingest_status.update({"progress_pct": 85})
+
+            _ingest_status.update({"phase": "index", "message": "Indicizzo in Qdrant..."})
+            indexed_count = indexer.index_chunks(chunks_with_embeddings)
+            _ingest_status.update({"chunks_indexed": indexed_count, "progress_pct": 100})
+
+            _ingest_status.update({
+                "running": False,
+                "phase": "done",
+                "message": f"Indicizzazione completata: {indexed_count} chunk indicizzati",
+                "finished_at": datetime.now(),
+            })
+        except Exception as e:
+            logger.error(f"Ingest error: {e}")
+            _ingest_status.update({
+                "running": False,
+                "phase": "error",
+                "message": f"Errore: {e}",
+                "finished_at": datetime.now(),
+            })
+
+    asyncio.create_task(_run_ingest())
+
+    return IngestResponse(
+        status="started",
+        documents_crawled=0,
+        documents_total=0,
+        chunks_indexed=0,
+        message="Indicizzazione avviata in background",
+    )
