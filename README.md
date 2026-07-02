@@ -5,34 +5,44 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 ## Architettura
 
 ```
-                   ┌─────────────────────────────────────────────────┐
-                   │                  INGESTION                       │
-                   │  Crawler → Parser → Cleaner → Chunker → Embedder │
-                   └───────────────────────┬─────────────────────────┘
-                                           │
-                                           ▼
-                                   ┌──────────────┐
-                                   │     Qdrant    │
-                                   │  (locale,     │
-                                   │   SQLite)     │
-                                   └──────┬───────┘
-                                           │
-                   ┌───────────────────────┴─────────────────────────┐
-                   │                   QUERY                          │
-                   │  Retriever → Reranker → Prompt Builder → LLM    │
-                   │                                      (qwen2.5:3b│
-                   │                                       via Ollama)│
-                   └───────────────────────┬─────────────────────────┘
-                                           │
-                                   ┌───────┴────────┐
-                                   │    FastAPI      │
-                                   │   (REST/SSE)    │
-                                   └───────┬────────┘
-                                           │
-                                   ┌───────┴────────┐
-                                   │  Angular FE    │
-                                   │  localhost:4200 │
-                                   └────────────────┘
+                    ┌─────────────────────────────────────────────────┐
+                    │                  INGESTION                       │
+                    │  Crawler → Parser → Cleaner → Chunker → Embedder │
+                    └───────────────────────┬─────────────────────────┘
+                                            │
+                                            ▼
+                                    ┌──────────────┐
+                                    │     Qdrant    │
+                                    │  (locale,     │
+                                    │   SQLite)     │
+                                    └──────┬───────┘
+                                            │
+                    ┌───────────────────────┴──────────────────────────────────────┐
+                    │                         QUERY                                 │
+                    │  Classifier → Retriever → Reranker → Grade Docs ──→ Rewrite  │
+                    │                                           │         │         │
+                    │                                     pertinente    retry      │
+                    │                                           │         │         │
+                    │                                     Prompt Builder ←─┘       │
+                    │                                           │                  │
+                    │                                        Generate              │
+                    │                                           │                  │
+                    │                                      Self-Check ──→ Fix     │
+                    │                                           │                  │
+                    │                                   Build Citations            │
+                    │                                      (qwen2.5:3b             │
+                    │                                       via Ollama)            │
+                    └───────────────────────┬──────────────────────────────────────┘
+                                            │
+                                    ┌───────┴────────┐
+                                    │    FastAPI      │
+                                    │   (REST/SSE)    │
+                                    └───────┬────────┘
+                                            │
+                                    ┌───────┴────────┐
+                                    │  Angular FE    │
+                                    │  localhost:4200 │
+                                    └────────────────┘
 ```
 
 ## Tecnologie
@@ -40,9 +50,9 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 - **Backend**: Python 3.12 + FastAPI
 - **Frontend**: Angular 18
 - **LLM**: Qwen 2.5 3B via Ollama (locale, `http://localhost:11434`)
-- **Embeddings**: `all-MiniLM-L6-v2` (sentence-transformers, 384-dim)
+- **Embeddings**: `paraphrase-multilingual-MiniLM-L12-v2` (sentence-transformers, 384-dim, 50+ lingue)
 - **Vector Store**: Qdrant (modalità locale SQLite, `data/qdrant_db`)
-- **Orchestrator**: LangGraph
+- **Orchestrator**: LangGraph (Corrective RAG + Self-RAG)
 - **Framework RAG**: LangChain
 
 ## Hardware Consigliato
@@ -80,7 +90,7 @@ cni-rag-project/
 │   ├── governance/          # Filtri PII, qualità, monitoring
 │   ├── inference/           # LLM client, response, citazioni
 │   ├── ingestion/           # Crawler, parser, chunker, embedder
-│   ├── rag/                 # RAG chain, retriever, reranker
+│   ├── rag/                 # RAG chain, retriever, reranker, grade_docs, query_rewriter, self_rag
 │   └── vectorstore/         # Qdrant client, indexer, retriever
 ├── tests/                   # Test
 │   ├── unit/
@@ -201,7 +211,7 @@ curl -X POST http://localhost:8000/api/v1/query \
 | Branch | Descrizione |
 |--------|-------------|
 | `main` | Base comune |
-| `feature/setup-mac` | Configurazione macOS (Ollama + Qdrant locale) |
+| `feature/setup-mac` | Configurazione macOS (Ollama + Qdrant locale, Corrective RAG + Self-RAG) |
 | `feature/setup-windows` | Configurazione Windows (Docker + LM Studio, se usato) |
 
 ## Licenza

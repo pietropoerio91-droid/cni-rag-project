@@ -34,35 +34,56 @@
 Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) completa, composta da:
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        CNI RAG System                                │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  FASE 1: INGESTION                                                   │
-│  ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
-│  │Crawler  │→│Downloader│→│Parser    │→│Cleaner   │→│Chunker │ │
-│  │(httpx)  │  │(JSON)    │  │(trafila) │  │(regex)   │  │(LC)    │ │
-│  └─────────┘  └──────────┘  └──────────┘  └──────────┘  └────┬───┘ │
-│                                                               │      │
-│  FASE 2: VECTORIZATION                                         │      │
-│                                          ┌──────────┐         │      │
-│                                   ←──────│ Embedder │←────────┘      │
-│                                   │      │(MiniLM)  │               │
-│                                   │      └────┬─────┘               │
-│                                   │           │                     │
-│  FASE 3: INDEXING                   │           │                     │
-│                                   │      ┌────▼─────┐               │
-│                                   └──────│ Indexer  │               │
-│                                          │ (Qdrant) │               │
-│                                          └──────────┘               │
-│                                                                      │
-│  FASE 4: QUERY                                                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
-│  │Classifier│→│Retriever │→│Reranker  │→│Prompt    │→│LLM     │ │
-│  │(keyword) │  │(hybrid)  │  │(cross-  │  │Builder   │  │(Ollama)│ │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └────────┘ │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         CNI RAG System                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  FASE 1: INGESTION (5890 documenti → 17098 chunk)                        │
+│  ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
+│  │Crawler  │→│Downloader│→│Parser    │→│Cleaner   │→│Chunker    │  │
+│  │(httpx)  │  │(JSON)    │  │(trafila) │  │(regex)   │  │(1500/200) │  │
+│  └─────────┘  └──────────┘  └──────────┘  └──────────┘  └─────┬─────┘  │
+│                                                                 │        │
+│  FASE 2: VECTORIZATION                                           │        │
+│                                            ┌────────────────┐   │        │
+│                                     ←──────│   Embedder     │←──┘        │
+│                                     │      │(multilingual   │            │
+│                                     │      │ MiniLM L12-v2) │            │
+│                                     │      └───────┬────────┘            │
+│                                     │              │                     │
+│  FASE 3: INDEXING                     │              │                     │
+│                                     │      ┌────────▼────────┐           │
+│                                     └──────│    Indexer      │           │
+│                                            │  (Qdrant 384d)  │           │
+│                                            └─────────────────┘           │
+│                                                                          │
+│  FASE 4: QUERY (Corrective RAG + Self-RAG via LangGraph)                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐│
+│  │Classifier│→│Retriever │→│Reranker  │→│Grade Docs│  │Query     ││
+│  │(keyword) │  │(hybrid)  │  │(cross-   │  │(Qwen)    │  │Rewriter  ││
+│  └──────────┘  └──────────┘  └──────────┘  └─────┬─────┘  └─────┬─────┘│
+│                                                  │              │      │
+│                                            pertinente ←──── retry      │
+│                                                  │                     │
+│                                          ┌───────▼───────┐            │
+│                                          │ Prompt Builder │            │
+│                                          └───────┬───────┘            │
+│                                                  │                     │
+│                                          ┌───────▼───────┐            │
+│                                          │   Generate    │            │
+│                                          │ (Qwen 3B)    │            │
+│                                          └───────┬───────┘            │
+│                                                  │                     │
+│                                          ┌───────▼───────┐            │
+│                                          │  Self-Check   │──→Fix     │
+│                                          │   (Qwen)      │           │
+│                                          └───────┬───────┘            │
+│                                                  │                     │
+│                                          ┌───────▼───────┐            │
+│                                          │   Citations   │            │
+│                                          └───────────────┘            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tecnologie Utilizzate
@@ -71,10 +92,10 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 |---|---|---|
 | Backend | Python 3.12 + FastAPI | API server |
 | Frontend | Angular 18 | Interfaccia utente |
-| LLM | Qwen 2.5 3B via Ollama (`localhost:11434`) | Generazione risposte |
-| Embeddings | `all-MiniLM-L6-v2` (384-dim) | Vettorizzazione testo |
+| LLM | Qwen 2.5 3B via Ollama (`localhost:11434`) | Generazione risposte, grade docs, query rewrite, self-check |
+| Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) | Vettorizzazione testo (50+ lingue) |
 | Vector Store | Qdrant (modalità locale SQLite, `data/qdrant_db`) | Database vettoriale |
-| Orchestratore | LangGraph | Pipeline RAG |
+| Orchestratore | LangGraph (Corrective RAG + Self-RAG) | Pipeline RAG con 9 nodi |
 | Framework RAG | LangChain | Chunking, prompt |
 | Documenti | httpx + BeautifulSoup + trafilatura | Crawling e parsing |
 
@@ -172,11 +193,14 @@ cni-rag-project/
 │   │   └── parser.py            # Parsing HTML/PDF
 │   │
 │   ├── rag/                     # Modulo RAG
+│   │   ├── grade_docs.py        # Valutazione pertinenza documenti (Corrective RAG)
 │   │   ├── hybrid_retriever.py  # Retrieval ibrido
 │   │   ├── prompt_builder.py    # Costruzione prompt
 │   │   ├── query_classifier.py  # Classificazione query
-│   │   ├── rag_chain.py         # Orchestrazione LangGraph
-│   │   └── reranker.py          # Riordinamento risultati
+│   │   ├── query_rewriter.py    # Riscrittura query (Corrective RAG)
+│   │   ├── rag_chain.py         # Orchestrazione LangGraph (9 nodi)
+│   │   ├── reranker.py          # Riordinamento risultati
+│   │   └── self_rag.py          # Autovalutazione risposta (Self-RAG)
 │   │
 │   └── vectorstore/             # Modulo vector store
 │       ├── indexer.py           # Indicizzazione vettori
@@ -352,6 +376,8 @@ Suddivide documenti in chunk usando `RecursiveCharacterTextSplitter` di LangChai
 
 Genera embeddings vettoriali usando `sentence-transformers`.
 
+**Modello:** `paraphrase-multilingual-MiniLM-L12-v2` (12 layer, 384 dimensioni, 50+ lingue supportate). Sostituisce il precedente `all-MiniLM-L6-v2` per migliore comprensione dell'italiano, mantenendo la stessa dimensione 384.
+
 **Metodi:**
 - `generate(text)` → embedding singolo
 - `generate_batch(texts)` → batch embedding
@@ -374,6 +400,8 @@ Gestisce connessione a Qdrant (locale o remoto).
 2. Connette a Qdrant
 3. Crea collezione se non esiste
 4. Configura: Cosine distance, dimensione 384, HNSW index
+
+**Stato attuale:** 17098 chunk indicizzati (5890 documenti crawlti), singola collezione `cni_documents`.
 
 ### `src/vectorstore/indexer.py` — `VectorIndexer`
 
@@ -429,14 +457,18 @@ Combina classificazione query + retrieval vettoriale.
 
 ### `src/rag/reranker.py` — `Reranker`
 
-Riordina i risultati retrieved usando un cross-encoder.
+Riordina i risultati retrieved usando un cross-encoder per migliorare la pertinenza dei top-k documenti inviati al LLM.
 
 **Configurazione:**
-- `enabled`: false (disabilitato perché il cross-encoder è allenato su inglese, degrada la qualità su italiano)
-- `top_k`: 10 (usa lo score vettoriale diretto)
+- `enabled`: true (abilitato per selezionare i documenti più pertinenti)
+- `top_k`: 5 (documenti finali dopo reranking)
 - `model`: cross-encoder/ms-marco-MiniLM-L-6-v2
 
-**Quando abilitato:** Se cross-encoder non disponibile, ordina per score vettoriale.
+**Processo:**
+1. Prende i `top_k=10` documenti dal retrieval vettoriale
+2. Il cross-encoder valuta ogni coppia (query, documento) e produce uno score di pertinenza
+3. Ordina per score decrescente e mantiene i `top_k=5`
+4. I 5 documenti finali vanno al grade_docs e al prompt builder
 
 ### `src/rag/prompt_builder.py` — `PromptBuilder`
 
@@ -461,21 +493,40 @@ Domanda: {question}
 
 ### `src/rag/rag_chain.py` — `RAGChain`
 
-Orchestrazione completa del flusso RAG con LangGraph.
+Orchestrazione completa del flusso RAG con LangGraph e Corrective RAG + Self-RAG.
 
-**Grafo LangGraph:**
+**Grafo LangGraph (9 nodi, 4 archi condizionali):**
 
 ```
-classify ──► retrieve ──► rerank ──► build_prompt ──► generate ──► build_citations ──► END
+classify ──► retrieve ──► rerank ──► grade_docs ──► build_prompt ──► generate ──► self_check ──► build_citations ──► END
+                 │                      │                │                         │                    │
+                 │                 non pertinente        │                    inaccurata               │
+                 │                      │                │                         │                    │
+                 │                rewrite_query          │                     generate(fix)           │
+                 │                      │                │                         │                    │
+                 │                   retry ──► retrieve  │                         │                    │
+                 │                      │                │                         │                    │
+                 │                 fallback ──► END      │                         │                    │
+                 │                                       │                         │                    │
+                 └───────────────────────────────────────┴─────────────────────────┴────────────────────┘
 ```
 
 **Nodi:**
-1. **classify** → QueryClassifier.classify(query)
+1. **classify** → QueryClassifier.classify(query) + log monitoring
 2. **retrieve** → HybridRetriever.retrieve(query)
-3. **rerank** → Reranker.rerank(query, docs)
-4. **build_prompt** → PromptBuilder.build_prompt(question, docs)
-5. **generate** → PIIFilter → ResponseGenerator.generate(prompt)
-6. **build_citations** → CitationBuilder.build(docs, response)
+3. **rerank** → Reranker.rerank(query, docs) — cross-encoder
+4. **grade_docs** → GradeDocs.grade(question, docs) — Qwen valuta se docs sono pertinenti
+5. **rewrite_query** → QueryRewriter.rewrite(question) — riscrive query per retry
+6. **build_prompt** → PromptBuilder.build_prompt(question, docs)
+7. **generate** → PIIFilter → ResponseGenerator.generate(prompt); se fix_attempted, aggiunge istruzione di correzione
+8. **self_check** → SelfRAG.check(question, response, docs) — Qwen valuta accuratezza risposta
+9. **build_citations** → CitationBuilder.build(docs, response)
+10. **fallback** → restituisce messaggio di fallback
+
+**Archi condizionali:**
+- `grade_docs` → se `pertinente` → `build_prompt`; se `non pertinente` → `rewrite_query`
+- `rewrite_query` → se `retry_count <= 1` → `retrieve` (retry); altrimenti → `fallback`
+- `self_check` → se `accurata` → `build_citations`; se `inaccurata` + `!fix_attempted` → `generate` (con fix prompt)
 
 **Stato (RAGState):**
 ```python
@@ -488,12 +539,52 @@ classify ──► retrieve ──► rerank ──► build_prompt ──► ge
     "response": str,
     "citations": list,
     "trace_id": str,
+    "fallback_triggered": bool,
+    "grade_result": str,          # "pertinente" | "non pertinente"
+    "retry_count": int,           # 0, 1, 2 (max 1 rewrite)
+    "self_check_result": str,     # "accurata" | "inaccurata"
+    "fix_attempted": bool,        # True dopo 1 fix
 }
 ```
 
 **Metodi pubblici:**
-- `query(question)` → esecuzione sincrona
-- `astream(question)` → generator asincrono per streaming SSE
+- `query(question)` → esecuzione sincrona del grafo
+- `astream(question)` → generator asincrono per streaming SSE (esecuzione manuale, non LangGraph, per controllo streaming)
+
+### `src/rag/grade_docs.py` — `GradeDocs`
+
+Valuta se i documenti retrieved sono pertinenti alla domanda usando Qwen 2.5 3B.
+
+**Metodo:** `grade(question, docs)` → `"pertinente"` | `"non pertinente"`
+
+**Prompt:**
+```
+Sei un valutatore di rilevanza. Data una domanda e un insieme di documenti, determina se i documenti contengono informazioni sufficienti per rispondere...
+```
+Risposta attesa: una sola parola tra `pertinente` e `non pertinente`.
+
+### `src/rag/query_rewriter.py` — `QueryRewriter`
+
+Riscrive la query utente per migliorare il retrieval quando grade_docs fallisce.
+
+**Metodo:** `rewrite(question)` → stringa riscritta
+
+**Prompt:**
+```
+Riscrivi la seguente domanda in modo più specifico e dettagliato per migliorare la ricerca nei documenti. Mantieni il significato originale...
+```
+
+### `src/rag/self_rag.py` — `SelfRAG`
+
+Valuta l'accuratezza della risposta generata, confrontandola con i documenti.
+
+**Metodo:** `check(question, response, docs)` → `"accurata"` | `"inaccurata"`
+
+**Prompt:**
+```
+Confronta la risposta con i documenti. Identifica eventuali affermazioni non supportate, inesattezze o allucinazioni.
+```
+Se inaccurata, rigenera con un'istruzione di correzione aggiuntiva (1 solo tentativo).
 
 ---
 
@@ -835,7 +926,7 @@ LLM_BASE_URL=http://localhost:11434/v1
 LLM_MODEL=qwen2.5:3b
 
 # Embedding
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+EMBEDDING_MODEL=paraphrase-multilingual-MiniLM-L12-v2
 
 # Qdrant locale (SQLite, senza Docker)
 QDRANT_MODE=local
@@ -1000,7 +1091,7 @@ curl http://localhost:8000/api/v1/health
 | Governance | 4 | ~140 |
 | Ingestion | 6 | ~280 |
 | Vector Store | 3 | ~150 |
-| RAG | 5 | ~280 |
+| RAG | 8 | ~450 |
 | Inference | 3 | ~100 |
 | API | 3 | ~150 |
 | Scripts | 4 | ~200 |
@@ -1009,4 +1100,4 @@ curl http://localhost:8000/api/v1/health
 | Benchmark | 1 | ~250 |
 | Notebooks | 2 | ~200 (celle) |
 | Docker | 2 | ~40 |
-| **Totale** | **~56** | **~2.500+** |
+| **Totale** | **~59** | **~2.800+** |
