@@ -341,6 +341,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   displayTitle = '';
   titleTyping = true;
   private tipInterval: ReturnType<typeof setInterval> | null = null;
+  private titleInterval: ReturnType<typeof setInterval> | null = null;
   private sub = new Subscription();
 
   tips = [
@@ -386,14 +387,17 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private typeTitle() {
+    if (this.titleInterval) clearInterval(this.titleInterval);
     const text = 'Benvenuto';
+    this.displayTitle = '';
     let i = 0;
-    const interval = setInterval(() => {
+    this.titleInterval = setInterval(() => {
       if (i < text.length) {
         this.displayTitle += text[i];
         i++;
       } else {
-        clearInterval(interval);
+        clearInterval(this.titleInterval);
+        this.titleInterval = null;
         this.titleTyping = false;
       }
     }, 50);
@@ -401,6 +405,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.tipInterval) clearInterval(this.tipInterval);
+    if (this.titleInterval) clearInterval(this.titleInterval);
     this.sub.unsubscribe();
   }
 
@@ -462,6 +467,8 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.messages = [];
     this.currentQuestion = '';
     this.isLoading = false;
+    this.displayTitle = '';
+    this.titleTyping = true;
   }
 
   private scrollToBottom() {
