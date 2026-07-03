@@ -134,48 +134,57 @@ ollama serve
 # 6. Verifica che il modello sia disponibile
 ollama pull qwen2.5:3b
 
-# 7. Ingestion (prima volta)
-python scripts/run_ingestion.py --max-pages 100
+# 7. Ingestion (prima volta — richiede ~25 min)
+python scripts/run_ingestion.py
 
 # 8. Avvia API server
-python scripts/run_api.py
+python scripts/run_api.py --no-reload
 
 # 9. Avvia frontend Angular (in un altro terminale)
+curl -fsSL https://nodejs.org/dist/v20.12.0/node-v20.12.0-darwin-x64.tar.gz | tar -xz -C /tmp/
+export PATH="/tmp/node-v20.12.0-darwin-x64/bin:$PATH"
 cd frontend
 npm install
-./node_modules/.bin/ng serve
+npx ng serve --port 4200
 ```
 
-### Unico comando (macOS / Linux)
+### Unico comando (macOS)
 
 ```bash
+# Prima: avvia Ollama in un terminale separato
+ollama serve
+
+# Poi: tutto il resto automaticamente
+cd /Users/pietropoerio/Desktop/cni-rag-project
 chmod +x run.sh && ./run.sh
 ```
 
-## Avvio Rapido su Mac (dopo il primo setup)
+Lo script:
+- Scarica Node.js in `/tmp/` automaticamente se manca (dopo un reboot)
+- Uccide eventuali processi precedenti su porta 8000/4200
+- Avvia API (`--no-reload`) e frontend Angular
 
-Comandi giornalieri per riavviare i servizi dopo un riavvio del sistema:
+## Avvio Rapido su Mac (dopo il primo setup — manuale)
 
 ```bash
-# 1. Assicurati che Ollama sia in esecuzione
+# 0. Se hai riavviato il Mac, reinstalla Node.js in /tmp/
+curl -fsSL https://nodejs.org/dist/v20.12.0/node-v20.12.0-darwin-x64.tar.gz | tar -xz -C /tmp/
+
+# 1. Ollama (in un terminale)
 ollama serve
 
-# 2. Avvia API server in screen
-screen -dmS api bash -c "cd /Users/pietropoerio/Desktop/cni-rag-project && python3 scripts/run_api.py --no-reload --port 8000 > /tmp/api_uvicorn.log 2>&1"
+# 2. API (in un altro terminale)
+cd /Users/pietropoerio/Desktop/cni-rag-project
+source .venv/bin/activate
+python scripts/run_api.py --no-reload
 
-# 3. Avvia frontend Angular (in un altro terminale)
-/tmp/node-v20.12.0-darwin-x64/bin/node /tmp/node-v20.12.0-darwin-x64/bin/npm run start --prefix /Users/pietropoerio/Desktop/cni-rag-project/frontend
+# 3. Frontend (in un altro terminale ancora)
+export PATH="/tmp/node-v20.12.0-darwin-x64/bin:$PATH"
+cd /Users/pietropoerio/Desktop/cni-rag-project/frontend
+npx ng serve --port 4200
 
 # 4. Verifica
-curl http://localhost:8000/api/v1/health && echo ""
-```
-
-> Nota: Node.js è installato in `/tmp/node-v20.12.0-darwin-x64/bin/`. Se il frontend non si avvia, verifica il percorso con `ls /tmp/node-v20.12.0-darwin-x64/bin/node`.
-
-Se vuoi rientrare nella sessione screen dell'API:
-```bash
-screen -r api
-# Per staccarti senza fermare: Ctrl+A, D
+curl http://localhost:8000/api/v1/health
 ```
 
 Per fermare i servizi:

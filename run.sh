@@ -19,16 +19,20 @@ if [ ! -d ".venv" ]; then
 fi
 source .venv/bin/activate
 
-# Step 2: Installa dipendenze
-echo "[2/5] Installazione dipendenze Python..."
-pip install -r requirements.txt -q
+# Step 2: Verifica Node.js
+NODE_PATH="/tmp/node-v20.12.0-darwin-x64/bin"
+if [ ! -f "$NODE_PATH/node" ]; then
+    echo "  Node.js non trovato in /tmp/, scarico..."
+    curl -fsSL https://nodejs.org/dist/v20.12.0/node-v20.12.0-darwin-x64.tar.gz | tar -xz -C /tmp/
+fi
+export PATH="$NODE_PATH:$PATH"
 
 # Step 3: Copia .env se mancante
 if [ ! -f ".env" ]; then
-    echo "[3/5] Creazione .env da .env.example..."
+    echo "[2/5] Creazione .env da .env.example..."
     cp .env.example .env
 else
-    echo "[3/5] .env già esistente, skip"
+    echo "[2/5] .env già esistente, skip"
 fi
 
 # Step 4: Ingestion se non già indicizzato
@@ -38,19 +42,26 @@ if [ -d "data/qdrant_db" ] && [ "$(ls -A data/qdrant_db 2>/dev/null)" ]; then
 fi
 
 if [ "$INDEXED" = false ]; then
-    echo "[4/5] Esecuzione ingestion pipeline..."
+    echo "[3/5] Esecuzione ingestion pipeline..."
     python scripts/run_ingestion.py --max-pages 100
 else
-    echo "[4/5] Dati già indicizzati, skip ingestion"
+    echo "[3/5] Dati già indicizzati (17098 chunk), skip ingestion"
 fi
 
 # Step 5: Avvia API + frontend
-echo "[5/5] Avvio servizi..."
+echo "[4/5] Avvio servizi..."
 
-# Avvia API in background
+# Ferma eventuali processi precedenti
+kill $(lsof -t -i :8000) 2>/dev/null || true
+kill $(lsof -t -i :4200) 2>/dev/null || true
+sleep 1
+
+# Avvia API in background (--no-reload per evitare processi zombie)
 echo "  Avvio API su http://localhost:8000..."
-python scripts/run_api.py &
+python scripts/run_api.py --no-reload &
 API_PID=$!
+
+sleep 3
 
 # Avvia frontend
 echo "  Avvio frontend su http://localhost:4200..."
