@@ -187,6 +187,8 @@ npx ng serve --port 4200
 curl http://localhost:8000/api/v1/health
 ```
 
+Per usarlo: `ollama serve` in un terminale, poi `./run.sh` in un altro.
+
 Per fermare i servizi:
 ```bash
 kill $(lsof -t -i :8000) 2>/dev/null   # ferma API
