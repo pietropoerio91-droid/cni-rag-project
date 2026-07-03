@@ -3,23 +3,58 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_CATEGORIES = {
-    "normativa": "Normative and regulations",
-    "chi_siamo": "About CNI - organization information",
-    "organi": "Governing bodies",
-    "commissioni": "Commissions and committees",
-    "documenti": "Official documents",
-    "news": "News and communications",
-    "servizi": "Services for engineers",
-    "contatti": "Contact information",
-    "albo": "Professional register",
-    "formazione": "Training and education",
-}
-
 DENIED_KEYWORDS = [
     "credenziali",
     "non-pubblico",
 ]
+
+CATEGORY_PATTERNS: dict[str, list[str]] = {
+    "news": [
+        "/media-ing/news", "/news", "/comunicati-stampa", "/rassegna-stampa",
+        "/media-ing/multimedia", "/media-ing/area-covid",
+    ],
+    "documenti": [
+        "/documenti", "/atti", "/images/atti", "/images/bilanci",
+        "/images/delibere", "/images/verbali", "/images/pubblicazioni",
+        "/images/modulistica",
+    ],
+    "normativa": [
+        "/normativa", "/decreti", "/leggi", "/regolamenti",
+        "/images/normativa", "/images/atti_generali",
+    ],
+    "formazione": [
+        "/formazione", "/corsi", "/crediti", "/cfp",
+        "/scuola-formazione", "/images/formazione",
+    ],
+    "commissioni": [
+        "/commissioni", "/comitati", "/gruppi-lavoro",
+        "/images/commissioni",
+    ],
+    "organi": [
+        "/organi", "/consiglio", "/presidenza", "/cni/organi",
+    ],
+    "servizi": [
+        "/servizi", "/sportello", "/convenzioni", "/images/servizi",
+    ],
+    "eventi": [
+        "/eventi", "/convegni", "/seminari",
+    ],
+    "temi": [
+        "/temi", "/sicurezza", "/ambiente", "/energia",
+    ],
+    "giornale": [
+        "/il-giornale-dell-ingegnere", "/giornale-ingegnere",
+    ],
+    "albo": [
+        "/albo", "/elenchi", "/iscrizione", "/registro",
+    ],
+    "contatti": [
+        "/contatti", "/contatta", "/sede",
+    ],
+    "chi_siamo": [
+        "/chi-siamo", "/cni/chi-siamo",
+    ],
+}
 
 
 class PublicDataFilter:
@@ -47,7 +82,8 @@ class PublicDataFilter:
 
     def categorize(self, url: str, content: str) -> str:
         url_lower = url.lower()
-        for key in ALLOWED_CATEGORIES:
-            if key.replace("_", "-") in url_lower or key in url_lower:
-                return key
+        for category, patterns in CATEGORY_PATTERNS.items():
+            for pattern in patterns:
+                if pattern in url_lower:
+                    return category
         return "generico"
