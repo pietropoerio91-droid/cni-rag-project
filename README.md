@@ -164,6 +164,8 @@ Lo script:
 - Uccide eventuali processi precedenti su porta 8000/4200
 - Avvia API (`--no-reload`) e frontend Angular
 
+Per usarlo: `ollama serve` in un terminale, poi `./run.sh` in un altro.
+
 ## Avvio Rapido su Mac (dopo il primo setup — manuale)
 
 ```bash
@@ -186,8 +188,6 @@ npx ng serve --port 4200
 # 4. Verifica
 curl http://localhost:8000/api/v1/health
 ```
-
-Per usarlo: `ollama serve` in un terminale, poi `./run.sh` in un altro.
 
 Per fermare i servizi:
 ```bash
