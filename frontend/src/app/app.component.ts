@@ -340,6 +340,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   goHome() {
+    this.ragService.chatReset$.next();
     this.router.navigate(['/']);
   }
 

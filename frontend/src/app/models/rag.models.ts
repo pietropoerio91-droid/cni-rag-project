@@ -91,3 +91,14 @@ export interface QdrantAnalyticsResponse {
   content_length_buckets: Record<string, number>;
   top_sources: { name: string; count: number }[];
 }
+
+export interface CoverageSection {
+  category: string;
+  chunks: number;
+  avg_content_length: number;
+  poor_coverage: boolean;
+}
+
+export interface QdrantCoverageResponse {
+  sections: CoverageSection[];
+}

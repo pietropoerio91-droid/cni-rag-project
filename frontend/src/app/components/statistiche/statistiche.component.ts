@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -121,6 +121,26 @@ import { Subscription } from 'rxjs';
                 </div>
                 <span class="bar-value">{{ item.value }}</span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="coverage-card" *ngIf="coverage">
+          <h3 class="chart-title">
+            Copertura Dati per Sezione
+            <span class="tooltip-wrap chart-tooltip">
+              <span class="tooltip-icon">i</span>
+              <span class="tooltip-text">Sections with poor coverage have few chunks or very short content — queries about these topics may fall back. Red = insufficient data, green = queryable.</span>
+            </span>
+          </h3>
+          <div class="coverage-list">
+            <div class="coverage-row" *ngFor="let s of coverage.sections">
+              <span class="coverage-label">{{ s.category }}</span>
+              <div class="coverage-bar-track">
+                <div class="coverage-bar-fill" [style.width.%]="coverageBarPct(s)" [style.background]="s.poor_coverage ? '#dc2626' : '#16a34a'"></div>
+              </div>
+              <span class="coverage-value">{{ s.chunks }} chunk · {{ s.avg_content_length }} car.</span>
+              <span class="coverage-badge" [class.bad]="s.poor_coverage" [class.good]="!s.poor_coverage">{{ s.poor_coverage ? 'POCO DATI' : 'OK' }}</span>
             </div>
           </div>
         </div>
@@ -341,10 +361,71 @@ import { Subscription } from 'rxjs';
     .chart-tooltip .tooltip-text {
       width: 300px;
     }
+
+    .coverage-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: var(--shadow);
+    }
+    .coverage-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .coverage-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .coverage-label {
+      width: 100px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .coverage-bar-track {
+      flex: 1;
+      height: 16px;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .coverage-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.6s ease;
+      min-width: 4px;
+    }
+    .coverage-value {
+      font-size: 11px;
+      color: var(--text-secondary);
+      width: 140px;
+      flex-shrink: 0;
+    }
+    .coverage-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .coverage-badge.good {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .coverage-badge.bad {
+      background: #fef2f2;
+      color: #dc2626;
+    }
   `]
 })
 export class StatisticheComponent implements OnInit, OnDestroy {
   analytics: QdrantAnalyticsResponse | null = null;
+  coverage: QdrantCoverageResponse | null = null;
   error = '';
   private sub = new Subscription();
 
@@ -362,6 +443,12 @@ export class StatisticheComponent implements OnInit, OnDestroy {
         error: () => { this.error = 'Impossibile caricare le statistiche. Verifica che API e Qdrant siano in esecuzione.'; },
       })
     );
+    this.sub.add(
+      this.ragService.getQdrantCoverage().subscribe({
+        next: (c) => { this.coverage = c; },
+        error: () => {},
+      })
+    );
   }
 
   ngOnDestroy() {
@@ -370,6 +457,11 @@ export class StatisticheComponent implements OnInit, OnDestroy {
 
   get totalCategories(): number {
     return this.analytics ? Object.keys(this.analytics.categories).length : 0;
+  }
+
+  coverageBarPct(s: { chunks: number; avg_content_length: number }): number {
+    const maxChunks = Math.max(...(this.coverage?.sections.map(x => x.chunks) || [1]), 1);
+    return (s.chunks / maxChunks) * 100;
   }
 
   formatNumber(n: number): string {

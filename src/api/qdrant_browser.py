@@ -143,6 +143,50 @@ async def qdrant_analytics(mgr: QdrantClientManager = Depends(get_qdrant_manager
     }
 
 
+@router.get("/coverage")
+async def qdrant_coverage(mgr: QdrantClientManager = Depends(get_qdrant_manager)):
+    client = mgr.get_client()
+    cat_data: dict[str, dict[str, Any]] = {}
+
+    next_offset = 0
+    limit = 200
+    while True:
+        points, next_offset = client.scroll(
+            collection_name=mgr.collection_name,
+            limit=limit,
+            offset=next_offset,
+            with_payload=True,
+        )
+        if not points:
+            break
+        for pt in points:
+            payload = pt.payload or {}
+            cat = payload.get("category", "unknown")
+            if cat not in cat_data:
+                cat_data[cat] = {"count": 0, "total_length": 0, "lengths": []}
+            cat_data[cat]["count"] += 1
+            content = payload.get("content", "")
+            cl = len(content)
+            cat_data[cat]["total_length"] += cl
+            cat_data[cat]["lengths"].append(cl)
+        if next_offset is None or next_offset == 0:
+            break
+
+    sections = []
+    for cat, data in cat_data.items():
+        avg_len = round(data["total_length"] / data["count"], 1) if data["count"] else 0
+        poor = data["count"] < 5 or avg_len < 500
+        sections.append({
+            "category": cat,
+            "chunks": data["count"],
+            "avg_content_length": avg_len,
+            "poor_coverage": poor,
+        })
+
+    sections.sort(key=lambda s: (s["poor_coverage"], s["chunks"]), reverse=True)
+    return {"sections": sections}
+
+
 @router.get("/documents/{point_id}")
 async def qdrant_document_detail(point_id: str, mgr: QdrantClientManager = Depends(get_qdrant_manager)):
     client = mgr.get_client()

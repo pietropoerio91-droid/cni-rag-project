@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, Subject, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse } from '../models/rag.models';
+import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
   private apiUrl = 'http://localhost:8000/api/v1';
+  chatReset$ = new Subject<void>();
 
   constructor(private http: HttpClient) {}
 
@@ -87,6 +88,12 @@ export class RagService {
   getQdrantAnalytics(): Observable<QdrantAnalyticsResponse> {
     return this.http.get<QdrantAnalyticsResponse>(`${this.apiUrl}/qdrant/analytics`).pipe(
       catchError(() => throwError(() => new Error('Analytics non disponibili')))
+    );
+  }
+
+  getQdrantCoverage(): Observable<QdrantCoverageResponse> {
+    return this.http.get<QdrantCoverageResponse>(`${this.apiUrl}/qdrant/coverage`).pipe(
+      catchError(() => throwError(() => new Error('Copertura non disponibile')))
     );
   }
 

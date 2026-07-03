@@ -377,6 +377,12 @@ export class ChatComponent implements OnInit, OnDestroy {
         },
       })
     );
+    this.sub.add(
+      this.ragService.chatReset$.subscribe(() => {
+        this.resetHome();
+        this.typeTitle();
+      })
+    );
   }
 
   private typeTitle() {
