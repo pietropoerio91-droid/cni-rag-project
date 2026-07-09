@@ -13,7 +13,6 @@
 1.4 Large Language Models — architettura, pre-training, fine-tuning, limiti, Qwen 2.5 3B
 1.5 Retrieval-Augmented Generation — nascita, architettura, pattern naive → advanced → modular
 1.6 Corrective RAG e Self-RAG — grade documents, query rewriting, autovalutazione
-1.7 Limiti hardware e transizione piattaforma — da PC Windows (i7-1355U, 16GB, Intel UHD) a MacBook Pro (i5 dual-core 3.1GHz, 8GB, Iris Plus 650)
 
 ### Capitolo 2 — Stack tecnologico e strumenti
 2.1 Panoramica dell'ecosistema scelto
@@ -37,16 +36,17 @@
 3.8 Flusso dati end-to-end
 
 ### Capitolo 4 — Sviluppo del sistema
-4.1 Configurazione centralizzata (YAML + env)
-4.2 Crawling del sito cni.it (httpx + BeautifulSoup + trafilatura, 5890 documenti)
-4.3 Filtraggio, pulizia e quality check
-4.4 Chunking (1500 caratteri, overlap 200) e embedding multilingua (384-dim)
-4.5 Indicizzazione su Qdrant (17098 chunk, HNSW, cosine distance)
-4.6 Pipeline RAG con LangGraph — 9 nodi, 3 archi condizionali
-4.7 Retrieval ibrido (categoria + similarità coseno) e reranking (cross-encoder)
-4.8 API REST e SSE streaming
-4.9 Frontend Angular — chat, statistiche dashboard, Qdrant browser
-4.10 Integrazione con Ollama e gestione errori
+4.1 Vincoli hardware e scelte progettuali — da PC Windows (i7-1355U, 16GB, Intel UHD) a MacBook Pro (i5 dual-core 3.1GHz, 8GB, Iris Plus 650), impatto su modelli LLM, embedding e database vettoriale
+4.2 Configurazione centralizzata (YAML + env)
+4.3 Crawling del sito cni.it (httpx + BeautifulSoup + trafilatura, 5890 documenti)
+4.4 Filtraggio, pulizia e quality check
+4.5 Chunking (1500 caratteri, overlap 200) e embedding multilingua (384-dim)
+4.6 Indicizzazione su Qdrant (17098 chunk, HNSW, cosine distance)
+4.7 Pipeline RAG con LangGraph — 9 nodi, 3 archi condizionali
+4.8 Retrieval ibrido (categoria + similarità coseno) e reranking (cross-encoder)
+4.9 API REST e SSE streaming
+4.10 Frontend Angular — chat, statistiche dashboard, Qdrant browser
+4.11 Integrazione con Ollama e gestione errori
 
 ### Capitolo 5 — Risultati e valutazione
 5.1 Metriche di retrieval (MRR, Recall@k, Precision@k)
