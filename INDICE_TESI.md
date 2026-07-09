@@ -21,9 +21,10 @@
 2.3 Qdrant — database vettoriale locale (SQLite, HNSW)
 2.4 Sentence-Transformers — embedding multilingua con paraphrase-multilingual-MiniLM-L12-v2
 2.5 Ollama — esecuzione locale di LLM (Qwen 2.5 3B, Metal GPU)
-2.6 FastAPI — backend asincrono con SSE streaming
-2.7 Angular 18 — frontend moderno
-2.8 httpx + BeautifulSoup + trafilatura — web scraping
+2.6 PyMuPDF — estrazione testo da PDF (delibere, circolari del CNI)
+2.7 httpx + BeautifulSoup + trafilatura — web scraping e parsing HTML
+2.8 FastAPI — backend asincrono con SSE streaming
+2.9 Angular 18 — frontend moderno
 
 ### Capitolo 3 — Architettura del sistema RAG
 3.1 Requisiti e vincoli di progetto (privacy, nessun cloud, locale, vincoli HW)
