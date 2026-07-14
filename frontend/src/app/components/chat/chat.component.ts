@@ -396,7 +396,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         this.displayTitle += text[i];
         i++;
       } else {
-        clearInterval(this.titleInterval);
+        clearInterval(this.titleInterval ?? undefined);
         this.titleInterval = null;
         this.titleTyping = false;
       }
