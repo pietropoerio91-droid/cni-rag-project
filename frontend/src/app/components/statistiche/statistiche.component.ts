@@ -16,6 +16,15 @@ import { Subscription } from 'rxjs';
         <p class="subtitle">Analisi dei documenti indicizzati nel database vettoriale</p>
       </div>
 
+      <div class="tabs">
+        <button class="tab-btn" [class.active]="activeTab === 'quantitative'" (click)="activeTab='quantitative'">
+          Quantitative
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'qualitative'" (click)="activeTab='qualitative'">
+          Qualitative / Benchmark
+        </button>
+      </div>
+
       <div class="loading" *ngIf="!analytics && !error">
         <div class="spinner"></div>
         <p>Analisi dei documenti in corso...</p>
@@ -24,6 +33,7 @@ import { Subscription } from 'rxjs';
       <div class="error" *ngIf="error">{{ error }}</div>
 
       <ng-container *ngIf="analytics">
+        <div *ngIf="activeTab === 'quantitative'">
         <div class="summary-grid">
           <div class="summary-card">
             <div class="summary-value">{{ analytics.total_documents }}</div>
@@ -144,9 +154,11 @@ import { Subscription } from 'rxjs';
             </div>
           </div>
         </div>
+        </div>
 
-        <!-- Benchmark section -->
-        <div class="benchmark-section">
+        <div *ngIf="activeTab === 'qualitative'">
+          <!-- Benchmark section -->
+          <div class="benchmark-section">
           <div class="section-header">
             <h2>Benchmark — Metriche Qualitative</h2>
             <p class="subtitle">Valutazione della qualità del retrieval: MRR, Recall&#64;k, Precision&#64;k</p>
@@ -183,19 +195,43 @@ import { Subscription } from 'rxjs';
               <div class="summary-grid" *ngIf="results.length">
                 <div class="summary-card best-card">
                   <div class="summary-value">{{ bestResult(results).metrics.mrr | number:'1.3' }}</div>
-                  <div class="summary-label">MRR — Miglior config: {{ bestResult(results).config_name }}</div>
+                  <div class="summary-label">
+                    MRR — Miglior config: {{ bestResult(results).config_name }}
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Mean Reciprocal Rank: media del reciproco del rango del primo documento rilevante. Più alto è meglio (max 1.0). Un MRR di 0.7 significa che in media il primo docs rilevante è al 2º posto</span>
+                    </span>
+                  </div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ bestResult(results).metrics.recall_at_3 | number:'1.3' }}</div>
-                  <div class="summary-label">Recall&#64;3</div>
+                  <div class="summary-label">
+                    Recall&#64;3
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Frazione di query per cui almeno un documento rilevante è stato trovato nei primi 3 risultati. Misura la capacità di non perdere documenti utili</span>
+                    </span>
+                  </div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ bestResult(results).metrics.precision_at_3 | number:'1.3' }}</div>
-                  <div class="summary-label">Precision&#64;3</div>
+                  <div class="summary-label">
+                    Precision&#64;3
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 3 risultati. Misura la pulizia/pertinenza dei risultati restituiti</span>
+                    </span>
+                  </div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0' }} ms</div>
-                  <div class="summary-label">Latenza media (miglior config)</div>
+                  <div class="summary-label">
+                    Latenza media (miglior config)
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Tempo medio di risposta del retrieval in millisecondi. Include embedding + ricerca vettoriale + eventuale reranking</span>
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -204,7 +240,13 @@ import { Subscription } from 'rxjs';
                   <h3 class="chart-title">{{ config.config_name }}</h3>
                   <div class="benchmark-metrics">
                     <div class="metric-row" *ngFor="let m of metricEntries(config)">
-                      <span class="metric-label">{{ m.label }}</span>
+                      <span class="metric-label">
+                        {{ m.label }}
+                        <span class="tooltip-wrap">
+                          <span class="tooltip-icon">i</span>
+                          <span class="tooltip-text">{{ m.tooltip }}</span>
+                        </span>
+                      </span>
                       <div class="bar-track">
                         <div class="bar-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
                       </div>
@@ -219,14 +261,14 @@ import { Subscription } from 'rxjs';
                   <thead>
                     <tr>
                       <th>Config</th>
-                      <th>MRR</th>
-                      <th>R&#64;1</th>
-                      <th>R&#64;3</th>
-                      <th>R&#64;5</th>
-                      <th>P&#64;1</th>
-                      <th>P&#64;3</th>
-                      <th>ClsAcc</th>
-                      <th>Latenza</th>
+                      <th>MRR <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Mean Reciprocal Rank: media del rango inverso del primo docs rilevante</span></span></th>
+                      <th>R&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;1: frazione di query con docs rilevante al primo posto</span></span></th>
+                      <th>R&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;3: frazione di query con docs rilevante nei primi 3</span></span></th>
+                      <th>R&#64;5 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;5: frazione di query con docs rilevante nei primi 5</span></span></th>
+                      <th>P&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;1: frazione di query in cui il primo risultato è rilevante</span></span></th>
+                      <th>P&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;3: proporzione di docs rilevanti nei primi 3 risultati</span></span></th>
+                      <th>ClsAcc <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Classification Accuracy: accuratezza nel classificare la categoria della domanda</span></span></th>
+                      <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio di retrieval in millisecondi</span></span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -246,6 +288,7 @@ import { Subscription } from 'rxjs';
               </div>
             </ng-container>
           </ng-container>
+        </div>
         </div>
       </ng-container>
     </div>
@@ -267,6 +310,33 @@ import { Subscription } from 'rxjs';
     .subtitle {
       color: var(--text-secondary);
       margin-top: 4px;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 8px 20px;
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
     }
     .loading {
       text-align: center;
@@ -463,6 +533,28 @@ import { Subscription } from 'rxjs';
     }
     .chart-tooltip .tooltip-text {
       width: 300px;
+    }
+    .table-tip {
+      margin-left: 2px;
+      vertical-align: middle;
+    }
+    .table-tip .tooltip-text {
+      width: 240px;
+      font-size: 11px;
+      bottom: calc(100% + 10px);
+    }
+    .benchmark-metrics .tooltip-wrap {
+      margin-left: 1px;
+    }
+    .benchmark-metrics .tooltip-text {
+      width: 200px;
+      font-size: 11px;
+      bottom: calc(100% + 6px);
+    }
+    .metric-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
     }
 
     .coverage-card {
@@ -669,6 +761,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   benchmarkLoading = true;
   selectedRunTimestamp = '';
   selectedRun: BenchmarkFullRun | null = null;
+  activeTab: 'quantitative' | 'qualitative' = 'quantitative';
   error = '';
   private sub = new Subscription();
 
@@ -780,6 +873,15 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     return { categories, lengths, sources };
   }
 
+  METRIC_TOOLTIPS: Record<string, string> = {
+    'MRR': 'Mean Reciprocal Rank: media del rango inverso del primo documento rilevante nella lista dei risultati',
+    'R@1': 'Recall@1: il documento rilevante è al primo posto — copertura perfetta',
+    'R@3': 'Recall@3: documento rilevante trovato entro i primi 3 risultati',
+    'R@5': 'Recall@5: documento rilevante trovato entro i primi 5 risultati',
+    'P@1': 'Precision@1: il primo risultato restituito è pertinente alla domanda',
+    'P@3': 'Precision@3: proporzione di risultati pertinenti nei primi 3 restituiti',
+  };
+
   metricEntries(config: BenchmarkResultItem) {
     const m = config.metrics;
     const pairs = [
@@ -796,6 +898,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       val: p.val.toFixed(3),
       pct: (p.val / maxVal) * 100,
       color: this.BENCH_COLORS[i % this.BENCH_COLORS.length],
+      tooltip: this.METRIC_TOOLTIPS[p.key] || '',
     }));
   }
 }
