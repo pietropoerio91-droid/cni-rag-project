@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun } from '../models/rag.models';
+import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun, QueryStatsResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
@@ -114,6 +114,12 @@ export class RagService {
   getBenchmarkRun(timestamp: string): Observable<BenchmarkFullRun> {
     return this.http.get<BenchmarkFullRun>(`${this.apiUrl}/benchmark/runs/${timestamp}`).pipe(
       catchError(() => throwError(() => new Error('Run non trovato')))
+    );
+  }
+
+  getQueryStats(): Observable<QueryStatsResponse> {
+    return this.http.get<QueryStatsResponse>(`${this.apiUrl}/query/stats`).pipe(
+      catchError(() => throwError(() => new Error('Statistiche query non disponibili')))
     );
   }
 

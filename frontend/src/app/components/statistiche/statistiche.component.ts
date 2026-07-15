@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -20,8 +20,8 @@ import { Subscription } from 'rxjs';
         <button class="tab-btn" [class.active]="activeTab === 'quantitative'" (click)="activeTab='quantitative'">
           Quantitative
         </button>
-        <button class="tab-btn" [class.active]="activeTab === 'qualitative'" (click)="activeTab='qualitative'">
-          Qualitative / Benchmark
+        <button class="tab-btn" [class.active]="activeTab === 'qualitative'" (click)="activeTab='qualitative'; refreshQueryStats()">
+          Qualitative
         </button>
       </div>
 
@@ -36,12 +36,22 @@ import { Subscription } from 'rxjs';
         <div *ngIf="activeTab === 'quantitative'">
         <div class="summary-grid">
           <div class="summary-card">
-            <div class="summary-value">{{ analytics.total_documents }}</div>
+            <div class="summary-value">{{ analytics.total_chunks }}</div>
             <div class="summary-label">
-              Documenti indicizzati
+              Chunk indicizzati
               <span class="tooltip-wrap">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Numero totale di documenti processati e indicizzati nel database vettoriale Qdrant</span>
+                <span class="tooltip-text">Segmenti indicizzati nel database vettoriale. Ogni documento sorgente è suddiviso in più chunk da 1.500 caratteri</span>
+              </span>
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value">{{ analytics.total_documents }}</div>
+            <div class="summary-label">
+              Documenti sorgente
+              <span class="tooltip-wrap">
+                <span class="tooltip-icon">i</span>
+                <span class="tooltip-text">Numero di documenti originali crawllati e processati</span>
               </span>
             </div>
           </div>
@@ -51,7 +61,7 @@ import { Subscription } from 'rxjs';
               Lunghezza media
               <span class="tooltip-wrap">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Media aritmetica della lunghezza in caratteri del contenuto testuale di tutti i documenti indicizzati</span>
+                <span class="tooltip-text">Lunghezza media in caratteri dei chunk indicizzati</span>
               </span>
             </div>
           </div>
@@ -61,7 +71,7 @@ import { Subscription } from 'rxjs';
               Lunghezza mediana
               <span class="tooltip-wrap">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Valore centrale della distribuzione delle lunghezze: meno sensibile ai valori estremi rispetto alla media</span>
+                <span class="tooltip-text">Valore centrale della distribuzione delle lunghezze, meno sensibile ai valori estremi</span>
               </span>
             </div>
           </div>
@@ -71,7 +81,7 @@ import { Subscription } from 'rxjs';
               Categorie
               <span class="tooltip-wrap">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Numero di categorie tematiche assegnate ai documenti durante l'indicizzazione</span>
+                <span class="tooltip-text">Categorie tematiche assegnate ai chunk durante l'indicizzazione</span>
               </span>
             </div>
           </div>
@@ -83,7 +93,7 @@ import { Subscription } from 'rxjs';
               Documenti per Categoria
               <span class="tooltip-wrap chart-tooltip">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Distribuzione dei documenti raggruppati per categoria tematica. Ogni barra rappresenta il numero di documenti appartenenti a quella categoria</span>
+                <span class="tooltip-text">Distribuzione dei chunk per categoria tematica</span>
               </span>
             </h3>
             <div class="bar-chart">
@@ -102,7 +112,7 @@ import { Subscription } from 'rxjs';
               Lunghezza Contenuti
               <span class="tooltip-wrap chart-tooltip">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Distribuzione dei documenti in base alla lunghezza in caratteri, suddivisa in intervalli. Utile per capire la dimensione tipica dei contenuti indicizzati</span>
+                <span class="tooltip-text">Distribuzione dei chunk per intervallo di lunghezza in caratteri</span>
               </span>
             </h3>
             <div class="bar-chart">
@@ -121,7 +131,7 @@ import { Subscription } from 'rxjs';
               Top Fonti
               <span class="tooltip-wrap chart-tooltip">
                 <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Le 10 fonti (URL) che hanno contribuito con il maggior numero di chunk (segmenti) al database. Un documento lungo viene suddiviso in più chunk, quindi uno stesso PDF può comparire più volte</span>
+                <span class="tooltip-text">Top 10 fonti per numero di chunk generati. Un documento lungo viene suddiviso in più chunk</span>
               </span>
             </h3>
             <div class="bar-chart sources-chart">
@@ -140,7 +150,7 @@ import { Subscription } from 'rxjs';
             Copertura Dati per Sezione
             <span class="tooltip-wrap chart-tooltip">
               <span class="tooltip-icon">i</span>
-              <span class="tooltip-text">Sections with poor coverage have few chunks or very short content — queries about these topics may fall back. Red = insufficient data, green = queryable.</span>
+                <span class="tooltip-text">Sezioni con pochi chunk rischiano risposte poco accurate. Rosso = pochi dati, Verde = ok</span>
             </span>
           </h3>
           <div class="coverage-list">
@@ -157,21 +167,85 @@ import { Subscription } from 'rxjs';
         </div>
 
         <div *ngIf="activeTab === 'qualitative'">
-          <!-- Benchmark section -->
-          <div class="benchmark-section">
-          <div class="section-header">
-            <h2>Benchmark — Metriche Qualitative</h2>
-            <p class="subtitle">Valutazione della qualità del retrieval: MRR, Recall&#64;k, Precision&#64;k</p>
+
+          <!-- Real-time queries section -->
+          <div class="qual-section">
+            <div class="section-header">
+              <h2>Query in Tempo Reale
+                <button class="refresh-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳</button>
+              </h2>
+            </div>
+
+            <div class="loading" *ngIf="queryStatsLoading">
+              <div class="spinner"></div>
+            </div>
+
+            <ng-container *ngIf="queryStats && queryStats.total_queries > 0">
+              <div class="summary-grid">
+                <div class="summary-card">
+                  <div class="summary-value">{{ queryStats.total_queries }}</div>
+                  <div class="summary-label">Query effettuate</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ queryStats.avg_docs_retrieved }}</div>
+                  <div class="summary-label">Media documenti recuperati</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ queryStats.avg_top_score }}</div>
+                  <div class="summary-label">Score medio primo risultato</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ queryStats.avg_latency_ms | number:'1.0-2':'it' }} ms</div>
+                  <div class="summary-label">Latenza media</div>
+                </div>
+              </div>
+
+              <div class="charts-grid">
+                <div class="chart-card" *ngIf="queryCategoryData.length">
+                  <h3 class="chart-title">Categorie</h3>
+                  <div class="bar-chart">
+                    <div class="bar-row" *ngFor="let item of queryCategoryData">
+                      <span class="bar-label">{{ item.label }}</span>
+                      <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="item.pct" [style.background]="item.color"></div>
+                      </div>
+                      <span class="bar-value">{{ item.value }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="chart-card">
+                  <h3 class="chart-title">Ultime Query</h3>
+                  <div class="recent-queries">
+                    <div class="recent-row" *ngFor="let q of queryStats.recent">
+                      <span class="recent-q">{{ q.question }}</span>
+                      <span class="recent-cat">{{ q.category }}</span>
+                      <span class="recent-score">{{ q.top_score }}</span>
+                      <span class="recent-docs">{{ q.doc_count }} docs</span>
+                      <span class="recent-latency">{{ q.latency_ms }} ms</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div class="benchmark-empty" *ngIf="!queryStatsLoading && (!queryStats || queryStats.total_queries === 0)">
+              <p>Nessuna query ancora registrata.</p>
+            </div>
           </div>
+
+          <!-- Offline benchmark section -->
+          <div class="qual-section">
+            <div class="section-header">
+              <h2>Benchmark Offline</h2>
+            </div>
 
           <div class="loading" *ngIf="benchmarkLoading">
             <div class="spinner"></div>
-            <p>Caricamento benchmark...</p>
           </div>
 
           <div class="benchmark-empty" *ngIf="benchmark && !benchmark.available && !benchmarkLoading">
-            <p>Nessun benchmark eseguito.</p>
-            <code class="benchmark-hint">python benchmarks/run_benchmark.py</code>
+            <p>Nessun benchmark disponibile.</p>
           </div>
 
           <ng-container *ngIf="benchmark?.available">
@@ -197,40 +271,24 @@ import { Subscription } from 'rxjs';
                   <div class="summary-value">{{ bestResult(results).metrics.mrr | number:'1.3' }}</div>
                   <div class="summary-label">
                     MRR — Miglior config: {{ bestResult(results).config_name }}
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Mean Reciprocal Rank: media del reciproco del rango del primo documento rilevante. Più alto è meglio (max 1.0). Un MRR di 0.7 significa che in media il primo docs rilevante è al 2º posto</span>
-                    </span>
                   </div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ bestResult(results).metrics.recall_at_3 | number:'1.3' }}</div>
                   <div class="summary-label">
                     Recall&#64;3
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Frazione di query per cui almeno un documento rilevante è stato trovato nei primi 3 risultati. Misura la capacità di non perdere documenti utili</span>
-                    </span>
                   </div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ bestResult(results).metrics.precision_at_3 | number:'1.3' }}</div>
                   <div class="summary-label">
                     Precision&#64;3
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 3 risultati. Misura la pulizia/pertinenza dei risultati restituiti</span>
-                    </span>
                   </div>
                 </div>
                 <div class="summary-card">
-                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0' }} ms</div>
+                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0-2':'it' }} ms</div>
                   <div class="summary-label">
                     Latenza media (miglior config)
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Tempo medio di risposta del retrieval in millisecondi. Include embedding + ricerca vettoriale + eventuale reranking</span>
-                    </span>
                   </div>
                 </div>
               </div>
@@ -261,19 +319,25 @@ import { Subscription } from 'rxjs';
                   <thead>
                     <tr>
                       <th>Config</th>
-                      <th>MRR <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Mean Reciprocal Rank: media del rango inverso del primo docs rilevante</span></span></th>
-                      <th>R&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;1: frazione di query con docs rilevante al primo posto</span></span></th>
-                      <th>R&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;3: frazione di query con docs rilevante nei primi 3</span></span></th>
-                      <th>R&#64;5 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;5: frazione di query con docs rilevante nei primi 5</span></span></th>
-                      <th>P&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;1: frazione di query in cui il primo risultato è rilevante</span></span></th>
-                      <th>P&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;3: proporzione di docs rilevanti nei primi 3 risultati</span></span></th>
-                      <th>ClsAcc <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Classification Accuracy: accuratezza nel classificare la categoria della domanda</span></span></th>
-                      <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio di retrieval in millisecondi</span></span></th>
+                      <th>MRR <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Mean Reciprocal Rank. Ideale &gt; 0.80</span></span></th>
+                      <th>R&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;1: docs rilevante al primo posto. Ideale &gt; 0.70</span></span></th>
+                      <th>R&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;3: docs rilevante nei primi 3. Ideale &gt; 0.90</span></span></th>
+                      <th>R&#64;5 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;5: docs rilevante nei primi 5. Ideale &gt; 0.95</span></span></th>
+                      <th>P&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;1: primo risultato pertinente. Ideale &gt; 0.70</span></span></th>
+                      <th>P&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;3: proporzione di docs pertinenti nei primi 3. Ideale &gt; 0.60</span></span></th>
+                      <th>ClsAcc <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Accuratezza classificazione categoria. Ideale &gt; 0.90</span></span></th>
+                      <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio retrieval (ms). Ideale &lt; 500ms</span></span></th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr *ngFor="let r of results" [class.best-row]="r === bestResult(results)">
-                      <td><strong>{{ r.config_name }}</strong></td>
+                      <td>
+                        <strong>{{ r.config_name }}</strong>
+                        <span class="tooltip-wrap table-tip" style="margin-left:2px">
+                          <span class="tooltip-icon">i</span>
+                          <span class="tooltip-text">{{ configTooltip(r.config_name) }}</span>
+                        </span>
+                      </td>
                       <td>{{ r.metrics.mrr | number:'1.3' }}</td>
                       <td>{{ r.metrics.recall_at_1 | number:'1.3' }}</td>
                       <td>{{ r.metrics.recall_at_3 | number:'1.3' }}</td>
@@ -281,7 +345,7 @@ import { Subscription } from 'rxjs';
                       <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
                       <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
                       <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
-                      <td>{{ r.avg_latency_ms | number:'1.0' }} ms</td>
+                      <td>{{ r.avg_latency_ms | number:'1.0-2':'it' }} ms</td>
                     </tr>
                   </tbody>
                 </table>
@@ -494,6 +558,57 @@ import { Subscription } from 'rxjs';
       background: var(--primary);
       color: #fff;
     }
+    .recent-queries {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .recent-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+    .recent-q {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .recent-cat {
+      background: var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .recent-score {
+      width: 40px;
+      text-align: right;
+      color: var(--primary);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .recent-docs {
+      width: 50px;
+      text-align: right;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+    .recent-latency {
+      width: 50px;
+      text-align: right;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
     .tooltip-text {
       visibility: hidden;
       opacity: 0;
@@ -541,7 +656,14 @@ import { Subscription } from 'rxjs';
     .table-tip .tooltip-text {
       width: 240px;
       font-size: 11px;
-      bottom: calc(100% + 10px);
+      bottom: auto;
+      top: calc(100% + 6px);
+    }
+    .table-tip .tooltip-text::after {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: #1e293b;
     }
     .benchmark-metrics .tooltip-wrap {
       margin-left: 1px;
@@ -619,6 +741,33 @@ import { Subscription } from 'rxjs';
 
     .benchmark-section {
       margin-top: 40px;
+    }
+    .qual-section {
+      margin-bottom: 36px;
+    }
+    .qual-section .section-header {
+      margin-bottom: 16px;
+    }
+    .qual-section .section-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      margin-left: 8px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    .refresh-btn:hover {
+      color: var(--primary);
+      border-color: var(--primary);
     }
     .section-header {
       margin-bottom: 20px;
@@ -726,7 +875,6 @@ import { Subscription } from 'rxjs';
       font-size: 12px;
       background: var(--bg-card);
       border-radius: 12px;
-      overflow: hidden;
       box-shadow: var(--shadow);
     }
     .benchmark-table th {
@@ -743,6 +891,7 @@ import { Subscription } from 'rxjs';
       text-align: right;
       border-bottom: 1px solid var(--border);
       color: var(--text);
+      white-space: nowrap;
     }
     .benchmark-table td:first-child { text-align: left; }
     .best-row {
@@ -759,6 +908,8 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   coverage: QdrantCoverageResponse | null = null;
   benchmark: BenchmarkResponse | null = null;
   benchmarkLoading = true;
+  queryStats: QueryStatsResponse | null = null;
+  queryStatsLoading = true;
   selectedRunTimestamp = '';
   selectedRun: BenchmarkFullRun | null = null;
   activeTab: 'quantitative' | 'qualitative' = 'quantitative';
@@ -799,6 +950,22 @@ export class StatisticheComponent implements OnInit, OnDestroy {
         error: () => { this.benchmarkLoading = false; },
       })
     );
+    this.sub.add(
+      this.ragService.getQueryStats().subscribe({
+        next: (qs) => { this.queryStats = qs; this.queryStatsLoading = false; },
+        error: () => { this.queryStatsLoading = false; },
+      })
+    );
+  }
+
+  get queryCategoryData() {
+    if (!this.queryStats) return [];
+    const entries = Object.entries(this.queryStats.category_distribution);
+    const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+    return entries.map(([k, v], i) => ({
+      label: k, value: v, pct: (v / maxVal) * 100,
+      color: this.CHART_COLORS[i % this.CHART_COLORS.length],
+    }));
   }
 
   ngOnDestroy() {
@@ -873,14 +1040,35 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     return { categories, lengths, sources };
   }
 
-  METRIC_TOOLTIPS: Record<string, string> = {
-    'MRR': 'Mean Reciprocal Rank: media del rango inverso del primo documento rilevante nella lista dei risultati',
-    'R@1': 'Recall@1: il documento rilevante è al primo posto — copertura perfetta',
-    'R@3': 'Recall@3: documento rilevante trovato entro i primi 3 risultati',
-    'R@5': 'Recall@5: documento rilevante trovato entro i primi 5 risultati',
-    'P@1': 'Precision@1: il primo risultato restituito è pertinente alla domanda',
-    'P@3': 'Precision@3: proporzione di risultati pertinenti nei primi 3 restituiti',
+  configTooltip(name: string): string {
+    const tips: Record<string, string> = {
+      'with_reranker': 'Reranker cross-encoder attivo dopo la retrieval iniziale. Migliora la precisione ma aumenta la latenza',
+      'baseline': 'Configurazione standard: chunk 1500, overlap 200, hybrid search. Nessun reranker',
+      'small_chunks': 'Chunk ridotti a 750 token per aumentare la granularità del retrieval',
+      'large_chunks': 'Chunk grandi a 3000 token per maggiore contesto per configurazione',
+      'hybrid_only': 'Sola ricerca ibrida senza reranker né ottimizzazioni aggiuntive',
+      'dense_only': 'Sola embedding denso vettoriale, senza ricerca sparse (BM25)',
+    };
+    return tips[name] || 'Configurazione di retrieval con parametri specifici';
+  }
+
+  METRIC_IDEAL: Record<string, string> = {
+    'MRR': 'Ideale > 0.80',
+    'R@1': 'Ideale > 0.70',
+    'R@3': 'Ideale > 0.90',
+    'R@5': 'Ideale > 0.95',
+    'P@1': 'Ideale > 0.70',
+    'P@3': 'Ideale > 0.60',
+    'ClsAcc': 'Ideale > 0.90',
   };
+
+  refreshQueryStats() {
+    this.queryStatsLoading = true;
+    this.ragService.getQueryStats().subscribe({
+      next: (qs) => { this.queryStats = qs; this.queryStatsLoading = false; },
+      error: () => { this.queryStatsLoading = false; },
+    });
+  }
 
   metricEntries(config: BenchmarkResultItem) {
     const m = config.metrics;
@@ -891,6 +1079,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       { key: 'R@5', val: m.recall_at_5 },
       { key: 'P@1', val: m.precision_at_1 },
       { key: 'P@3', val: m.precision_at_3 },
+      { key: 'ClsAcc', val: m.classification_accuracy },
     ];
     const maxVal = Math.max(...pairs.map(p => p.val), 0.01);
     return pairs.map((p, i) => ({
@@ -898,7 +1087,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       val: p.val.toFixed(3),
       pct: (p.val / maxVal) * 100,
       color: this.BENCH_COLORS[i % this.BENCH_COLORS.length],
-      tooltip: this.METRIC_TOOLTIPS[p.key] || '',
+      tooltip: this.METRIC_IDEAL[p.key] || '',
     }));
   }
 }

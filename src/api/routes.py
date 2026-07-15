@@ -2,8 +2,11 @@ import asyncio
 import json
 import logging
 import os
+import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -26,6 +29,9 @@ router = APIRouter()
 
 _rag_chain: RAGChain | None = None
 _vector_indexer: VectorIndexer | None = None
+
+_query_log: list[dict[str, Any]] = []
+_MAX_QUERY_LOG = 500
 
 _ingest_status: dict[str, str | int | float | None] = {
     "running": False,
@@ -72,7 +78,25 @@ def get_vector_indexer() -> VectorIndexer:
 async def query(request: QueryRequest):
     try:
         chain = get_rag_chain()
+        t0 = time.perf_counter()
         result = chain.query(request.question)
+        latency = round((time.perf_counter() - t0) * 1000, 1)
+
+        doc_count = len(result.get("citations", []))
+        top_score = round(result["citations"][0].relevance_score, 4) if result.get("citations") else 0
+
+        _query_log.append({
+            "question": request.question[:120],
+            "category": result["category"],
+            "doc_count": doc_count,
+            "top_score": top_score,
+            "latency_ms": latency,
+            "response_length": len(result["response"]),
+            "timestamp": datetime.now().isoformat(),
+        })
+        if len(_query_log) > _MAX_QUERY_LOG:
+            _query_log.pop(0)
+
         return QueryResponse(
             response=result["response"],
             citations=[CitationResponse(**c) for c in result["citations"]],
@@ -83,6 +107,31 @@ async def query(request: QueryRequest):
         import traceback
         logger.error(f"Query error: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/query/log")
+async def query_log():
+    return _query_log[-50:]
+
+
+@router.get("/query/stats")
+async def query_stats():
+    if not _query_log:
+        return {"total_queries": 0, "message": "Nessuna query ancora effettuata"}
+
+    doc_counts = [q["doc_count"] for q in _query_log]
+    top_scores = [q["top_score"] for q in _query_log if q["top_score"] > 0]
+    latencies = [q["latency_ms"] for q in _query_log]
+    categories = Counter(q["category"] for q in _query_log)
+
+    return {
+        "total_queries": len(_query_log),
+        "avg_docs_retrieved": round(sum(doc_counts) / len(doc_counts), 1),
+        "avg_top_score": round(sum(top_scores) / len(top_scores), 4) if top_scores else 0,
+        "avg_latency_ms": round(sum(latencies) / len(latencies), 1),
+        "category_distribution": dict(categories.most_common()),
+        "recent": _query_log[-10:],
+    }
 
 
 @router.post("/query/stream")

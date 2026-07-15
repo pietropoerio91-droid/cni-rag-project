@@ -85,6 +85,7 @@ export interface QdrantDocumentsResponse {
 
 export interface QdrantAnalyticsResponse {
   total_documents: number;
+  total_chunks: number;
   avg_content_length: number;
   median_content_length: number;
   categories: Record<string, number>;
@@ -145,4 +146,23 @@ export interface BenchmarkResponse {
   runs: BenchmarkRun[];
   latest: BenchmarkFullRun | null;
   best_overall: BenchmarkFullRun | null;
+}
+
+export interface QueryLogEntry {
+  question: string;
+  category: string;
+  doc_count: number;
+  top_score: number;
+  latency_ms: number;
+  response_length: number;
+  timestamp: string;
+}
+
+export interface QueryStatsResponse {
+  total_queries: number;
+  avg_docs_retrieved: number;
+  avg_top_score: number;
+  avg_latency_ms: number;
+  category_distribution: Record<string, number>;
+  recent: QueryLogEntry[];
 }

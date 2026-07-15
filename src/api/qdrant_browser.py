@@ -134,7 +134,8 @@ async def qdrant_analytics(mgr: QdrantClientManager = Depends(get_qdrant_manager
     top_sources = sources.most_common(10)
 
     return {
-        "total_documents": total,
+        "total_documents": len(sources),
+        "total_chunks": total,
         "avg_content_length": avg_len,
         "median_content_length": round(statistics.median(content_lengths), 1) if total else 0,
         "categories": dict(categories.most_common()),
