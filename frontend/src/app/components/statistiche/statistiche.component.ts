@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -143,6 +143,91 @@ import { Subscription } from 'rxjs';
               <span class="coverage-badge" [class.bad]="s.poor_coverage" [class.good]="!s.poor_coverage">{{ s.poor_coverage ? 'POCO DATI' : 'OK' }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- Benchmark section -->
+        <div class="benchmark-section">
+          <div class="section-header">
+            <h2>Benchmark — Metriche Qualitative</h2>
+            <p class="subtitle">Valutazione della qualità del retrieval: MRR, Recall&#64;k, Precision&#64;k</p>
+          </div>
+
+          <div class="loading" *ngIf="benchmarkLoading">
+            <div class="spinner"></div>
+            <p>Caricamento benchmark...</p>
+          </div>
+
+          <div class="benchmark-empty" *ngIf="benchmark && !benchmark.available && !benchmarkLoading">
+            <p>Nessun benchmark eseguito.</p>
+            <code class="benchmark-hint">python benchmarks/run_benchmark.py</code>
+          </div>
+
+          <ng-container *ngIf="benchmark?.available && benchmark?.results?.length">
+            <div class="summary-grid" *ngIf="benchmark?.best_config as best">
+              <div class="summary-card best-card">
+                <div class="summary-value">{{ best.metrics.mrr | number:'1.3' }}</div>
+                <div class="summary-label">MRR — Miglior config: {{ best.config_name }}</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-value">{{ best.metrics.recall_at_3 | number:'1.3' }}</div>
+                <div class="summary-label">Recall&#64;3</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-value">{{ best.metrics.precision_at_3 | number:'1.3' }}</div>
+                <div class="summary-label">Precision&#64;3</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-value">{{ best.avg_latency_ms | number:'1.0' }} ms</div>
+                <div class="summary-label">Latenza media (miglior config)</div>
+              </div>
+            </div>
+
+            <div class="charts-grid">
+              <div class="chart-card" *ngFor="let config of benchmark?.results || []">
+                <h3 class="chart-title">{{ config.config_name }}</h3>
+                <div class="benchmark-metrics">
+                  <div class="metric-row" *ngFor="let m of metricEntries(config)">
+                    <span class="metric-label">{{ m.label }}</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
+                    </div>
+                    <span class="metric-value">{{ m.val }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="benchmark-table-wrap">
+              <table class="benchmark-table">
+                <thead>
+                  <tr>
+                    <th>Config</th>
+                    <th>MRR</th>
+                    <th>R&#64;1</th>
+                    <th>R&#64;3</th>
+                    <th>R&#64;5</th>
+                    <th>P&#64;1</th>
+                    <th>P&#64;3</th>
+                    <th>ClsAcc</th>
+                    <th>Latenza</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let r of benchmark?.results || []" [class.best-row]="r === benchmark?.best_config">
+                    <td><strong>{{ r.config_name }}</strong></td>
+                    <td>{{ r.metrics.mrr | number:'1.3' }}</td>
+                    <td>{{ r.metrics.recall_at_1 | number:'1.3' }}</td>
+                    <td>{{ r.metrics.recall_at_3 | number:'1.3' }}</td>
+                    <td>{{ r.metrics.recall_at_5 | number:'1.3' }}</td>
+                    <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
+                    <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
+                    <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
+                    <td>{{ r.avg_latency_ms | number:'1.0' }} ms</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </ng-container>
         </div>
       </ng-container>
     </div>
@@ -421,11 +506,110 @@ import { Subscription } from 'rxjs';
       background: #fef2f2;
       color: #dc2626;
     }
+
+    .benchmark-section {
+      margin-top: 40px;
+    }
+    .section-header {
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .benchmark-empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+    .benchmark-hint {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .best-card {
+      border-color: #f59e0b;
+      background: linear-gradient(135deg, #fffbeb, #fff);
+    }
+    .best-card .summary-value {
+      color: #d97706;
+    }
+    .benchmark-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .metric-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .metric-label {
+      width: 60px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .metric-value {
+      width: 45px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .benchmark-table-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+    .benchmark-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .benchmark-table th {
+      background: var(--bg);
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 10px 8px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    .benchmark-table th:first-child { text-align: left; }
+    .benchmark-table td {
+      padding: 8px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .benchmark-table td:first-child { text-align: left; }
+    .best-row {
+      background: #fffbeb;
+    }
+    .best-row td {
+      font-weight: 600;
+      color: #d97706;
+    }
   `]
 })
 export class StatisticheComponent implements OnInit, OnDestroy {
   analytics: QdrantAnalyticsResponse | null = null;
   coverage: QdrantCoverageResponse | null = null;
+  benchmark: BenchmarkResponse | null = null;
+  benchmarkLoading = true;
   error = '';
   private sub = new Subscription();
 
@@ -433,6 +617,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     '#1a56db', '#16a34a', '#f59e0b', '#dc2626', '#8b5cf6',
     '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1',
   ];
+  BENCH_COLORS = ['#1a56db', '#16a34a', '#f59e0b', '#dc2626', '#8b5cf6', '#ec4899', '#06b6d4'];
 
   constructor(private ragService: RagService) {}
 
@@ -447,6 +632,12 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       this.ragService.getQdrantCoverage().subscribe({
         next: (c) => { this.coverage = c; },
         error: () => {},
+      })
+    );
+    this.sub.add(
+      this.ragService.getBenchmarkResults().subscribe({
+        next: (b) => { this.benchmark = b; this.benchmarkLoading = false; },
+        error: () => { this.benchmarkLoading = false; },
       })
     );
   }
@@ -503,5 +694,24 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     }));
 
     return { categories, lengths, sources };
+  }
+
+  metricEntries(config: BenchmarkResultItem) {
+    const m = config.metrics;
+    const pairs = [
+      { key: 'MRR', val: m.mrr },
+      { key: 'R@1', val: m.recall_at_1 },
+      { key: 'R@3', val: m.recall_at_3 },
+      { key: 'R@5', val: m.recall_at_5 },
+      { key: 'P@1', val: m.precision_at_1 },
+      { key: 'P@3', val: m.precision_at_3 },
+    ];
+    const maxVal = Math.max(...pairs.map(p => p.val), 0.01);
+    return pairs.map((p, i) => ({
+      label: p.key,
+      val: p.val.toFixed(3),
+      pct: (p.val / maxVal) * 100,
+      color: this.BENCH_COLORS[i % this.BENCH_COLORS.length],
+    }));
   }
 }

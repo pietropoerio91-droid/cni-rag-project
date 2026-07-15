@@ -102,3 +102,28 @@ export interface CoverageSection {
 export interface QdrantCoverageResponse {
   sections: CoverageSection[];
 }
+
+export interface BenchmarkMetrics {
+  mrr: number;
+  recall_at_1: number;
+  recall_at_3: number;
+  recall_at_5: number;
+  precision_at_1: number;
+  precision_at_3: number;
+  classification_accuracy: number;
+}
+
+export interface BenchmarkResultItem {
+  config_name: string;
+  metrics: BenchmarkMetrics;
+  avg_latency_ms: number;
+  total_queries: number;
+  config: Record<string, unknown>;
+}
+
+export interface BenchmarkResponse {
+  available: boolean;
+  message?: string;
+  results: BenchmarkResultItem[];
+  best_config: BenchmarkResultItem | null;
+}

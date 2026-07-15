@@ -171,7 +171,7 @@ class RAGBenchmark:
 
 
 DEFAULT_CONFIGS = [
-    BenchmarkConfig(name="baseline", chunk_size=512, overlap=64, top_k=5, use_reranker=False),
+    BenchmarkConfig(name="baseline", chunk_size=512, chunk_overlap=64, top_k=5, use_reranker=False),
     BenchmarkConfig(name="with_reranker", chunk_size=512, chunk_overlap=64, top_k=5, use_reranker=True),
     BenchmarkConfig(name="small_chunks", chunk_size=256, chunk_overlap=32, top_k=5, use_reranker=True),
     BenchmarkConfig(name="large_chunks", chunk_size=1024, chunk_overlap=128, top_k=5, use_reranker=True),

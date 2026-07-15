@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -120,6 +121,21 @@ async def health():
             documents_indexed=0,
             llm_connected=False,
         )
+
+
+@router.get("/benchmark")
+async def benchmark():
+    path = Path(__file__).resolve().parent.parent.parent / "benchmarks" / "results.json"
+    if not path.exists():
+        return {
+            "available": False,
+            "message": "Nessun benchmark eseguito. Lancia: python benchmarks/run_benchmark.py",
+            "results": [],
+            "best_config": None,
+        }
+    data = json.loads(path.read_text())
+    best = max(data, key=lambda r: r["metrics"]["mrr"]) if data else None
+    return {"available": True, "results": data, "best_config": best}
 
 
 @router.get("/ingest/status", response_model=IngestStatusResponse)

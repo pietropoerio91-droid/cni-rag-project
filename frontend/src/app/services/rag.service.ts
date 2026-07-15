@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse } from '../models/rag.models';
+import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse, BenchmarkResponse } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
@@ -102,6 +102,12 @@ export class RagService {
     if (search) params += `&search=${encodeURIComponent(search)}`;
     return this.http.get<QdrantDocumentsResponse>(`${this.apiUrl}/qdrant/documents${params}`).pipe(
       catchError(this.handleError)
+    );
+  }
+
+  getBenchmarkResults(): Observable<BenchmarkResponse> {
+    return this.http.get<BenchmarkResponse>(`${this.apiUrl}/benchmark`).pipe(
+      catchError(() => throwError(() => new Error('Benchmark non disponibile')))
     );
   }
 
