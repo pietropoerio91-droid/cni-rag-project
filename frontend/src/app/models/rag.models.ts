@@ -121,9 +121,28 @@ export interface BenchmarkResultItem {
   config: Record<string, unknown>;
 }
 
+export interface BenchmarkRun {
+  timestamp: string;
+  run_date: string;
+  file: string;
+  total_queries: number;
+  configs: number;
+  best_config: string;
+  best_mrr: number;
+}
+
+export interface BenchmarkFullRun {
+  run_date: string;
+  timestamp: string;
+  best_config: string;
+  best_mrr: number;
+  results: BenchmarkResultItem[];
+}
+
 export interface BenchmarkResponse {
   available: boolean;
   message?: string;
-  results: BenchmarkResultItem[];
-  best_config: BenchmarkResultItem | null;
+  runs: BenchmarkRun[];
+  latest: BenchmarkFullRun | null;
+  best_overall: BenchmarkFullRun | null;
 }

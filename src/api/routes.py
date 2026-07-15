@@ -125,17 +125,52 @@ async def health():
 
 @router.get("/benchmark")
 async def benchmark():
-    path = Path(__file__).resolve().parent.parent.parent / "benchmarks" / "results.json"
-    if not path.exists():
+    results_dir = Path(__file__).resolve().parent.parent.parent / "benchmarks" / "results"
+    index_path = results_dir / "index.json"
+    latest_path = results_dir / "latest.json"
+
+    if not index_path.exists() or not latest_path.exists():
         return {
             "available": False,
             "message": "Nessun benchmark eseguito. Lancia: python benchmarks/run_benchmark.py",
-            "results": [],
-            "best_config": None,
+            "runs": [],
+            "latest": None,
+            "best_overall": None,
         }
-    data = json.loads(path.read_text())
-    best = max(data, key=lambda r: r["metrics"]["mrr"]) if data else None
-    return {"available": True, "results": data, "best_config": best}
+
+    index: list[dict] = json.loads(index_path.read_text())
+    latest_data = json.loads(latest_path.read_text()) if latest_path.exists() else None
+
+    best_overall = None
+    if index:
+        best_run = max(index, key=lambda r: r["best_mrr"])
+        best_file = results_dir / best_run["file"]
+        if best_file.exists():
+            best_data = json.loads(best_file.read_text())
+            best_overall = {
+                "run_date": best_run["run_date"],
+                "timestamp": best_run["timestamp"],
+                "best_config": best_run["best_config"],
+                "best_mrr": best_run["best_mrr"],
+                "results": best_data["results"],
+            }
+
+    return {
+        "available": True,
+        "runs": sorted(index, key=lambda r: r["timestamp"], reverse=True),
+        "latest": latest_data,
+        "best_overall": best_overall,
+    }
+
+
+@router.get("/benchmark/runs/{timestamp}")
+async def benchmark_run(timestamp: str):
+    results_dir = Path(__file__).resolve().parent.parent.parent / "benchmarks" / "results"
+    run_file = results_dir / f"results_{timestamp}.json"
+    if not run_file.exists():
+        raise HTTPException(status_code=404, detail="Run non trovato")
+    data = json.loads(run_file.read_text())
+    return data
 
 
 @router.get("/ingest/status", response_model=IngestStatusResponse)

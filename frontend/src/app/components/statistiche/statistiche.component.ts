@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -162,71 +162,89 @@ import { Subscription } from 'rxjs';
             <code class="benchmark-hint">python benchmarks/run_benchmark.py</code>
           </div>
 
-          <ng-container *ngIf="benchmark?.available && benchmark?.results?.length">
-            <div class="summary-grid" *ngIf="benchmark?.best_config as best">
-              <div class="summary-card best-card">
-                <div class="summary-value">{{ best.metrics.mrr | number:'1.3' }}</div>
-                <div class="summary-label">MRR — Miglior config: {{ best.config_name }}</div>
+          <ng-container *ngIf="benchmark?.available">
+            <!-- Run selector and best overall -->
+            <div class="benchmark-toolbar">
+              <div class="run-selector" *ngIf="benchmark?.runs?.length">
+                <label for="runSelect">Test:</label>
+                <select id="runSelect" [ngModel]="selectedRunTimestamp" (ngModelChange)="selectRun($event)">
+                  <option *ngFor="let r of benchmark?.runs || []" [value]="r.timestamp">
+                    {{ r.run_date | date:'dd/MM/yy HH:mm' }} — {{ r.best_config }} (MRR {{ r.best_mrr | number:'1.3' }})
+                  </option>
+                </select>
               </div>
-              <div class="summary-card">
-                <div class="summary-value">{{ best.metrics.recall_at_3 | number:'1.3' }}</div>
-                <div class="summary-label">Recall&#64;3</div>
-              </div>
-              <div class="summary-card">
-                <div class="summary-value">{{ best.metrics.precision_at_3 | number:'1.3' }}</div>
-                <div class="summary-label">Precision&#64;3</div>
-              </div>
-              <div class="summary-card">
-                <div class="summary-value">{{ best.avg_latency_ms | number:'1.0' }} ms</div>
-                <div class="summary-label">Latenza media (miglior config)</div>
+              <div class="best-badge" *ngIf="benchmark?.best_overall as best">
+                Miglior storico: {{ best.best_config }} — MRR {{ best.best_mrr | number:'1.3' }}
               </div>
             </div>
 
-            <div class="charts-grid">
-              <div class="chart-card" *ngFor="let config of benchmark?.results || []">
-                <h3 class="chart-title">{{ config.config_name }}</h3>
-                <div class="benchmark-metrics">
-                  <div class="metric-row" *ngFor="let m of metricEntries(config)">
-                    <span class="metric-label">{{ m.label }}</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
+            <!-- Selected / latest results -->
+            <ng-container *ngIf="selectedRun?.results as results">
+              <div class="summary-grid" *ngIf="results.length">
+                <div class="summary-card best-card">
+                  <div class="summary-value">{{ bestResult(results).metrics.mrr | number:'1.3' }}</div>
+                  <div class="summary-label">MRR — Miglior config: {{ bestResult(results).config_name }}</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ bestResult(results).metrics.recall_at_3 | number:'1.3' }}</div>
+                  <div class="summary-label">Recall&#64;3</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ bestResult(results).metrics.precision_at_3 | number:'1.3' }}</div>
+                  <div class="summary-label">Precision&#64;3</div>
+                </div>
+                <div class="summary-card">
+                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0' }} ms</div>
+                  <div class="summary-label">Latenza media (miglior config)</div>
+                </div>
+              </div>
+
+              <div class="charts-grid">
+                <div class="chart-card" *ngFor="let config of results">
+                  <h3 class="chart-title">{{ config.config_name }}</h3>
+                  <div class="benchmark-metrics">
+                    <div class="metric-row" *ngFor="let m of metricEntries(config)">
+                      <span class="metric-label">{{ m.label }}</span>
+                      <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
+                      </div>
+                      <span class="metric-value">{{ m.val }}</span>
                     </div>
-                    <span class="metric-value">{{ m.val }}</span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="benchmark-table-wrap">
-              <table class="benchmark-table">
-                <thead>
-                  <tr>
-                    <th>Config</th>
-                    <th>MRR</th>
-                    <th>R&#64;1</th>
-                    <th>R&#64;3</th>
-                    <th>R&#64;5</th>
-                    <th>P&#64;1</th>
-                    <th>P&#64;3</th>
-                    <th>ClsAcc</th>
-                    <th>Latenza</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let r of benchmark?.results || []" [class.best-row]="r === benchmark?.best_config">
-                    <td><strong>{{ r.config_name }}</strong></td>
-                    <td>{{ r.metrics.mrr | number:'1.3' }}</td>
-                    <td>{{ r.metrics.recall_at_1 | number:'1.3' }}</td>
-                    <td>{{ r.metrics.recall_at_3 | number:'1.3' }}</td>
-                    <td>{{ r.metrics.recall_at_5 | number:'1.3' }}</td>
-                    <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
-                    <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
-                    <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
-                    <td>{{ r.avg_latency_ms | number:'1.0' }} ms</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+              <div class="benchmark-table-wrap">
+                <table class="benchmark-table">
+                  <thead>
+                    <tr>
+                      <th>Config</th>
+                      <th>MRR</th>
+                      <th>R&#64;1</th>
+                      <th>R&#64;3</th>
+                      <th>R&#64;5</th>
+                      <th>P&#64;1</th>
+                      <th>P&#64;3</th>
+                      <th>ClsAcc</th>
+                      <th>Latenza</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let r of results" [class.best-row]="r === bestResult(results)">
+                      <td><strong>{{ r.config_name }}</strong></td>
+                      <td>{{ r.metrics.mrr | number:'1.3' }}</td>
+                      <td>{{ r.metrics.recall_at_1 | number:'1.3' }}</td>
+                      <td>{{ r.metrics.recall_at_3 | number:'1.3' }}</td>
+                      <td>{{ r.metrics.recall_at_5 | number:'1.3' }}</td>
+                      <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
+                      <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
+                      <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
+                      <td>{{ r.avg_latency_ms | number:'1.0' }} ms</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </ng-container>
           </ng-container>
         </div>
       </ng-container>
@@ -518,6 +536,45 @@ import { Subscription } from 'rxjs';
       font-weight: 700;
       color: var(--text);
     }
+    .benchmark-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .run-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .run-selector label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .run-selector select {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      max-width: 380px;
+    }
+    .best-badge {
+      font-size: 12px;
+      color: #d97706;
+      font-weight: 600;
+      background: #fffbeb;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
     .benchmark-empty {
       text-align: center;
       padding: 40px;
@@ -610,6 +667,8 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   coverage: QdrantCoverageResponse | null = null;
   benchmark: BenchmarkResponse | null = null;
   benchmarkLoading = true;
+  selectedRunTimestamp = '';
+  selectedRun: BenchmarkFullRun | null = null;
   error = '';
   private sub = new Subscription();
 
@@ -636,7 +695,14 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     );
     this.sub.add(
       this.ragService.getBenchmarkResults().subscribe({
-        next: (b) => { this.benchmark = b; this.benchmarkLoading = false; },
+        next: (b) => {
+          this.benchmark = b;
+          this.benchmarkLoading = false;
+          if (b.available && b.runs.length) {
+            this.selectedRunTimestamp = b.runs[0].timestamp;
+            this.selectedRun = b.latest;
+          }
+        },
         error: () => { this.benchmarkLoading = false; },
       })
     );
@@ -657,6 +723,24 @@ export class StatisticheComponent implements OnInit, OnDestroy {
 
   formatNumber(n: number): string {
     return n.toLocaleString('it-IT', { maximumFractionDigits: 0 });
+  }
+
+  selectRun(timestamp: string) {
+    this.selectedRunTimestamp = timestamp;
+    if (timestamp === this.benchmark?.runs?.[0]?.timestamp && this.benchmark?.latest) {
+      this.selectedRun = this.benchmark.latest;
+      return;
+    }
+    this.sub.add(
+      this.ragService.getBenchmarkRun(timestamp).subscribe({
+        next: (run) => { this.selectedRun = run; },
+        error: () => {},
+      })
+    );
+  }
+
+  bestResult(results: BenchmarkResultItem[]): BenchmarkResultItem {
+    return results.reduce((a, b) => a.metrics.mrr > b.metrics.mrr ? a : b);
   }
 
   shortenUrl(url: string): string {
