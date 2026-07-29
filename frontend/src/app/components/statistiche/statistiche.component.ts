@@ -215,7 +215,7 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.recall_at_1 | number:'1.4' }}</div>
                   <div class="metric-label">
-                    Recall@1
+                    Recall&#64;1
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
                       <span class="tooltip-text">Frazione di query con documento rilevante al primo posto. Ideale &gt; 0.70</span>
@@ -225,7 +225,7 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.recall_at_3 | number:'1.4' }}</div>
                   <div class="metric-label">
-                    Recall@3
+                    Recall&#64;3
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
                       <span class="tooltip-text">Frazione di documenti rilevanti nei primi 3 risultati. Ideale &gt; 0.90</span>
@@ -235,7 +235,7 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.recall_at_5 | number:'1.4' }}</div>
                   <div class="metric-label">
-                    Recall@5
+                    Recall&#64;5
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
                       <span class="tooltip-text">Frazione di documenti rilevanti nei primi 5 risultati. Ideale &gt; 0.95</span>
@@ -245,7 +245,7 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.precision_at_1 | number:'1.4' }}</div>
                   <div class="metric-label">
-                    Precision@1
+                    Precision&#64;1
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
                       <span class="tooltip-text">Quanto il primo risultato è pertinente. Ideale &gt; 0.70</span>
@@ -255,7 +255,7 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.precision_at_3 | number:'1.4' }}</div>
                   <div class="metric-label">
-                    Precision@3
+                    Precision&#64;3
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
                       <span class="tooltip-text">Proporzione di risultati pertinenti nei primi 3. Ideale &gt; 0.60</span>
