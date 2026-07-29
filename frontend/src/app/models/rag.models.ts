@@ -49,6 +49,9 @@ export interface ChatMessage {
   content: string;
   citations?: Citation[];
   category?: string;
+  trace_id?: string;
+  feedbackGiven?: boolean;
+  feedbackCorrect?: boolean;
   timestamp: Date;
   error?: boolean;
 }

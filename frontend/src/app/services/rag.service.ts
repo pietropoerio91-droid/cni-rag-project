@@ -135,6 +135,15 @@ export class RagService {
     );
   }
 
+  sendFeedback(traceId: string, categoryCorrect: boolean): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(`${this.apiUrl}/query/feedback`, {
+      trace_id: traceId,
+      category_correct: categoryCorrect,
+    }).pipe(
+      catchError(() => throwError(() => new Error('Feedback non inviato')))
+    );
+  }
+
   private handleError(error: HttpErrorResponse) {
     const message = error.error?.detail || error.message || 'Errore sconosciuto';
     return throwError(() => new Error(message));

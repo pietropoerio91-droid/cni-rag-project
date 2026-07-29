@@ -39,6 +39,7 @@ _query_log: list[dict[str, Any]] = []
 _MAX_QUERY_LOG = 500
 _CSV_DIR = Path(__file__).resolve().parent.parent.parent / "results" / "queries"
 _CSV_DIR.mkdir(parents=True, exist_ok=True)
+_feedback_store: dict[str, bool] = {}
 
 _ingest_status: dict[str, str | int | float | None] = {
     "running": False,
@@ -234,6 +235,9 @@ async def query_metrics():
         precision_at_3.append(top_k_relevant(3) / 3)
         precision_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
 
+    feedback_values = list(_feedback_store.values())
+    cls_acc = round(sum(feedback_values) / len(feedback_values), 4) if feedback_values else None
+
     n = len(mrr_values)
     return {
         "total_queries": n,
@@ -244,8 +248,20 @@ async def query_metrics():
         "precision_at_1": round(sum(precision_at_1) / n, 4),
         "precision_at_3": round(sum(precision_at_3) / n, 4),
         "precision_at_5": round(sum(precision_at_5) / n, 4),
-        "classification_accuracy": None,
+        "classification_accuracy": cls_acc,
     }
+
+
+class FeedbackRequest(BaseModel):
+    trace_id: str
+    category_correct: bool
+
+
+@router.post("/query/feedback")
+async def query_feedback(body: FeedbackRequest):
+    _feedback_store[body.trace_id] = body.category_correct
+    logger.info(f"Feedback per {body.trace_id}: {'corretta' if body.category_correct else 'sbagliata'}")
+    return {"status": "ok"}
 
 
 @router.post("/query/stream")

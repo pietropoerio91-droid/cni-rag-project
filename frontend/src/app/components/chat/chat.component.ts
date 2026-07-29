@@ -55,6 +55,16 @@ import { Subscription } from 'rxjs';
                 <span class="citation-score">({{ (c.relevance_score * 100).toFixed(0) }}%)</span>
               </div>
             </div>
+            <div class="message-feedback" *ngIf="msg.role === 'assistant' && msg.category">
+              <span class="feedback-category">Categoria: <strong>{{ msg.category }}</strong></span>
+              <span class="feedback-thumbs" *ngIf="!msg.feedbackGiven">
+                <button class="thumb-btn thumb-up" (click)="sendFeedback(msg, true)" title="Categoria corretta">👍</button>
+                <button class="thumb-btn thumb-down" (click)="sendFeedback(msg, false)" title="Categoria sbagliata">👎</button>
+              </span>
+              <span class="feedback-thumbs feedback-done" *ngIf="msg.feedbackGiven">
+                {{ msg.feedbackCorrect ? '👍' : '👎' }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -264,6 +274,47 @@ import { Subscription } from 'rxjs';
       font-size: 11px;
       flex-shrink: 0;
     }
+    .message-feedback {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .message.user .message-feedback {
+      border-color: rgba(255,255,255,0.2);
+    }
+    .feedback-category {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .message.user .feedback-category {
+      color: rgba(255,255,255,0.8);
+    }
+    .feedback-thumbs {
+      display: inline-flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .thumb-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 13px;
+      cursor: pointer;
+      line-height: 1;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .thumb-btn:hover {
+      background: var(--bg);
+      border-color: var(--primary);
+    }
+    .feedback-done {
+      font-size: 14px;
+      margin-left: auto;
+    }
     .typing-indicator {
       display: flex;
       gap: 4px;
@@ -451,6 +502,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         assistantMsg.content = response.response;
         assistantMsg.citations = response.citations;
         assistantMsg.category = response.category;
+        assistantMsg.trace_id = response.trace_id;
         this.isLoading = false;
         this.scrollToBottom();
       },
@@ -476,5 +528,14 @@ export class ChatComponent implements OnInit, OnDestroy {
       const area = document.querySelector('.messages-area');
       if (area) area.scrollTop = area.scrollHeight;
     }, 50);
+  }
+
+  sendFeedback(msg: ChatMessage, correct: boolean) {
+    if (!msg.trace_id || msg.feedbackGiven) return;
+    msg.feedbackGiven = true;
+    msg.feedbackCorrect = correct;
+    this.ragService.sendFeedback(msg.trace_id, correct).subscribe({
+      error: () => {},
+    });
   }
 }
