@@ -192,7 +192,7 @@ import { Subscription } from 'rxjs';
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ queryStats.avg_top_score }}</div>
-                  <div class="summary-label">Score medio primo risultato</div>
+                  <div class="summary-label">Score medio</div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ (queryStats.avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
