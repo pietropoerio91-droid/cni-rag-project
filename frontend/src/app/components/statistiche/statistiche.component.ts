@@ -208,7 +208,7 @@ import { Subscription } from 'rxjs';
                     MRR
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Mean Reciprocal Rank — quanto il sistema piazza il documento giusto al primo posto. Ideale &gt; 0.80</span>
+                      <span class="tooltip-text">Mean Reciprocal Rank: media del reciproco della posizione del primo documento rilevante. Indica la capacità del sistema di posizionare il risultato corretto al primo posto. Valori vicini a 1 indicano un recupero quasi sempre preciso.</span>
                     </span>
                   </div>
                 </div>
@@ -218,7 +218,7 @@ import { Subscription } from 'rxjs';
                     Recall&#64;1
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Frazione di query con documento rilevante al primo posto. Ideale &gt; 0.70</span>
+                      <span class="tooltip-text">Recall&#64;1: proporzione di query in cui il primo documento recuperato è rilevante. Misura la capacità del sistema di identificare immediatamente il risultato corretto. Valori elevati indicano un recupero puntuale.</span>
                     </span>
                   </div>
                 </div>
@@ -228,7 +228,7 @@ import { Subscription } from 'rxjs';
                     Recall&#64;3
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 3 risultati. Ideale &gt; 0.90</span>
+                      <span class="tooltip-text">Recall&#64;3: proporzione di documenti rilevanti nei primi 3 risultati. Indica la copertura informativa del sistema. Utile quando l'utente è disposto a esaminare più risultati per trovare ciò che cerca.</span>
                     </span>
                   </div>
                 </div>
@@ -238,7 +238,7 @@ import { Subscription } from 'rxjs';
                     Recall&#64;5
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 5 risultati. Ideale &gt; 0.95</span>
+                      <span class="tooltip-text">Recall&#64;5: proporzione di documenti rilevanti nei primi 5 risultati. Valuta la completezza complessiva del recupero documentale. Un valore alto significa che il sistema non omette informazioni rilevanti.</span>
                     </span>
                   </div>
                 </div>
@@ -248,7 +248,7 @@ import { Subscription } from 'rxjs';
                     Precision&#64;1
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Quanto il primo risultato è pertinente. Ideale &gt; 0.70</span>
+                      <span class="tooltip-text">Precision&#64;1: indica se il primo risultato restituito è effettivamente pertinente alla domanda. Misura l'affidabilità del sistema nel presentare informazioni accurate al primo colpo.</span>
                     </span>
                   </div>
                 </div>
@@ -258,7 +258,7 @@ import { Subscription } from 'rxjs';
                     Precision&#64;3
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Proporzione di risultati pertinenti nei primi 3. Ideale &gt; 0.60</span>
+                      <span class="tooltip-text">Precision&#64;3: frazione di risultati pertinenti tra i primi 3 documenti restituiti. Indica la qualità complessiva del contesto fornito al modello linguistico per generare la risposta.</span>
                     </span>
                   </div>
                 </div>
@@ -268,7 +268,7 @@ import { Subscription } from 'rxjs';
                     Cls Acc
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Accuratezza classificazione categoria. Ideale &gt; 0.90. N/A senza ground truth</span>
+                      <span class="tooltip-text">Classification Accuracy: percentuale di query in cui la categoria tematica assegnata automaticamente è stata confermata corretta dall'utente. Richiede feedback esplicito per essere calcolata.</span>
                     </span>
                   </div>
                 </div>
