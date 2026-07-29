@@ -265,10 +265,10 @@ import { Subscription } from 'rxjs';
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.classification_accuracy ?? 'N/A' }}</div>
                   <div class="metric-label">
-                    Cls Acc
+                    Classification Accuracy
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Classification Accuracy: percentuale di query in cui la categoria tematica assegnata automaticamente è stata confermata corretta dall'utente. Richiede feedback esplicito per essere calcolata.</span>
+                      <span class="tooltip-text">Percentuale di query in cui la categoria tematica assegnata automaticamente è stata confermata corretta dall'utente. Richiede feedback esplicito (pollice su/giù in chat) per essere calcolata.</span>
                     </span>
                   </div>
                 </div>
