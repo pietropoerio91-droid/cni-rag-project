@@ -195,7 +195,7 @@ import { Subscription } from 'rxjs';
                   <div class="summary-label">Score medio primo risultato</div>
                 </div>
                 <div class="summary-card">
-                  <div class="summary-value">{{ queryStats.avg_latency_ms | number:'1.0-2' }} ms</div>
+                  <div class="summary-value">{{ (queryStats.avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
                   <div class="summary-label">Latenza media</div>
                 </div>
               </div>
@@ -222,7 +222,7 @@ import { Subscription } from 'rxjs';
                       <span class="recent-cat">{{ q.category }}</span>
                       <span class="recent-score">{{ q.top_score }}</span>
                       <span class="recent-docs">{{ q.doc_count }} docs</span>
-                      <span class="recent-latency">{{ q.latency_ms }} ms</span>
+                      <span class="recent-latency">{{ (q.latency_ms / 1000) | number:'1.0-2' }} s</span>
                     </div>
                   </div>
                 </div>
@@ -286,7 +286,7 @@ import { Subscription } from 'rxjs';
                   </div>
                 </div>
                 <div class="summary-card">
-                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0-2' }} ms</div>
+                  <div class="summary-value">{{ (bestResult(results).avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
                   <div class="summary-label">
                     Latenza media (miglior config)
                   </div>
@@ -326,7 +326,7 @@ import { Subscription } from 'rxjs';
                       <th>P&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;1: primo risultato pertinente. Ideale &gt; 0.70</span></span></th>
                       <th>P&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;3: proporzione di docs pertinenti nei primi 3. Ideale &gt; 0.60</span></span></th>
                       <th>ClsAcc <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Accuratezza classificazione categoria. Ideale &gt; 0.90</span></span></th>
-                      <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio retrieval (ms). Ideale &lt; 500ms</span></span></th>
+                       <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio retrieval. Ideale &lt; 0.5s</span></span></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -345,7 +345,7 @@ import { Subscription } from 'rxjs';
                       <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
                       <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
                       <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
-                      <td>{{ r.avg_latency_ms | number:'1.0-2' }} ms</td>
+                      <td>{{ (r.avg_latency_ms / 1000) | number:'1.0-2' }} s</td>
                     </tr>
                   </tbody>
                 </table>
