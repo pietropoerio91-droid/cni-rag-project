@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -201,6 +201,79 @@ import { Subscription } from 'rxjs';
                 </div>
               </div>
 
+              <div class="metrics-grid" *ngIf="queryMetrics">
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.mrr | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    MRR
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Mean Reciprocal Rank — quanto il sistema piazza il documento giusto al primo posto. Ideale &gt; 0.80</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.recall_at_1 | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    Recall@1
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Frazione di query con documento rilevante al primo posto. Ideale &gt; 0.70</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.recall_at_3 | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    Recall@3
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 3 risultati. Ideale &gt; 0.90</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.recall_at_5 | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    Recall@5
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Frazione di documenti rilevanti nei primi 5 risultati. Ideale &gt; 0.95</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.precision_at_1 | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    Precision@1
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Quanto il primo risultato è pertinente. Ideale &gt; 0.70</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.precision_at_3 | number:'1.4' }}</div>
+                  <div class="metric-label">
+                    Precision@3
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Proporzione di risultati pertinenti nei primi 3. Ideale &gt; 0.60</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.classification_accuracy ?? 'N/A' }}</div>
+                  <div class="metric-label">
+                    Cls Acc
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Accuratezza classificazione categoria. Ideale &gt; 0.90. N/A senza ground truth</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div class="charts-grid" *ngIf="queryStats.total_queries > 0">
                 <div class="chart-card" *ngIf="queryCategoryData.length">
                   <h3 class="chart-title">Categorie</h3>
@@ -327,6 +400,31 @@ import { Subscription } from 'rxjs';
     }
     .summary-label {
       font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 12px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .metric-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .metric-card .metric-label {
+      font-size: 11px;
       color: var(--text-secondary);
       margin-top: 4px;
     }
@@ -808,6 +906,8 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   benchmarkLoading = true;
   queryStats: QueryStatsResponse | null = null;
   queryStatsLoading = true;
+  queryMetrics: QueryMetricsResponse | null = null;
+  queryMetricsLoading = true;
   selectedRunTimestamp = '';
   selectedRun: BenchmarkFullRun | null = null;
   activeTab: 'quantitative' | 'qualitative' = 'quantitative';
@@ -852,6 +952,12 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       this.ragService.getQueryStats().subscribe({
         next: (qs) => { this.queryStats = qs; this.queryStatsLoading = false; },
         error: () => { this.queryStatsLoading = false; },
+      })
+    );
+    this.sub.add(
+      this.ragService.getQueryMetrics().subscribe({
+        next: (qm) => { this.queryMetrics = qm; this.queryMetricsLoading = false; },
+        error: () => { this.queryMetricsLoading = false; },
       })
     );
   }
@@ -962,9 +1068,14 @@ export class StatisticheComponent implements OnInit, OnDestroy {
 
   refreshQueryStats() {
     this.queryStatsLoading = true;
+    this.queryMetricsLoading = true;
     this.ragService.getQueryStats().subscribe({
       next: (qs) => { this.queryStats = qs; this.queryStatsLoading = false; },
       error: () => { this.queryStatsLoading = false; },
+    });
+    this.ragService.getQueryMetrics().subscribe({
+      next: (qm) => { this.queryMetrics = qm; this.queryMetricsLoading = false; },
+      error: () => { this.queryMetricsLoading = false; },
     });
   }
 

@@ -153,6 +153,7 @@ export interface QueryLogEntry {
   category: string;
   doc_count: number;
   top_score: number;
+  citation_scores?: number[];
   latency_ms: number;
   response_length: number;
   timestamp: string;
@@ -165,4 +166,16 @@ export interface QueryStatsResponse {
   avg_latency_ms: number;
   category_distribution: Record<string, number>;
   recent: QueryLogEntry[];
+}
+
+export interface QueryMetricsResponse {
+  total_queries: number;
+  mrr: number;
+  recall_at_1: number;
+  recall_at_3: number;
+  recall_at_5: number;
+  precision_at_1: number;
+  precision_at_3: number;
+  precision_at_5: number;
+  classification_accuracy: number | null;
 }

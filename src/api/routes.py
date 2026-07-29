@@ -92,12 +92,14 @@ async def query(request: QueryRequest):
         doc_count = len(result.get("citations", []))
         top_score = round(result["citations"][0]["relevance_score"], 4) if result.get("citations") else 0
 
+        citation_scores = [round(c["relevance_score"], 4) for c in result.get("citations", [])]
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "question": request.question[:120],
             "category": result["category"],
             "doc_count": doc_count,
             "top_score": top_score,
+            "citation_scores": citation_scores,
             "latency_ms": latency,
             "response_length": len(result["response"]),
         }
@@ -111,7 +113,7 @@ async def query(request: QueryRequest):
             writer = csv.DictWriter(f, fieldnames=list(log_entry.keys()))
             if write_header:
                 writer.writeheader()
-            writer.writerow(log_entry)
+            writer.writerow({k: json.dumps(v) if isinstance(v, list) else v for k, v in log_entry.items()})
 
         return QueryResponse(
             response=result["response"],
@@ -175,6 +177,74 @@ async def query_stats():
         "avg_latency_ms": round(sum(latencies) / len(latencies), 1),
         "category_distribution": dict(categories.most_common()),
         "recent": _query_log[-10:],
+    }
+
+
+_RELEVANCE_THRESHOLD = 0.3
+
+
+@router.get("/query/metrics")
+async def query_metrics():
+    if not _query_log:
+        return {
+            "total_queries": 0,
+            "mrr": 0,
+            "recall_at_1": 0,
+            "recall_at_3": 0,
+            "recall_at_5": 0,
+            "precision_at_1": 0,
+            "precision_at_3": 0,
+            "precision_at_5": 0,
+            "classification_accuracy": None,
+        }
+
+    mrr_values = []
+    recall_at_1 = []
+    recall_at_3 = []
+    recall_at_5 = []
+    precision_at_1 = []
+    precision_at_3 = []
+    precision_at_5 = []
+
+    for q in _query_log:
+        scores = q.get("citation_scores", [])
+        if not scores:
+            mrr_values.append(0)
+            recall_at_1.append(0)
+            recall_at_3.append(0)
+            recall_at_5.append(0)
+            precision_at_1.append(0)
+            precision_at_3.append(0)
+            precision_at_5.append(0)
+            continue
+
+        relevant = [s > _RELEVANCE_THRESHOLD for s in scores]
+
+        rank_first = next((i + 1 for i, r in enumerate(relevant) if r), None)
+        mrr_values.append(1.0 / rank_first if rank_first else 0)
+
+        def top_k_relevant(k):
+            return sum(relevant[:k])
+
+        recall_at_1.append(top_k_relevant(1) / 1)
+        recall_at_3.append(top_k_relevant(3) / 3)
+        recall_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
+
+        precision_at_1.append(top_k_relevant(1) / 1)
+        precision_at_3.append(top_k_relevant(3) / 3)
+        precision_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
+
+    n = len(mrr_values)
+    return {
+        "total_queries": n,
+        "mrr": round(sum(mrr_values) / n, 4),
+        "recall_at_1": round(sum(recall_at_1) / n, 4),
+        "recall_at_3": round(sum(recall_at_3) / n, 4),
+        "recall_at_5": round(sum(recall_at_5) / n, 4),
+        "precision_at_1": round(sum(precision_at_1) / n, 4),
+        "precision_at_3": round(sum(precision_at_3) / n, 4),
+        "precision_at_5": round(sum(precision_at_5) / n, 4),
+        "classification_accuracy": None,
     }
 
 
