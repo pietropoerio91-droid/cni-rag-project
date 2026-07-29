@@ -174,6 +174,7 @@ import { Subscription } from 'rxjs';
               <h2>Query in Tempo Reale
                 <button class="refresh-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳</button>
                 <button class="export-btn" (click)="exportCsv()" title="Scarica CSV">Esporta CSV</button>
+                <button class="export-btn" (click)="runTest()" [disabled]="testRunning" title="Esegui test su {{ queryMetrics?.test_total || 'tutte' }} domande">{{ testRunning ? 'Test in corso...' : 'Run Test' }}</button>
               </h2>
             </div>
 
@@ -263,12 +264,32 @@ import { Subscription } from 'rxjs';
                   </div>
                 </div>
                 <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.classification_accuracy ?? 'N/A' }}</div>
+                  <div class="metric-value">{{ queryMetrics.human_cls_acc !== null ? (queryMetrics.human_cls_acc | number:'1.4') : 'N/A' }}</div>
                   <div class="metric-label">
-                    Classification Accuracy
+                    Human Cls Acc
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Percentuale di query in cui la categoria tematica assegnata automaticamente è stata confermata corretta dall'utente. Richiede feedback esplicito (pollice su/giù in chat) per essere calcolata.</span>
+                      <span class="tooltip-text">Accuratezza percepita: percentuale di feedback positivi ricevuti dagli utenti sulla categorizzazione automatica delle domande. Calcolata sui pollice su/giù in chat.</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.system_cls_acc !== null ? (queryMetrics.system_cls_acc | number:'1.4') : 'N/A' }}</div>
+                  <div class="metric-label">
+                    System Cls Acc
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Accuratezza oggettiva: percentuale di domande del test set la cui categoria automatica coincide con quella attesa. Misura la qualità intrinseca del classificatore.</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-value">{{ queryMetrics.avg_cls_acc !== null ? (queryMetrics.avg_cls_acc | number:'1.4') : 'N/A' }}</div>
+                  <div class="metric-label">
+                    Media Cls Acc
+                    <span class="tooltip-wrap">
+                      <span class="tooltip-icon">i</span>
+                      <span class="tooltip-text">Media tra accuratezza oggettiva (System) e percepita (Human). Offre una visione complessiva della qualità della categorizzazione.</span>
                     </span>
                   </div>
                 </div>
@@ -908,6 +929,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   queryStatsLoading = true;
   queryMetrics: QueryMetricsResponse | null = null;
   queryMetricsLoading = true;
+  testRunning = false;
   selectedRunTimestamp = '';
   selectedRun: BenchmarkFullRun | null = null;
   activeTab: 'quantitative' | 'qualitative' = 'quantitative';
@@ -1091,6 +1113,20 @@ export class StatisticheComponent implements OnInit, OnDestroy {
         window.URL.revokeObjectURL(url);
       },
       error: () => {},
+    });
+  }
+
+  runTest() {
+    if (this.testRunning) return;
+    this.testRunning = true;
+    this.ragService.runTest().subscribe({
+      next: () => {
+        this.ragService.getQueryMetrics().subscribe({
+          next: (qm) => { this.queryMetrics = qm; this.testRunning = false; },
+          error: () => { this.testRunning = false; },
+        });
+      },
+      error: () => { this.testRunning = false; },
     });
   }
 

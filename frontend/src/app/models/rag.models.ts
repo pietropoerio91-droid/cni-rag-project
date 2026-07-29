@@ -180,5 +180,8 @@ export interface QueryMetricsResponse {
   precision_at_1: number;
   precision_at_3: number;
   precision_at_5: number;
-  classification_accuracy: number | null;
+  system_cls_acc: number | null;
+  human_cls_acc: number | null;
+  avg_cls_acc: number | null;
+  test_total: number;
 }

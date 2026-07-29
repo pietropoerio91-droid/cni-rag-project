@@ -40,6 +40,8 @@ _MAX_QUERY_LOG = 500
 _CSV_DIR = Path(__file__).resolve().parent.parent.parent / "results" / "queries"
 _CSV_DIR.mkdir(parents=True, exist_ok=True)
 _feedback_store: dict[str, bool] = {}
+_test_cache: dict[str, Any] | None = None
+_TEST_QUESTIONS_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "test_questions.json"
 
 _ingest_status: dict[str, str | int | float | None] = {
     "running": False,
@@ -196,7 +198,10 @@ async def query_metrics():
             "precision_at_1": 0,
             "precision_at_3": 0,
             "precision_at_5": 0,
-            "classification_accuracy": None,
+            "system_cls_acc": None,
+            "human_cls_acc": None,
+            "avg_cls_acc": None,
+            "test_total": 0,
         }
 
     mrr_values = []
@@ -236,7 +241,17 @@ async def query_metrics():
         precision_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
 
     feedback_values = list(_feedback_store.values())
-    cls_acc = round(sum(feedback_values) / len(feedback_values), 4) if feedback_values else None
+    human_cls_acc = round(sum(feedback_values) / len(feedback_values), 4) if feedback_values else None
+
+    system_cls_acc = _test_cache["cls_acc"] if _test_cache else None
+
+    avg_cls_acc = None
+    if human_cls_acc is not None and system_cls_acc is not None:
+        avg_cls_acc = round((human_cls_acc + system_cls_acc) / 2, 4)
+    elif human_cls_acc is not None:
+        avg_cls_acc = human_cls_acc
+    elif system_cls_acc is not None:
+        avg_cls_acc = system_cls_acc
 
     n = len(mrr_values)
     return {
@@ -248,7 +263,10 @@ async def query_metrics():
         "precision_at_1": round(sum(precision_at_1) / n, 4),
         "precision_at_3": round(sum(precision_at_3) / n, 4),
         "precision_at_5": round(sum(precision_at_5) / n, 4),
-        "classification_accuracy": cls_acc,
+        "system_cls_acc": system_cls_acc,
+        "human_cls_acc": human_cls_acc,
+        "avg_cls_acc": avg_cls_acc,
+        "test_total": _test_cache["total"] if _test_cache else 0,
     }
 
 
@@ -273,6 +291,46 @@ async def query_stream(request: QueryRequest):
             yield {"event": event["type"], "data": json.dumps(event)}
 
     return EventSourceResponse(event_generator())
+
+
+@router.post("/query/run-test")
+async def query_run_test():
+    global _test_cache
+    chain = get_rag_chain()
+    if not _TEST_QUESTIONS_PATH.exists():
+        raise HTTPException(status_code=404, detail="File test_questions.json non trovato")
+
+    test_data = json.loads(_TEST_QUESTIONS_PATH.read_text(encoding="utf-8"))
+    results = []
+    correct = 0
+    for item in test_data:
+        try:
+            result = chain.query(item["question"])
+            predicted = result["category"]
+            expected = item["expected_category"]
+            is_correct = predicted == expected
+            if is_correct:
+                correct += 1
+            results.append({
+                "question": item["question"][:80],
+                "expected": expected,
+                "predicted": predicted,
+                "correct": is_correct,
+            })
+        except Exception as e:
+            logger.warning(f"Test question error: {item['question'][:40]} -> {e}")
+            results.append({
+                "question": item["question"][:80],
+                "expected": item["expected_category"],
+                "predicted": "error",
+                "correct": False,
+            })
+
+    total = len(test_data)
+    cls_acc = round(correct / total, 4) if total else 0
+    _test_cache = {"cls_acc": cls_acc, "total": total, "correct": correct, "results": results}
+    logger.info(f"Test completato: {correct}/{total} corrette (accuracy={cls_acc})")
+    return _test_cache
 
 
 @router.get("/health", response_model=HealthResponse)

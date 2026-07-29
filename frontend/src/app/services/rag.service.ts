@@ -144,6 +144,12 @@ export class RagService {
     );
   }
 
+  runTest(): Observable<{ cls_acc: number; total: number; correct: number }> {
+    return this.http.post<{ cls_acc: number; total: number; correct: number }>(`${this.apiUrl}/query/run-test`, {}).pipe(
+      catchError(() => throwError(() => new Error('Test non disponibile')))
+    );
+  }
+
   private handleError(error: HttpErrorResponse) {
     const message = error.error?.detail || error.message || 'Errore sconosciuto';
     return throwError(() => new Error(message));
