@@ -195,7 +195,7 @@ import { Subscription } from 'rxjs';
                   <div class="summary-label">Score medio primo risultato</div>
                 </div>
                 <div class="summary-card">
-                  <div class="summary-value">{{ queryStats.avg_latency_ms | number:'1.0-2':'it' }} ms</div>
+                  <div class="summary-value">{{ queryStats.avg_latency_ms | number:'1.0-2' }} ms</div>
                   <div class="summary-label">Latenza media</div>
                 </div>
               </div>
@@ -286,7 +286,7 @@ import { Subscription } from 'rxjs';
                   </div>
                 </div>
                 <div class="summary-card">
-                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0-2':'it' }} ms</div>
+                  <div class="summary-value">{{ bestResult(results).avg_latency_ms | number:'1.0-2' }} ms</div>
                   <div class="summary-label">
                     Latenza media (miglior config)
                   </div>
@@ -345,7 +345,7 @@ import { Subscription } from 'rxjs';
                       <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
                       <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
                       <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
-                      <td>{{ r.avg_latency_ms | number:'1.0-2':'it' }} ms</td>
+                      <td>{{ r.avg_latency_ms | number:'1.0-2' }} ms</td>
                     </tr>
                   </tbody>
                 </table>
