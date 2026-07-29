@@ -180,7 +180,7 @@ import { Subscription } from 'rxjs';
               <div class="spinner"></div>
             </div>
 
-            <ng-container *ngIf="queryStats && queryStats.total_queries > 0">
+            <ng-container *ngIf="queryStats">
               <div class="summary-grid">
                 <div class="summary-card">
                   <div class="summary-value">{{ queryStats.total_queries }}</div>
@@ -200,7 +200,7 @@ import { Subscription } from 'rxjs';
                 </div>
               </div>
 
-              <div class="charts-grid">
+              <div class="charts-grid" *ngIf="queryStats.total_queries > 0">
                 <div class="chart-card" *ngIf="queryCategoryData.length">
                   <h3 class="chart-title">Categorie</h3>
                   <div class="bar-chart">
@@ -214,7 +214,7 @@ import { Subscription } from 'rxjs';
                   </div>
                 </div>
 
-                <div class="chart-card">
+                <div class="chart-card" *ngIf="queryStats.recent.length > 0">
                   <h3 class="chart-title">Ultime Query</h3>
                   <div class="recent-queries">
                     <div class="recent-row" *ngFor="let q of queryStats.recent">
@@ -229,7 +229,7 @@ import { Subscription } from 'rxjs';
               </div>
             </ng-container>
 
-            <div class="benchmark-empty" *ngIf="!queryStatsLoading && (!queryStats || queryStats.total_queries === 0)">
+            <div class="benchmark-empty" *ngIf="!queryStatsLoading && !queryStats">
               <p>Nessuna query ancora registrata.</p>
             </div>
           </div>
