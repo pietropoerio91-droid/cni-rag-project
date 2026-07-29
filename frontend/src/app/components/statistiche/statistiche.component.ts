@@ -234,8 +234,6 @@ import { Subscription } from 'rxjs';
               <p>Nessuna query ancora registrata.</p>
             </div>
           </div>
-
-          </div>
         </div>
       </ng-container>
     </div>
