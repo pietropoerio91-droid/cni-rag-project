@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -83,7 +85,7 @@ async def query(request: QueryRequest):
         latency = round((time.perf_counter() - t0) * 1000, 1)
 
         doc_count = len(result.get("citations", []))
-        top_score = round(result["citations"][0].relevance_score, 4) if result.get("citations") else 0
+        top_score = round(result["citations"][0]["relevance_score"], 4) if result.get("citations") else 0
 
         _query_log.append({
             "question": request.question[:120],
@@ -117,7 +119,14 @@ async def query_log():
 @router.get("/query/stats")
 async def query_stats():
     if not _query_log:
-        return {"total_queries": 0, "message": "Nessuna query ancora effettuata"}
+        return {
+            "total_queries": 0,
+            "avg_docs_retrieved": 0,
+            "avg_top_score": 0,
+            "avg_latency_ms": 0,
+            "category_distribution": {},
+            "recent": [],
+        }
 
     doc_counts = [q["doc_count"] for q in _query_log]
     top_scores = [q["top_score"] for q in _query_log if q["top_score"] > 0]
