@@ -123,6 +123,12 @@ export class RagService {
     );
   }
 
+  exportQueryLog(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/query/export`, { responseType: 'blob' }).pipe(
+      catchError(() => throwError(() => new Error('Export non disponibile')))
+    );
+  }
+
   private handleError(error: HttpErrorResponse) {
     const message = error.error?.detail || error.message || 'Errore sconosciuto';
     return throwError(() => new Error(message));

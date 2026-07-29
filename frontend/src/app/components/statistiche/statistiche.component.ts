@@ -173,6 +173,7 @@ import { Subscription } from 'rxjs';
             <div class="section-header">
               <h2>Query in Tempo Reale
                 <button class="refresh-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳</button>
+                <button class="export-btn" (click)="exportCsv()" title="Scarica CSV">Esporta CSV</button>
               </h2>
             </div>
 
@@ -234,125 +235,7 @@ import { Subscription } from 'rxjs';
             </div>
           </div>
 
-          <!-- Offline benchmark section -->
-          <div class="qual-section">
-            <div class="section-header">
-              <h2>Benchmark Offline</h2>
-            </div>
-
-          <div class="loading" *ngIf="benchmarkLoading">
-            <div class="spinner"></div>
           </div>
-
-          <div class="benchmark-empty" *ngIf="benchmark && !benchmark.available && !benchmarkLoading">
-            <p>Nessun benchmark disponibile.</p>
-          </div>
-
-          <ng-container *ngIf="benchmark?.available">
-            <!-- Run selector and best overall -->
-            <div class="benchmark-toolbar">
-              <div class="run-selector" *ngIf="benchmark?.runs?.length">
-                <label for="runSelect">Test:</label>
-                <select id="runSelect" [ngModel]="selectedRunTimestamp" (ngModelChange)="selectRun($event)">
-                  <option *ngFor="let r of benchmark?.runs || []" [value]="r.timestamp">
-                    {{ r.run_date | date:'dd/MM/yy HH:mm' }} — {{ r.best_config }} (MRR {{ r.best_mrr | number:'1.3' }})
-                  </option>
-                </select>
-              </div>
-              <div class="best-badge" *ngIf="benchmark?.best_overall as best">
-                Miglior storico: {{ best.best_config }} — MRR {{ best.best_mrr | number:'1.3' }}
-              </div>
-            </div>
-
-            <!-- Selected / latest results -->
-            <ng-container *ngIf="selectedRun?.results as results">
-              <div class="summary-grid" *ngIf="results.length">
-                <div class="summary-card best-card">
-                  <div class="summary-value">{{ bestResult(results).metrics.mrr | number:'1.3' }}</div>
-                  <div class="summary-label">
-                    MRR — Miglior config: {{ bestResult(results).config_name }}
-                  </div>
-                </div>
-                <div class="summary-card">
-                  <div class="summary-value">{{ bestResult(results).metrics.recall_at_3 | number:'1.3' }}</div>
-                  <div class="summary-label">
-                    Recall&#64;3
-                  </div>
-                </div>
-                <div class="summary-card">
-                  <div class="summary-value">{{ bestResult(results).metrics.precision_at_3 | number:'1.3' }}</div>
-                  <div class="summary-label">
-                    Precision&#64;3
-                  </div>
-                </div>
-                <div class="summary-card">
-                  <div class="summary-value">{{ (bestResult(results).avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
-                  <div class="summary-label">
-                    Latenza media (miglior config)
-                  </div>
-                </div>
-              </div>
-
-              <div class="charts-grid">
-                <div class="chart-card" *ngFor="let config of results">
-                  <h3 class="chart-title">{{ config.config_name }}</h3>
-                  <div class="benchmark-metrics">
-                    <div class="metric-row" *ngFor="let m of metricEntries(config)">
-                      <span class="metric-label">
-                        {{ m.label }}
-                        <span class="tooltip-wrap">
-                          <span class="tooltip-icon">i</span>
-                          <span class="tooltip-text">{{ m.tooltip }}</span>
-                        </span>
-                      </span>
-                      <div class="bar-track">
-                        <div class="bar-fill" [style.width.%]="m.pct" [style.background]="m.color"></div>
-                      </div>
-                      <span class="metric-value">{{ m.val }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="benchmark-table-wrap">
-                <table class="benchmark-table">
-                  <thead>
-                    <tr>
-                      <th>Config</th>
-                      <th>MRR <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Mean Reciprocal Rank. Ideale &gt; 0.80</span></span></th>
-                      <th>R&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;1: docs rilevante al primo posto. Ideale &gt; 0.70</span></span></th>
-                      <th>R&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;3: docs rilevante nei primi 3. Ideale &gt; 0.90</span></span></th>
-                      <th>R&#64;5 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Recall&#64;5: docs rilevante nei primi 5. Ideale &gt; 0.95</span></span></th>
-                      <th>P&#64;1 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;1: primo risultato pertinente. Ideale &gt; 0.70</span></span></th>
-                      <th>P&#64;3 <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Precision&#64;3: proporzione di docs pertinenti nei primi 3. Ideale &gt; 0.60</span></span></th>
-                      <th>ClsAcc <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Accuratezza classificazione categoria. Ideale &gt; 0.90</span></span></th>
-                       <th>Latenza <span class="tooltip-wrap table-tip"><span class="tooltip-icon">i</span><span class="tooltip-text">Tempo medio retrieval. Ideale &lt; 0.5s</span></span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr *ngFor="let r of results" [class.best-row]="r === bestResult(results)">
-                      <td>
-                        <strong>{{ r.config_name }}</strong>
-                        <span class="tooltip-wrap table-tip" style="margin-left:2px">
-                          <span class="tooltip-icon">i</span>
-                          <span class="tooltip-text">{{ configTooltip(r.config_name) }}</span>
-                        </span>
-                      </td>
-                      <td>{{ r.metrics.mrr | number:'1.3' }}</td>
-                      <td>{{ r.metrics.recall_at_1 | number:'1.3' }}</td>
-                      <td>{{ r.metrics.recall_at_3 | number:'1.3' }}</td>
-                      <td>{{ r.metrics.recall_at_5 | number:'1.3' }}</td>
-                      <td>{{ r.metrics.precision_at_1 | number:'1.3' }}</td>
-                      <td>{{ r.metrics.precision_at_3 | number:'1.3' }}</td>
-                      <td>{{ r.metrics.classification_accuracy | number:'1.3' }}</td>
-                      <td>{{ (r.avg_latency_ms / 1000) | number:'1.0-2' }} s</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </ng-container>
-          </ng-container>
-        </div>
         </div>
       </ng-container>
     </div>
@@ -769,6 +652,23 @@ import { Subscription } from 'rxjs';
       color: var(--primary);
       border-color: var(--primary);
     }
+    .export-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      margin-left: 6px;
+      vertical-align: middle;
+      line-height: 1.4;
+    }
+    .export-btn:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: var(--bg);
+    }
     .section-header {
       margin-bottom: 20px;
     }
@@ -1067,6 +967,21 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     this.ragService.getQueryStats().subscribe({
       next: (qs) => { this.queryStats = qs; this.queryStatsLoading = false; },
       error: () => { this.queryStatsLoading = false; },
+    });
+  }
+
+  exportCsv() {
+    const today = new Date().toISOString().slice(0, 10);
+    this.ragService.exportQueryLog().subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `query_log_${today}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => {},
     });
   }
 

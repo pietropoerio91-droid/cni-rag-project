@@ -1,4 +1,6 @@
 import asyncio
+import csv
+import io
 import json
 import logging
 import os
@@ -11,6 +13,7 @@ from typing import Any
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -34,6 +37,8 @@ _vector_indexer: VectorIndexer | None = None
 
 _query_log: list[dict[str, Any]] = []
 _MAX_QUERY_LOG = 500
+_CSV_DIR = Path(__file__).resolve().parent.parent.parent / "results" / "queries"
+_CSV_DIR.mkdir(parents=True, exist_ok=True)
 
 _ingest_status: dict[str, str | int | float | None] = {
     "running": False,
@@ -87,17 +92,26 @@ async def query(request: QueryRequest):
         doc_count = len(result.get("citations", []))
         top_score = round(result["citations"][0]["relevance_score"], 4) if result.get("citations") else 0
 
-        _query_log.append({
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
             "question": request.question[:120],
             "category": result["category"],
             "doc_count": doc_count,
             "top_score": top_score,
             "latency_ms": latency,
             "response_length": len(result["response"]),
-            "timestamp": datetime.now().isoformat(),
-        })
+        }
+        _query_log.append(log_entry)
         if len(_query_log) > _MAX_QUERY_LOG:
             _query_log.pop(0)
+
+        csv_path = _CSV_DIR / f"query_log_{datetime.now().strftime('%Y-%m-%d')}.csv"
+        write_header = not csv_path.exists()
+        with open(csv_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(log_entry.keys()))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(log_entry)
 
         return QueryResponse(
             response=result["response"],
@@ -114,6 +128,27 @@ async def query(request: QueryRequest):
 @router.get("/query/log")
 async def query_log():
     return _query_log[-50:]
+
+
+@router.get("/query/export")
+async def query_export():
+    today = datetime.now().strftime("%Y-%m-%d")
+    csv_path = _CSV_DIR / f"query_log_{today}.csv"
+    if csv_path.exists():
+        return StreamingResponse(
+            io.open(csv_path, "r", encoding="utf-8"),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=query_log_{today}.csv"},
+        )
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=["timestamp", "question", "category", "doc_count", "top_score", "latency_ms", "response_length"])
+    writer.writeheader()
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=query_log_{today}.csv"},
+    )
 
 
 @router.get("/query/stats")
