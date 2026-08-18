@@ -25,6 +25,9 @@ data/processed/
 data/chunks/
 data/qdrant_db/
 
+# Query log runtime
+results/queries/
+
 # Node
 node_modules/
 frontend/node_modules/

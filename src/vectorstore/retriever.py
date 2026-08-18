@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 class VectorRetriever:
     def __init__(self, embedding_model: Embeddings):
         self.manager = QdrantClientManager()
-        self.client = self.manager.get_client()
         self.collection_name = self.manager.collection_name
         self.embedding_model = embedding_model
 
@@ -25,7 +24,8 @@ class VectorRetriever:
         k = top_k or self.top_k
         query_vector = self.embedding_model.embed_query(query)
 
-        search_result = self.client.query_points(
+        client = self.manager.get_client()
+        search_result = client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
             limit=k,

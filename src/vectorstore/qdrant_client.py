@@ -31,6 +31,7 @@ class QdrantClientManager:
         self._init_client()
 
     def _init_client(self):
+        self._initialized = True
         config = ConfigLoader.get_qdrant_config()
         qdrant_config = config.get("qdrant", {})
         self.mode = qdrant_config.get("mode", "local")
@@ -78,13 +79,30 @@ class QdrantClientManager:
             logger.info(f"Collection '{self.collection_name}' already exists")
 
     def get_client(self) -> QdrantClient:
+        if self._is_closed():
+            logger.warning("Qdrant client is closed, reinitializing...")
+            self._initialized = False
+            self._init_client()
         return self.client
+
+    def _is_closed(self) -> bool:
+        if self.mode != "local":
+            return False
+        inner = getattr(self.client, "_client", None)
+        try:
+            return bool(inner and getattr(inner, "closed", False))
+        except Exception:
+            return False
 
     def delete_collection(self) -> None:
         self.client.delete_collection(self.collection_name)
         logger.info(f"Deleted collection: {self.collection_name}")
 
     def reinitialize(self) -> None:
+        if self._is_closed():
+            self._initialized = False
+            self._init_client()
+            return
         self.client.close()
         self._initialized = False
         self._init_client()

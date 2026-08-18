@@ -12,10 +12,13 @@ logger = logging.getLogger(__name__)
 class VectorIndexer:
     def __init__(self):
         self.manager = QdrantClientManager()
-        self.client = self.manager.get_client()
         self.collection_name = self.manager.collection_name
 
+    def _get_client(self):
+        return self.manager.get_client()
+
     def index_chunks(self, chunks: list[dict[str, Any]]) -> int:
+        client = self._get_client()
         points = []
         for chunk in chunks:
             embedding = chunk.get("embedding")
@@ -42,7 +45,7 @@ class VectorIndexer:
             ))
 
         if points:
-            self.client.upsert(
+            client.upsert(
                 collection_name=self.collection_name,
                 points=points,
             )
@@ -53,7 +56,7 @@ class VectorIndexer:
         return len(points)
 
     def count_points(self) -> int:
-        collection_info = self.client.get_collection(self.collection_name)
+        collection_info = self._get_client().get_collection(self.collection_name)
         return collection_info.points_count
 
     def close(self) -> None:
@@ -64,5 +67,4 @@ class VectorIndexer:
     def clear_index(self) -> None:
         self.manager.delete_collection()
         self.manager.reinitialize()
-        self.client = self.manager.get_client()
         logger.info("Index cleared and recreated")
