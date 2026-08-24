@@ -217,6 +217,11 @@ class RAGChain:
             "response": final_state.get("response", ""),
             "citations": final_state.get("citations", []),
             "category": final_state.get("category", ""),
+            "retrieved_docs": final_state.get("retrieved_docs", []),
+            "reranked_docs": final_state.get("reranked_docs", []),
+            "fallback_triggered": final_state.get("fallback_triggered", False),
+            "grade_result": final_state.get("grade_result", ""),
+            "self_check_result": final_state.get("self_check_result", ""),
             "trace_id": trace_id,
         }
 

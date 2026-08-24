@@ -23,6 +23,7 @@ from src.api.schemas import (
     QueryRequest,
     QueryResponse,
     CitationResponse,
+    RetrievedDocResponse,
 )
 from src.core.model_factory import ModelFactory
 from src.rag.rag_chain import RAGChain
@@ -123,6 +124,9 @@ async def query(request: QueryRequest):
             citations=[CitationResponse(**c) for c in result["citations"]],
             category=result["category"],
             trace_id=result["trace_id"],
+            fallback_triggered=result.get("fallback_triggered", False),
+            retrieved_docs=[RetrievedDocResponse(**d) for d in result.get("retrieved_docs", [])],
+            context_docs=[RetrievedDocResponse(**d) for d in result.get("reranked_docs", [])],
         )
     except Exception as e:
         import traceback

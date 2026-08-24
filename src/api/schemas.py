@@ -14,11 +14,23 @@ class CitationResponse(BaseModel):
     content_overlap: float | None = None
 
 
+class RetrievedDocResponse(BaseModel):
+    content: str
+    source: str
+    title: str
+    score: float
+    chunk_index: int = 0
+    category: str = ""
+
+
 class QueryResponse(BaseModel):
     response: str
     citations: list[CitationResponse]
     category: str
     trace_id: str
+    fallback_triggered: bool = False
+    retrieved_docs: list[RetrievedDocResponse] = Field(default_factory=list)
+    context_docs: list[RetrievedDocResponse] = Field(default_factory=list)
 
 
 class ErrorResponse(BaseModel):
