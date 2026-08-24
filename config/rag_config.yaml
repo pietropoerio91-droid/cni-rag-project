@@ -23,7 +23,7 @@ chunking:
     - ""
 
 retrieval:
-  top_k: 10
+  top_k: 25
   score_threshold: 0.3
   hybrid_search:
     enabled: true
@@ -33,7 +33,7 @@ retrieval:
 reranking:
   enabled: true
   top_k: 5
-  model: cross-encoder/ms-marco-MiniLM-L-6-v2
+  model: BAAI/bge-reranker-base
 
 fallback:
   score_threshold: 0.5
