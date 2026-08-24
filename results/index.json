@@ -1,0 +1,38 @@
+[
+  {
+    "run_date": "2026-08-24T09:46:50",
+    "run_id": "20260824_094650",
+    "file": "results/2026-08-24/eval_09-46-50.json",
+    "total_questions": 2,
+    "hit_at_5": 0.0,
+    "mrr": 0.1458,
+    "avg_correctness": 0.0
+  },
+  {
+    "run_date": "2026-08-24T10:14:06",
+    "run_id": "20260824_101406",
+    "file": "results/2026-08-24/eval_10-14-06.json",
+    "total_questions": 1,
+    "hit_at_5": 0.0,
+    "mrr": 0.125,
+    "avg_correctness": null
+  },
+  {
+    "run_date": "2026-08-24T10:41:10",
+    "run_id": "20260824_104110",
+    "file": "results/2026-08-24/eval_10-41-10.json",
+    "total_questions": 1,
+    "hit_at_5": 0.0,
+    "mrr": 0.125,
+    "avg_correctness": null
+  },
+  {
+    "run_date": "2026-08-24T12:58:40",
+    "run_id": "FULL1",
+    "file": "results/2026-08-24/eval_12-58-40.json",
+    "total_questions": 10,
+    "hit_at_5": 0.4,
+    "mrr": 0.3309,
+    "avg_correctness": 1.6
+  }
+]

@@ -1,0 +1,305 @@
+{
+  "run_id": "20260824_094650",
+  "run_date": "2026-08-24T09:46:50",
+  "dataset": "config/golden_dataset.json",
+  "dataset_version": "1.0",
+  "judge_enabled": true,
+  "config_snapshot": {
+    "embedding": {
+      "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
+      "device": "cpu",
+      "normalize_embeddings": true,
+      "batch_size": 32
+    },
+    "llm": {
+      "provider": "ollama",
+      "base_url": "http://localhost:11434/v1",
+      "model": "qwen2.5:3b",
+      "temperature": 0.2,
+      "max_tokens": 2048,
+      "top_p": 0.95
+    },
+    "chunking": {
+      "chunk_size": 1500,
+      "chunk_overlap": 200,
+      "separators": [
+        "\n\n",
+        "\n",
+        ".",
+        " ",
+        ""
+      ]
+    },
+    "retrieval": {
+      "top_k": 10,
+      "score_threshold": 0.3,
+      "hybrid_search": {
+        "enabled": true,
+        "dense_weight": 0.7,
+        "sparse_weight": 0.3
+      }
+    },
+    "reranking": {
+      "enabled": true,
+      "top_k": 5,
+      "model": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    },
+    "fallback": {
+      "score_threshold": 0.5,
+      "message": "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
+    },
+    "vector_store": {
+      "collection_name": "cni_documents",
+      "distance": "cosine",
+      "size": 384
+    },
+    "crawler": {
+      "base_url": "https://www.cni.it",
+      "max_depth": 8,
+      "max_pages": 15000,
+      "focus_priority": true,
+      "respect_robots_txt": true,
+      "delay": 0.2,
+      "timeout": 15,
+      "allowed_domains": [
+        "www.cni.it",
+        "cni.it"
+      ],
+      "included_paths": [
+        "/media-ing",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi"
+      ],
+      "priority_paths": [
+        "/media-ing/",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi"
+      ],
+      "priority_max_depth": 12,
+      "max_links_per_page": 300
+    },
+    "quality": {
+      "min_content_length": 50,
+      "max_content_length": 100000,
+      "required_languages": [
+        "it"
+      ],
+      "max_repetition_ratio": 0.65
+    }
+  },
+  "aggregate": {
+    "total_questions": 2,
+    "fallback_rate": 0.0,
+    "retrieval": {
+      "mrr": 0.1458,
+      "recall": 1.0,
+      "hit_at_3": 0.0,
+      "hit_at_5": 0.0,
+      "hit_at_10": 1.0
+    },
+    "generation": {
+      "avg_faithfulness": 2.0,
+      "avg_answer_relevance": 1.0,
+      "avg_correctness": 0.0,
+      "pass_rate_correctness_ge4": 0.0,
+      "must_contain_pass_rate": 0.0
+    },
+    "avg_latency_s": 244.23
+  },
+  "duration_s": 842.2,
+  "results": [
+    {
+      "question_id": "Q01",
+      "question": "Chi è il presidente del CNI?",
+      "category": "organi",
+      "reference_answer": "Il presidente del Consiglio Nazionale degli Ingegneri è l'ing. Angelo Domenico Perrini, laureato in Ingegneria Elettrotecnica presso l'Università degli Studi di Bari ed ex Presidente dell'Ordine degli Ingegneri della Provincia di Bari.",
+      "expected_sources": [
+        "cni/consiglio"
+      ],
+      "must_contain": [
+        "Perrini"
+      ],
+      "must_contain_hits": [],
+      "must_contain_pass": false,
+      "response": "Il documento \"C3i\" (Documento 3 e Documento 4) non specifica chi sia il presidente del CNI. Questo nome appare solo come titolo nel testo generale del documento, ma non viene indicato quale sia la persona che ha questo ruolo. Non è possibile rispondere alla domanda con base ai documenti forniti.",
+      "citations": [
+        {
+          "title": "aggiudicazione_FCM.pdf",
+          "source": "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/aggiudicazione_FCM.pdf",
+          "relevance_score": 0.5623,
+          "excerpt": "Con la presente si invita il rappresentante legale della Vostra Società – entro e non \noltre quindici giorni dal ricevimento della presente - a prendere contatti con il Direttore del \nCNI (dr. Fabio...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "Ingegneri e rappresentanza",
+          "source": "https://www.cni.it/ingegneri-e-rappresentanza",
+          "relevance_score": 0.595,
+          "excerpt": "02/06/2022\n“Ingegneri e rappresentanza”, scritto da Antonio Felici con la Prefazione del Presidente CNI Armando Zambrano - Via XX Settembre, 5 - 00187 Roma, Italia - CF: 80057570584\nrai attraverso un...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "C3i",
+          "source": "https://www.cni.it/en/cni/c3i",
+          "relevance_score": 0.5728,
+          "excerpt": "Il C3i è inoltre un supporto del CNI e dei suoi Organismi sulle tematiche che coinvolgono l’Ingegneria dell’Informazione.\nSTATUTO\nStatuto C3i\nASSEMBLEA DEI DELEGATI\n- L’\nè composta dai Delegati degli...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "CIRC_CNI_5-Prot_CNI_491U-18.01.23-DELEGHE.pdf",
+          "source": "https://www.cni.it/images/organizzazione/CIRC_CNI_5-Prot_CNI_491U-18.01.23-DELEGHE.pdf",
+          "relevance_score": 0.5849,
+          "excerpt": "presso il \nMinistero della Giustizia \nVia XX Settembre, 5 \n00187 – Roma, Italy \ntel. +39.06.6976701 \nsegreteria@cni-online.it \nsegreteria@ingpec.eu \nwww.cni.it \n\nCirc. CNI n. 5/XX Sess./2023 \n\nAi...",
+          "content_overlap": 0.0
+        }
+      ],
+      "retrieved_sources": [
+        "https://www.cni.it/ingegneri-e-rappresentanza",
+        "https://www.cni.it/images/organizzazione/CIRC_CNI_5-Prot_CNI_491U-18.01.23-DELEGHE.pdf",
+        "https://www.cni.it/en/cni/c3i",
+        "https://www.cni.it/cni/c3i",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._139_polizza_INFORTUNI.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/personale/incarichi_conferiti/ESTRATTO_VERB._N._121_DEL_02.09.2021_SIGLATO.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._140_polizza_RC.pdf",
+        "https://www.cni.it/en/cni/consiglio",
+        "https://www.cni.it/cni/consiglio",
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/aggiudicazione_FCM.pdf"
+      ],
+      "reranked_sources": [
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/aggiudicazione_FCM.pdf",
+        "https://www.cni.it/ingegneri-e-rappresentanza",
+        "https://www.cni.it/en/cni/c3i",
+        "https://www.cni.it/cni/c3i",
+        "https://www.cni.it/images/organizzazione/CIRC_CNI_5-Prot_CNI_491U-18.01.23-DELEGHE.pdf"
+      ],
+      "fallback_triggered": false,
+      "retrieval": {
+        "first_relevant_rank": 8,
+        "mrr": 0.125,
+        "hit_at_3": 0,
+        "hit_at_5": 0,
+        "hit_at_10": 1,
+        "recall": 1.0,
+        "n_docs": 10
+      },
+      "judgment": {
+        "faithfulness": {
+          "score": 2,
+          "reason": "La risposta contiene informazioni presenti nei documenti, ma non risponde alla domanda specifica \"Chi è il presidente del CNI?\"."
+        },
+        "answer_relevance": {
+          "score": 1,
+          "reason": "La risposta evidenzia che non è possibile rispondere alla domanda perché il documento fornito non specifica chi sia il presidente del CNI."
+        },
+        "correctness": {
+          "score": 0,
+          "reason": "La risposta generata manca di correttezza fattuale poiché specifica che il documento \"C3i\" non indica chi sia il presidente del CNI, mentre in realtà la verità nota dice che l'ing. Angelo Domenico Perrini è il presidente del Consiglio Nazionale degli Ingegneri. La risposta manca di informare sulla p"
+        }
+      },
+      "latency_s": 296.15,
+      "pipeline": {
+        "category": "organi",
+        "grade_result": null,
+        "self_check_result": null
+      }
+    },
+    {
+      "question_id": "Q02",
+      "question": "Chi sono il vicepresidente e il consigliere segretario del Consiglio Nazionale degli Ingegneri?",
+      "category": "organi",
+      "reference_answer": "La vicepresidente del CNI è l'ing. Carla Cappiello (ai sensi del D.Lgs. n. 382 del 1944), mentre il consigliere segretario è l'ing. Giuseppe Maria Margiotta.",
+      "expected_sources": [
+        "cni/consiglio"
+      ],
+      "must_contain": [
+        "Cappiello",
+        "Margiotta"
+      ],
+      "must_contain_hits": [],
+      "must_contain_pass": false,
+      "response": "I documenti disponibili non contengono informazioni sufficienti su questo argomento.",
+      "citations": [
+        {
+          "title": "VERBALE_IF_12-07-2019.pdf",
+          "source": "https://www.cni.it/images/Ingegneria_Forense/VERBALE_IF_12-07-2019.pdf",
+          "relevance_score": 0.6948,
+          "excerpt": "CONSIGLIO NAZIONALE INGEGNERI \nRIUNIONE DEI RESPONSABILI DELLE COMMISSIONI INGEGNERIA FORENSE DEGLI ORDINI \nVERBALE DEL 12 LUGLIO 2019 \n\n1 \nPremessa \nLa riunione, convocata dal CNI con Circolare n....",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "Corte dei Conti",
+          "source": "https://www.cni.it/sezioni-amministrazione-trasparente/66-controlli-e-rilievi-sull-amministrazione/83-controlli-e-rilievi-sull-amministrazione",
+          "relevance_score": 0.6699,
+          "excerpt": "Corte dei Conti\ndati aggiornati al 07/06/2024\nIl Consiglio Nazionale degli Ingegneri non è soggetto al controllo della Corte dei Conti riguardante l’organizzazione e l’attività dell’ente",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "delibera_n._139_polizza_INFORTUNI.pdf",
+          "source": "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._139_polizza_INFORTUNI.pdf",
+          "relevance_score": 0.6871,
+          "excerpt": "DELIBERA N. 139 del 14 dicembre 2023 \nIL CONSIGLIO NAZIONALE DEGLI INGEGNERI",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "delibera_n._140_polizza_RC.pdf",
+          "source": "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._140_polizza_RC.pdf",
+          "relevance_score": 0.6927,
+          "excerpt": "DELIBERA N. 140 del 14 dicembre 2023 \nIL CONSIGLIO NAZIONALE DEGLI INGEGNERI",
+          "content_overlap": 0.0
+        }
+      ],
+      "retrieved_sources": [
+        "https://www.cni.it/images/Ingegneria_Forense/VERBALE_IF_12-07-2019.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._140_polizza_RC.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._139_polizza_INFORTUNI.pdf",
+        "https://www.cni.it/sezioni-amministrazione-trasparente/66-controlli-e-rilievi-sull-amministrazione/83-controlli-e-rilievi-sull-amministrazione",
+        "https://www.cni.it/en/sezioni-amministrazione-trasparente/66-controlli-e-rilievi-sull-amministrazione/83-controlli-e-rilievi-sull-amministrazione",
+        "https://www.cni.it/cni/consiglio",
+        "https://www.cni.it/en/cni/consiglio",
+        "https://www.cni.it/images/il_giornale_dell_ingegnere/2022/Argomenti_Ordine_Ingegneri_di_Milano_ottobre_2022.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/personale/incarichi_conferiti/ESTRATTO_VERB._N._121_DEL_02.09.2021_SIGLATO.pdf",
+        "https://www.cni.it/images/network_giovani/redazione/ComunicatoStampa-NGI-inglowcost-25ott.pdf"
+      ],
+      "reranked_sources": [
+        "https://www.cni.it/images/Ingegneria_Forense/VERBALE_IF_12-07-2019.pdf",
+        "https://www.cni.it/sezioni-amministrazione-trasparente/66-controlli-e-rilievi-sull-amministrazione/83-controlli-e-rilievi-sull-amministrazione",
+        "https://www.cni.it/en/sezioni-amministrazione-trasparente/66-controlli-e-rilievi-sull-amministrazione/83-controlli-e-rilievi-sull-amministrazione",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._139_polizza_INFORTUNI.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/bandi_di_gara_e_contratti/delibera_n._140_polizza_RC.pdf"
+      ],
+      "fallback_triggered": false,
+      "retrieval": {
+        "first_relevant_rank": 6,
+        "mrr": 0.16666666666666666,
+        "hit_at_3": 0,
+        "hit_at_5": 0,
+        "hit_at_10": 1,
+        "recall": 1.0,
+        "n_docs": 10
+      },
+      "judgment": {
+        "faithfulness": {
+          "score": 2,
+          "reason": "La risposta contiene informazioni relative alla riunione del Consiglio Nazionale degli Ingegneri, ma non specifica chi siano il vicepresidente e il consigliere segretario. Queste informazioni non sono presenti nei documenti forniti."
+        },
+        "answer_relevance": {
+          "score": 1,
+          "reason": "La risposta non risponde alla domanda specifica, ma si limita a dichiarare che i documenti disponibili non contengono informazioni sufficienti. Non fornisce alcuna informazione sul vicepresidente e consigliere segretario del Consiglio Nazionale degli Ingegneri."
+        },
+        "correctness": {
+          "score": 0,
+          "reason": "La risposta generata non è coerente con la verità nota, poiché contiene informazioni che sono chiaramente false. La vicepresidente del CNI non è l'ingegner Carla Cappiello (il nome \"Carla Cappiello\" non appare mai in documenti ufficiali del CNI) e il consigliere segretario non è l'ingegner Giuseppe "
+        }
+      },
+      "latency_s": 192.31,
+      "pipeline": {
+        "category": "organi",
+        "grade_result": null,
+        "self_check_result": null
+      }
+    }
+  ]
+}
