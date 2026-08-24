@@ -28,6 +28,15 @@
 | **Ingestion** | Pipeline completa che va dal caricamento dei documenti fino all'indicizzazione nel database vettoriale. |
 | **Pipeline** | Sequenza di passaggi di elaborazione collegati (es. crawl → pulisci → chunk → embed → indicizza). |
 | **SSE** (Server-Sent Events) | Protocollo per **streaming** di dati dal server al client. Qui usato per mostrare la risposta del LLM in tempo reale, token dopo token. |
+| **Golden dataset** | Insieme di domande di test con **risposte di riferimento** e **fonti attese** note in anticipo. È il "metro di misura" con cui si valuta oggettivamente il sistema: le risposte sono estratte dai documenti reali del corpus, non inventate. (`config/golden_dataset.json`) |
+| **Ground truth** | La "verità nota": ciò che il sistema *dovrebbe* rispondere/reperire per una data domanda. |
+| **MRR** (Mean Reciprocal Rank) | Metrica di retrieval: media di `1/rank` della prima fonte corretta. Se la fonte giusta è al 1° posto MRR=1; al 5° posto contribuisce 1/5=0.2. |
+| **Hit@k** | Frazione di domande in cui almeno una fonte corretta compare nei primi k risultati. Hit@5 = 0.8 significa che su 10 domande, 8 trovano la fonte giusta nei top-5. |
+| **LLM-as-judge** | Tecnica di valutazione in cui un LLM fa da "giudice" assegnando punteggi alla risposta generata (qui scala 0-5). Standard nella letteratura RAG quando non è possibile valutare manualmente tutte le risposte. |
+| **Faithfulness** (fedeltà) | Metrica qualitativa: la risposta è interamente supportata dai documenti forniti? Intercetta le **allucinazioni**. |
+| **Answer relevance** | Metrica qualitativa: la risposta risponde davvero alla domanda posta? Intercetta risposte fuori tema o evasive. |
+| **Correctness** (correttezza) | Metrica qualitativa: la risposta è coerente con la verità nota del golden dataset? Intercetta gli **errori fattuali**. |
+| **Fallback** | Comportamento di "non so": quando il sistema non trova documenti pertinenti restituisce un messaggio standard invece di inventare una risposta. |
 | **PII** (Personally Identifiable Information) | Dati personali sensibili (email, telefono, codice fiscale) che devono essere filtrati prima di essere inviati al LLM o mostrati all'utente. |
 | **Boilerplate** | Contenuto ripetitivo delle pagine web (footer, cookie banner, menu) che va rimosso per pulire il testo. |
 | **RecursiveCharacterTextSplitter** | Algoritmo di chunking che prova a dividere il testo in punti logici (prima paragrafi, poi frasi, poi parole) per mantenere la coerenza semantica. |
@@ -53,6 +62,7 @@
 15. [Citazioni](#15-citazioni)
 16. [API e Frontend](#16-api-e-frontend)
 17. [Flusso RAG Chain (LangGraph)](#17-flusso-rag-chain-langgraph)
+18. [Valutazione End-to-End](#18-valutazione-end-to-end)
 
 ---
 
@@ -860,6 +870,53 @@ Tracciamento richieste con timing. Crea una traccia per ogni query con:
 
 ---
 
+## 18. Valutazione End-to-End
+
+### File: `config/golden_dataset.json`, `benchmarks/run_evaluation.py`
+
+Questa fase **non partecipa alla risposta** ma misura oggettivamente quanto
+bene il sistema risponde. È la parte su cui si costruiscono i risultati
+sperimentali della tesi.
+
+### Perché serve
+
+Le metriche di solo-retrieval con keyword matching possono essere alte anche
+quando il sistema non sa rispondere (es. un chunk che contiene la parola
+"presidente" in una news qualsiasi fa salire l'MRR senza contenere la risposta).
+La valutazione end-to-end controlla invece il **ciclo completo**: retrieval →
+rerank → generazione, confrontando l'output con una verità nota.
+
+### Il golden dataset
+
+`config/golden_dataset.json` contiene domande di test con:
+- `reference_answer`: risposta corretta, **estratta dai documenti reali** del corpus
+- `expected_sources`: le pagine da cui la risposta dovrebbe venire
+- `must_contain`: fatti chiave che la risposta finale deve citare
+
+### Come funziona l'harness
+
+Per ogni domanda il run_evaluation.py:
+
+1. Invia la domanda all'API (`POST /query`) — pipeline completa reale
+2. Calcola le metriche di retrieval confrontando i documenti recuperati con le `expected_sources`
+3. Fa valutare la risposta a un LLM giudice (qwen2.5:3b) su tre assi 0-5:
+   - **Faithfulness**: la risposta è supportata dai documenti? (niente allucinazioni)
+   - **Answer relevance**: risponde alla domanda?
+   - **Correctness**: è coerente con la risposta di riferimento?
+4. Verifica i `must_contain` e registra latenza e fallback
+5. Salva tutto: dettaglio per giorno (`results/YYYY-MM-DD/`), storico cumulativo
+   (`history.csv`, `summary.csv`) e checkpoint per riprendere run interrotti
+
+### Perché è utile per la tesi
+
+- **Numeri dimostrabili**: tabelle Hit@k / MRR / fedeltà / correttezza prima e dopo ogni modifica
+- **Analisi degli errori**: ogni run conserva risposta completa, fonti recuperate
+  e punteggi per domanda — permette di dire *perché* il sistema ha sbagliato
+- **Tracciabilità temporale**: i risultati sono organizzati per data, quindi ogni
+  sessione sperimentale è confrontabile nel tempo (`summary.csv`)
+
+---
+
 ## Riepilogo: il Viaggio di una Query
 
 Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
@@ -879,14 +936,14 @@ Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
 │     → embedding della query con MiniLM → vettore 384 dim                        │
 │     → filtro Qdrant: category="organi"                                           │
 │     → search in Qdrant con similarità coseno                                     │
-│     → top 20 risultati con score > 0.3                                           │
+│     → top 25 risultati con score > 0.3 (candidati per il reranker)              │
 │                                                                                  │
 │  5. RERANK (reranker.py)                                                         │
-│     → pass-through (reranker disabilitato per italiano)                          │
-│     → mantiene top 10 documenti dall'originale retrieval                         │
+│     → cross-encoder multilingue BAAI/bge-reranker-base                          │
+│     → riscore le coppie (domanda, chunk) e mantiene i top 5                     │
 │                                                                                  │
 │  6. BUILD PROMPT (prompt_builder.py)                                             │
-│     → costruisce system prompt con fino a 10 documenti come contesto            │
+│     → costruisce system prompt con i 5 documenti selezionati come contesto      │
 │     → formato: [Documento 1 - titolo] \n Fonte: URL \n contenuto...             │
 │                                                                                  │
 │  7. GENERATE (llm_client.py + response_generator.py)                            │
@@ -916,8 +973,8 @@ Ecco cosa succede quando un utente chiede "Quali sono gli organi del CNI?":
 | Similarità | Coseno | Standard per embedding normalizzati |
 | chunk_size | 1500 | Più contesto per il LLM, chunk più significativi |
 | chunk_overlap | 200 (13%) | Evita tagli netti nel testo |
-| top_k retrieval | 20 | Recupera più documenti, il LLM seleziona |
-| reranker | disabilitato | Cross-encoder inglese danneggia testi italiani |
+| top_k retrieval | 25 | Recupera più candidati; il reranker multilingue seleziona i migliori |
+| reranker | BAAI/bge-reranker-base | Cross-encoder **multilingue**: ordina correttamente anche testi italiani |
 | score_threshold | 0.3 | Soglia più bassa per non perdere documenti rilevanti |
 | Temperature LLM | 0.2 | Risposte fattuali e precise |
 | Max pagine crawl | 5000 | Copertura completa del sito CNI |

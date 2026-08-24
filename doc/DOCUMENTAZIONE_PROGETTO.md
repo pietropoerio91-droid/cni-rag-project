@@ -94,6 +94,7 @@ Il sistema implementa un'architettura RAG (Retrieval-Augmented Generation) compl
 | Frontend | Angular 18 | Interfaccia utente |
 | LLM | Qwen 2.5 3B via Ollama (`localhost:11434`) | Generazione risposte, grade docs, query rewrite, self-check |
 | Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) | Vettorizzazione testo (50+ lingue) |
+| Reranker | `BAAI/bge-reranker-base` (cross-encoder multilingue) | Riordino dei candidati del retrieval (50+ lingue) |
 | Vector Store | Qdrant (modalità locale SQLite, `data/qdrant_db`) | Database vettoriale |
 | Orchestratore | LangGraph (Corrective RAG + Self-RAG) | Pipeline RAG con 9 nodi |
 | Framework RAG | LangChain | Chunking, prompt |
@@ -548,7 +549,7 @@ classify ──► retrieve ──► rerank ──► grade_docs ──► buil
 ```
 
 **Metodi pubblici:**
-- `query(question)` → esecuzione sincrona del grafo
+- `query(question)` → esecuzione sincrona del grafo. Restituisce `{response, citations, category, retrieved_docs, reranked_docs, fallback_triggered, grade_result, self_check_result, trace_id}` — l'esposizione dei documenti recuperati e dello stato dei nodi serve alla valutazione end-to-end e al debugging
 - `astream(question)` → generator asincrono per streaming SSE (esecuzione manuale, non LangGraph, per controllo streaming)
 
 ### `src/rag/grade_docs.py` — `GradeDocs`
@@ -631,7 +632,10 @@ Costruisce citazioni dai documenti usati per generare la risposta.
 - `QueryRequest`: `{question: str (1-2000), top_k?: int (1-20)}`
 
 **Response:**
-- `QueryResponse`: `{response, citations[], category, trace_id}`
+- `QueryResponse`: `{response, citations[], category, trace_id, fallback_triggered, retrieved_docs[], context_docs[]}`
+  - `retrieved_docs`: risultati del retrieval grezzo (pre-rerank), usati per le metriche di retrieval
+  - `context_docs`: chunk effettivamente passati all'LLM (post-rerank), usati dal judge per valutare la fedeltà
+- `RetrievedDocResponse`: `{content, source, title, score, chunk_index, category}`
 - `CitationResponse`: `{title, source, relevance_score, excerpt}`
 - `HealthResponse`: `{status, version, documents_indexed, llm_connected}`
 - `IngestResponse`: `{status, documents_crawled, documents_total, chunks_indexed, message}`
@@ -666,7 +670,10 @@ Costruisce citazioni dai documenti usati per generare la risposta.
     {"title": "Organi CNI", "source": "https://www.cni.it/organi", "relevance_score": 0.95, "excerpt": "..."}
   ],
   "category": "organi",
-  "trace_id": "uuid"
+  "trace_id": "uuid",
+  "fallback_triggered": false,
+  "retrieved_docs": [{"content": "...", "source": "...", "title": "...", "score": 0.61, "chunk_index": 0, "category": "organi"}],
+  "context_docs": [{"content": "...", "source": "...", "title": "...", "score": 0.88, "chunk_index": 0, "category": "organi"}]
 }
 ```
 
@@ -739,6 +746,20 @@ Avvia il server API.
 - `--host` (default: 0.0.0.0)
 - `--port` (default: 8000)
 - `--reload/--no-reload` (default: reload)
+
+### `scripts/restart_api.sh`
+
+Riavvio robusto dell'API: kill forzato (`kill -9`, necessario perché l'event loop può essere bloccato da una query lunga), attesa che porta 8000 e lock di Qdrant si liberino, riavvio in background con nohup e health check finale (con flag `--wait`).
+
+```bash
+bash scripts/restart_api.sh --wait
+```
+
+> Nota architetturale: gli endpoint FastAPI eseguono codice sincrono bloccante
+> (pipeline RAG) dentro funzioni `async def`: durante una query l'event loop è
+> occupato e ogni altra richiesta (anche `/health`) attende. Il riavvio forzato
+> è la contromisura operativa; il fix strutturale sarebbe spostare la pipeline
+> in un threadpool/worker.
 
 ---
 
@@ -840,6 +861,47 @@ Suite di benchmark per valutare diverse configurazioni del sistema RAG.
 **10 query di test** in italiano su categorie: organi, normativa, formazione, commissioni, contatti, albo, servizi.
 
 **Output:** tabella colorata + file JSON `benchmarks/results.json`.
+
+> ⚠️ **Limite noto**: le metriche di questo script usano *keyword matching* sul
+> retrieval (un chunk è "rilevante" se contiene una parola della query). Possono
+> quindi risultare alte anche quando il sistema non sa rispondere. Per la
+> valutazione end-to-end usare lo script seguente.
+
+### `benchmarks/run_evaluation.py` — Valutazione end-to-end
+
+Valuta l'intera pipeline (retrieval **e** generazione) contro un golden dataset
+con verità nota (`config/golden_dataset.json`). Documentazione completa e
+analisi degli errori in `doc/VALUTAZIONE_QUALITATIVA.md`.
+
+**Metriche di retrieval** (contro le fonti attese del dataset): `Hit@k` (k=3,5,10), `MRR`, `Recall`.
+
+**Metriche qualitative via LLM-as-judge** (qwen2.5:3b locale, scala 0-5):
+`faithfulness` (coerenza con i documenti), `answer_relevance` (pertinenza alla
+domanda), `correctness` (coerenza con la risposta di riferimento). Più check
+deterministici: `must_contain`, `fallback_triggered`, latenza.
+
+**Persistenza organizzata per giorno:**
+
+```
+results/
+├── YYYY-MM-DD/
+│   ├── eval_HH-MM-SS.json        # run completo (config snapshot + dettaglio per domanda)
+│   └── eval_<run_id>.partial.json # checkpoint incrementale (resume dopo interruzioni)
+├── history.csv                    # una riga per (run × domanda)
+├── summary.csv                    # una riga per run: confronto aggregato nel tempo
+└── index.json                     # indice dei run
+```
+
+**Uso:**
+```bash
+python benchmarks/run_evaluation.py                 # completo con judge
+python benchmarks/run_evaluation.py --no-judge      # solo retrieval+risposta
+python benchmarks/run_evaluation.py --limit 3       # prime N domande
+python benchmarks/run_evaluation.py --run-id FULL1 \
+    --resume results/YYYY-MM-DD/eval_FULL1.partial.json   # riprendere un run
+```
+
+Requisiti: API attiva (`bash scripts/restart_api.sh --wait`) e Ollama con `qwen2.5:3b`.
 
 ---
 
