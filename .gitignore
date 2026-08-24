@@ -48,15 +48,15 @@ frontend/.angular/cache/
 # Angular build output
 frontend/dist/
 
-# Debug scripts
-check_*.py
-compute_*.py
-extract_*.py
-final_check.py
-inspect_*.py
-query_*.py
-search_*.py
-survey_*.py
+# Debug scripts (solo root)
+/check_*.py
+/compute_*.py
+/extract_*.py
+/final_check.py
+/inspect_*.py
+/query_*.py
+/search_*.py
+/survey_*.py
 
 
 
