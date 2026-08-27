@@ -48,31 +48,73 @@ class ModelFactory:
             raise ValueError(f"Unsupported LLM provider: {provider}")
 
     @staticmethod
+    def _generation_params(llm_config: dict[str, Any]) -> dict[str, Any]:
+        """Parametri di generazione, letti da dove stanno davvero.
+
+        Il codice precedente cercava `llm.parameters.temperature`, mentre
+        config/rag_config.yaml li dichiara direttamente sotto `llm`:
+
+            llm:
+              model: qwen2.5:3b
+              temperature: 0.2      <- qui, non sotto `parameters`
+
+        `config.get("parameters", {})` restituiva quindi sempre un dizionario
+        vuoto e valevano i default scritti nel codice. Il difetto era invisibile
+        perche' quei default coincidevano con i valori nel YAML — ma qualunque
+        modifica alla configurazione non aveva effetto, e il config_snapshot
+        salvato in ogni run di valutazione documentava valori diversi da quelli
+        realmente usati.
+
+        Vengono accettate entrambe le forme: le chiavi al livello di `llm` e,
+        se presenti, quelle annidate sotto `parameters`, che hanno la
+        precedenza. Cosi' nessuna configurazione esistente si rompe.
+        """
+        DEFAULTS = {
+            "temperature": 0.2,
+            "max_tokens": 2048,
+            "top_p": 0.95,
+            "frequency_penalty": 0.0,
+            "presence_penalty": 0.0,
+        }
+        annidati = llm_config.get("parameters") or {}
+        return {
+            chiave: annidati.get(chiave, llm_config.get(chiave, default))
+            for chiave, default in DEFAULTS.items()
+        }
+
+    @staticmethod
     def _create_openai_compatible_llm(base_url: str, model: str, config: dict[str, Any]) -> BaseLLM:
         from langchain_openai import ChatOpenAI
 
-        logger.info(f"Connecting to LLM at {base_url} with model {model}")
-        params = config.get("parameters", {})
+        params = ModelFactory._generation_params(config)
+        logger.info(
+            f"Connecting to LLM at {base_url} with model {model} — "
+            f"temperature={params['temperature']}, max_tokens={params['max_tokens']}, "
+            f"top_p={params['top_p']}"
+        )
         return ChatOpenAI(
             base_url=base_url,
             model=model,
-            temperature=params.get("temperature", 0.2),
-            max_tokens=params.get("max_tokens", 2048),
-            top_p=params.get("top_p", 0.95),
-            frequency_penalty=params.get("frequency_penalty", 0.0),
-            presence_penalty=params.get("presence_penalty", 0.0),
+            temperature=params["temperature"],
+            max_tokens=params["max_tokens"],
+            top_p=params["top_p"],
+            frequency_penalty=params["frequency_penalty"],
+            presence_penalty=params["presence_penalty"],
             api_key="not-needed",
         )
 
     @staticmethod
     def _create_llama_cpp_llm(model_path: str, config: dict[str, Any]) -> BaseLLM:
-        logger.info(f"Loading local Llama model: {model_path}")
-        params = config.get("parameters", {})
+        params = ModelFactory._generation_params(config)
+        logger.info(
+            f"Loading local Llama model: {model_path} — "
+            f"temperature={params['temperature']}, max_tokens={params['max_tokens']}"
+        )
         return LlamaCpp(
             model_path=model_path,
-            temperature=params.get("temperature", 0.2),
-            max_tokens=params.get("max_tokens", 2048),
-            top_p=params.get("top_p", 0.95),
+            temperature=params["temperature"],
+            max_tokens=params["max_tokens"],
+            top_p=params["top_p"],
             n_ctx=config.get("context_length", 8192),
             verbose=False,
         )
