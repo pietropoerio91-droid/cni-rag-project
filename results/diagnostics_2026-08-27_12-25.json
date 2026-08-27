@@ -1,0 +1,71 @@
+{
+  "data": "2026-08-27T12:24:51",
+  "troncamento": {
+    "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "max_seq_length": 128,
+    "n_chunk_campionati": 1000,
+    "caratteri_mediana": 1170.5,
+    "token_mediana": 266.0,
+    "token_media": 238.9,
+    "token_min": 3,
+    "token_max": 639,
+    "caratteri_per_token": 4.32,
+    "chunk_troncati": 822,
+    "chunk_troncati_pct": 82.2,
+    "frazione_media_persa_pct": 41.3,
+    "porzione_vista_dal_modello_pct": 53.6
+  },
+  "categorie": {
+    "totale_chunk": 17145,
+    "per_categoria": {
+      "normativa": 1813,
+      "news": 9414,
+      "albo": 166,
+      "eventi": 2876,
+      "formazione": 505,
+      "documenti": 870,
+      "temi": 258,
+      "organi": 536,
+      "chi_siamo": 156,
+      "giornale": 181,
+      "contatti": 175,
+      "servizi": 62,
+      "generico": 106,
+      "commissioni": 27
+    },
+    "senza_categoria": 0,
+    "senza_categoria_pct": 0.0,
+    "categorie_non_richiedibili": [
+      "chi_siamo",
+      "eventi",
+      "generico",
+      "giornale",
+      "news",
+      "temi"
+    ],
+    "categorie_richieste_ma_assenti": []
+  },
+  "memoria": {
+    "steps": [
+      {
+        "dopo": "processo Python a vuoto",
+        "rss_mb": 1020.4
+      },
+      {
+        "dopo": "+ modello di embedding",
+        "rss_mb": 1152.2
+      },
+      {
+        "dopo": "+ reranker cross-encoder",
+        "rss_mb": 1413.0
+      },
+      {
+        "dopo": "+ client Qdrant",
+        "rss_mb": 1413.1
+      }
+    ],
+    "ram_totale_gb": 8.0,
+    "ram_disponibile_gb": 2.63,
+    "ram_usata_pct": 67.2
+  }
+}
