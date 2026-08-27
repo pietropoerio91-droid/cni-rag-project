@@ -434,6 +434,257 @@ def _classify_loss_stage(pre: dict[str, Any], post: dict[str, Any], row: dict[st
     return "ok"
 
 
+# ---------------------------------------------------------------------------
+# Annotazione umana e accordo giudice-umano
+# ---------------------------------------------------------------------------
+# L'annotazione umana e' lo strumento di misura primario della valutazione
+# qualitativa: con 30 domande x 3 metriche sono 90 giudizi, fattibili a mano,
+# e il giudizio umano e' il gold standard. L'LLM-as-judge diventa oggetto di
+# studio — quanto riesce ad approssimarlo — invece che strumento.
+#
+# I voti sono salvati in results/annotations_<run_id>.json sul filesystem
+# locale: nessun servizio esterno, coerentemente col vincolo di esecuzione in
+# locale del progetto.
+#
+# L'annotazione avviene IN CIECO: l'endpoint usato dall'interfaccia di
+# valutazione non restituisce i punteggi del giudice, per non influenzare chi
+# annota (anchoring bias). I punteggi automatici compaiono solo dopo, nel
+# confronto.
+
+ANNOTATION_METRICS = ("faithfulness", "answer_relevance", "correctness")
+
+LOSS_STAGES = {
+    "corpus_miss": "L'informazione non e' presente nel corpus",
+    "retrieval_miss": "Nel corpus, ma non recuperata fra i candidati",
+    "reranker_drop": "Recuperata, ma scartata dal reranker",
+    "generation_miss": "Nel contesto, ma la risposta non la usa",
+    "hallucination": "Afferma cose non presenti in alcun documento",
+    "ok": "Risposta corretta",
+}
+
+
+def _annotations_path(run_id: str) -> Path:
+    safe = "".join(ch for ch in run_id if ch.isalnum() or ch in "-_")
+    return _RESULTS_DIR / f"annotations_{safe}.json"
+
+
+def _load_annotations(run_id: str) -> dict[str, Any]:
+    path = _annotations_path(run_id)
+    if not path.exists():
+        return {"run_id": run_id, "items": {}, "updated_at": None}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {"run_id": run_id, "items": {}, "updated_at": None}
+
+
+def _save_annotations(data: dict[str, Any]) -> None:
+    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    path = _annotations_path(data["run_id"])
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+    tmp.replace(path)
+
+
+def _judge_scores(run: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for r in run.get("results", []):
+        j = r.get("judgment") or {}
+        voti = {}
+        for m in ANNOTATION_METRICS:
+            s = (j.get(m) or {}).get("score")
+            if s is not None and s >= 0:
+                voti[m] = s
+        if voti:
+            out[r["question_id"]] = voti
+    return out
+
+
+class AnnotationRequest(BaseModel):
+    run_id: str
+    question_id: str
+    faithfulness: int | None = None
+    answer_relevance: int | None = None
+    correctness: int | None = None
+    error_stage: str | None = None
+    note: str | None = None
+
+
+@router.get("/evaluation/annotation-queue")
+async def annotation_queue(run_id: str | None = None, blind: bool = True):
+    """Le domande da annotare, con risposta e contesto recuperato.
+
+    Con blind=true (default) i punteggi del giudice NON sono inclusi: chi
+    annota non deve vederli prima di esprimere il proprio giudizio.
+    """
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+    salvate = _load_annotations(rid)["items"]
+
+    items = []
+    for r in run.get("results", []):
+        qid = r.get("question_id")
+        pre, post = r.get("retrieval") or {}, r.get("retrieval_context") or {}
+        voce = {
+            "question_id": qid,
+            "question": r.get("question"),
+            "category": r.get("category"),
+            "response": r.get("response"),
+            "reference_answer": r.get("reference_answer"),
+            "expected_sources": r.get("expected_sources"),
+            "must_contain": r.get("must_contain"),
+            "must_contain_pass": r.get("must_contain_pass"),
+            "fallback_triggered": r.get("fallback_triggered"),
+            "context_sources": r.get("reranked_sources"),
+            "rank_pre_rerank": pre.get("first_relevant_rank"),
+            "rank_post_rerank": post.get("first_relevant_rank"),
+            "citations": r.get("citations"),
+            "latency_s": r.get("latency_s"),
+            "annotazione": salvate.get(qid),
+            "suggerimento_stadio": _classify_loss_stage(pre, post, r),
+        }
+        if not blind:
+            voce["judgment"] = r.get("judgment")
+        items.append(voce)
+
+    fatte = sum(1 for i in items if i["annotazione"])
+    return {
+        "run_id": rid,
+        "run_date": latest.get("run_date"),
+        "blind": blind,
+        "metriche": list(ANNOTATION_METRICS),
+        "stadi_errore": LOSS_STAGES,
+        "totale": len(items),
+        "annotate": fatte,
+        "mancanti": len(items) - fatte,
+        "items": items,
+    }
+
+
+@router.post("/evaluation/annotations")
+async def save_annotation(body: AnnotationRequest):
+    """Salva (o aggiorna) l'annotazione umana di una domanda."""
+    for m in ANNOTATION_METRICS:
+        v = getattr(body, m)
+        if v is not None and not (0 <= v <= 5):
+            raise HTTPException(status_code=400, detail=f"{m}: il voto deve essere fra 0 e 5")
+    if body.error_stage and body.error_stage not in LOSS_STAGES:
+        raise HTTPException(status_code=400, detail=f"stadio '{body.error_stage}' non riconosciuto")
+
+    data = _load_annotations(body.run_id)
+    data["items"][body.question_id] = {
+        **{m: getattr(body, m) for m in ANNOTATION_METRICS},
+        "error_stage": body.error_stage,
+        "note": body.note,
+        "annotated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    data["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    _save_annotations(data)
+
+    return {
+        "salvata": True,
+        "question_id": body.question_id,
+        "file": str(_annotations_path(body.run_id)),
+        "annotate": len(data["items"]),
+    }
+
+
+@router.get("/evaluation/agreement")
+async def evaluation_agreement(run_id: str | None = None):
+    """Accordo fra annotazione umana e giudice automatico.
+
+    Kappa di Cohen con pesi quadratici (corretto per scale ordinali), alfa di
+    Krippendorff, MAE, accordo esatto ed entro un punto, matrice di
+    confusione. Vedi benchmarks/agreement.py per il razionale delle misure.
+    """
+    from benchmarks.agreement import report_completo
+
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+
+    umane = {
+        qid: {m: v.get(m) for m in ANNOTATION_METRICS}
+        for qid, v in _load_annotations(rid)["items"].items()
+    }
+    automatiche = _judge_scores(run)
+
+    rep = report_completo(umane, automatiche)
+    rep["run_id"] = rid
+    rep["judge_model"] = run.get("judge_model")
+    rep["giudice_uguale_al_generatore"] = (
+        run.get("judge_model") == (run.get("config_snapshot", {}).get("llm", {}) or {}).get("model")
+    )
+    rep["totale_domande_run"] = len(run.get("results", []))
+
+    # Distribuzione degli stadi d'errore annotati a mano: e' la tassonomia.
+    stadi = Counter(
+        v.get("error_stage") for v in _load_annotations(rid)["items"].values() if v.get("error_stage")
+    )
+    rep["tassonomia_errori"] = {
+        "conteggi": dict(stadi),
+        "etichette": LOSS_STAGES,
+        "totale_codificati": sum(stadi.values()),
+    }
+    return rep
+
+
+@router.get("/evaluation/annotations/export.csv")
+async def export_annotations(run_id: str | None = None):
+    """Esporta annotazioni umane e voti del giudice affiancati, in CSV.
+
+    Da allegare in appendice alla tesi, e per rendere i dati leggibili fuori
+    dall'applicazione.
+    """
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+    umane = _load_annotations(rid)["items"]
+    automatiche = _judge_scores(run)
+
+    campi = ["question_id", "question", "category", "response",
+             "must_contain_pass", "rank_pre_rerank", "rank_post_rerank",
+             "faithfulness_umano", "faithfulness_giudice",
+             "answer_relevance_umano", "answer_relevance_giudice",
+             "correctness_umano", "correctness_giudice",
+             "stadio_errore", "note", "annotato_il"]
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=campi)
+    writer.writeheader()
+    for r in run.get("results", []):
+        qid = r.get("question_id")
+        a = umane.get(qid, {})
+        g = automatiche.get(qid, {})
+        pre, post = r.get("retrieval") or {}, r.get("retrieval_context") or {}
+        riga = {
+            "question_id": qid,
+            "question": r.get("question"),
+            "category": r.get("category"),
+            "response": (r.get("response") or "").replace("\n", " "),
+            "must_contain_pass": r.get("must_contain_pass"),
+            "rank_pre_rerank": pre.get("first_relevant_rank"),
+            "rank_post_rerank": post.get("first_relevant_rank"),
+            "stadio_errore": a.get("error_stage", ""),
+            "note": a.get("note", ""),
+            "annotato_il": a.get("annotated_at", ""),
+        }
+        for m in ANNOTATION_METRICS:
+            riga[f"{m}_umano"] = a.get(m, "")
+            riga[f"{m}_giudice"] = g.get(m, "")
+        writer.writerow(riga)
+
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=annotazioni_{rid}.csv"},
+    )
+
+
 class FeedbackRequest(BaseModel):
     trace_id: str
     category_correct: bool
