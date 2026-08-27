@@ -77,7 +77,7 @@ class Config:
         return f"top_k={self.top_k} · rerank={r} → {self.rerank_top_k} · filtro categoria={f}"
 
 
-def preset_configs(base: dict[str, Any], preset: str) -> list[Config]:
+def preset_configs(base: dict[str, Any], preset: str, con_mmarco: bool = False) -> list[Config]:
     """La configurazione attuale del progetto e' sempre la prima (baseline)."""
     attuale = Config(
         nome="attuale",
@@ -99,10 +99,19 @@ def preset_configs(base: dict[str, Any], preset: str) -> list[Config]:
         Config("top_k = 10", top_k=10, reranker=base["reranker"],
                rerank_top_k=base["rerank_top_k"], note="la configurazione precedente al fix"),
     ]
-    if preset == "veloce":
-        return veloci
+    extra = []
+    if con_mmarco:
+        # Richiede il download del modello al primo uso: senza rete fallisce.
+        extra.append(Config(
+            "reranker mmarco (italiano)", top_k=base["top_k"],
+            reranker="cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+            rerank_top_k=base["rerank_top_k"],
+            note="addestrato su mMARCO, che include l'italiano; meta' del peso"))
 
-    return veloci + [
+    if preset == "veloce":
+        return veloci + extra
+
+    return veloci + extra + [
         Config("top_k = 50", top_k=50, reranker=base["reranker"], rerank_top_k=base["rerank_top_k"],
                note="piu' candidati aiutano il reranker?"),
         Config("contesto = 3 doc", top_k=base["top_k"], reranker=base["reranker"], rerank_top_k=3,
@@ -112,10 +121,9 @@ def preset_configs(base: dict[str, Any], preset: str) -> list[Config]:
         Config("nessun filtro, nessun rerank", top_k=base["top_k"], reranker=None,
                rerank_top_k=base["rerank_top_k"], filtro_categoria=False,
                note="retrieval denso puro: il minimo assoluto"),
-        Config("reranker mmarco (italiano)", top_k=base["top_k"],
-               reranker="cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
-               rerank_top_k=base["rerank_top_k"],
-               note="addestrato su mMARCO, che include l'italiano; meta' del peso"),
+        Config("senza filtro + contesto 10", top_k=base["top_k"], reranker=base["reranker"],
+               rerank_top_k=10, filtro_categoria=False,
+               note="combina le due modifiche che sembrano aiutare"),
     ]
 
 
@@ -247,6 +255,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--markdown", action="store_true", help="stampa la tabella in Markdown")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--con-mmarco", action="store_true",
+                    help="include il reranker mmarco (scarica ~470 MB al primo uso)")
     args = ap.parse_args()
 
     with open(args.dataset, encoding="utf-8") as fh:
@@ -262,17 +272,30 @@ def main() -> None:
         "rerank_top_k": rag.get("reranking", {}).get("top_k", 5),
     }
 
-    configs = preset_configs(base_cfg, args.preset)
+    configs = preset_configs(base_cfg, args.preset, con_mmarco=args.con_mmarco)
 
     console.print(f"\n[bold cyan]Ablation sul retrieval[/bold cyan]")
     console.print(f"dataset: {args.dataset} · domande: [bold]{len(items)}[/bold] · "
                   f"configurazioni: [bold]{len(configs)}[/bold]\n")
 
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    out = Path(args.out) if args.out else RESULTS_DIR / f"ablation_retrieval_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.json"
+    parziale = out.with_suffix(".partial.json")
+
     motore = Motore()
-    risultati = []
+    risultati, falliti = [], []
     for i, cfg in enumerate(configs, 1):
         console.print(f"[cyan]{i}/{len(configs)}[/cyan] {cfg.nome} — [dim]{cfg.descrizione()}[/dim]")
-        r = valuta(motore, items, cfg)
+        try:
+            r = valuta(motore, items, cfg)
+        except Exception as exc:
+            # Una configurazione che fallisce (tipicamente: modello non scaricabile
+            # perche' manca la rete) non deve far perdere quelle gia' completate.
+            motivo = str(exc).split("\n")[0][:200]
+            console.print(f"        [red]saltata: {motivo}[/red]")
+            falliti.append({"nome": cfg.nome, "descrizione": cfg.descrizione(), "errore": motivo})
+            continue
+
         risultati.append(r)
         c = r["ci_context"]
         console.print(
@@ -281,6 +304,24 @@ def main() -> None:
             + (f" · [red]{r['domande_senza_candidati']} domande senza candidati[/red]"
                if r["domande_senza_candidati"] else "")
         )
+
+        # Checkpoint dopo ogni configurazione: un crash a meta' non azzera il lavoro.
+        try:
+            tmp = parziale.with_suffix(".tmp")
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"parziale": True, "completate": len(risultati),
+                           "totali": len(configs), "risultati": risultati,
+                           "falliti": falliti}, fh, ensure_ascii=False)
+            tmp.replace(parziale)
+        except OSError:
+            pass
+
+    if not risultati:
+        console.print("[red]Nessuna configurazione completata.[/red]")
+        sys.exit(1)
+    if falliti:
+        console.print(f"\n[yellow]{len(falliti)} configurazioni saltate:[/yellow] "
+                      + ", ".join(f["nome"] for f in falliti))
 
     # --- tabella principale ------------------------------------------------
     t = Table(title=f"Contesto passato al generatore — n={len(items)}, IC 95%", title_style="bold")
@@ -328,8 +369,6 @@ def main() -> None:
     )
 
     # --- salvataggio -------------------------------------------------------
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = Path(args.out) if args.out else RESULTS_DIR / f"ablation_retrieval_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.json"
     with open(out, "w", encoding="utf-8") as fh:
         json.dump({
             "data": datetime.now().isoformat(timespec="seconds"),
@@ -337,10 +376,12 @@ def main() -> None:
             "dataset_version": data.get("version"),
             "n_domande": len(items),
             "baseline": base["config"]["nome"],
+            "configurazioni_saltate": falliti,
             "risultati": risultati,
             "confronti_vs_baseline": confronti,
             "ambiente_statistico": S.describe_environment(),
         }, fh, ensure_ascii=False, indent=2)
+    parziale.unlink(missing_ok=True)
     console.print(f"\n[green]Salvato in:[/green] {out}")
 
     if args.markdown:
