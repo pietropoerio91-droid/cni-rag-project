@@ -287,9 +287,21 @@ export interface AnnotationItem {
   judgment?: Record<string, { score: number; reason: string }>;
 }
 
+export interface GitState {
+  commit?: string;
+  commit_breve?: string;
+  branch?: string;
+  dirty?: boolean;
+  file_modificati?: string[];
+}
+
 export interface AnnotationQueue {
   run_id: string;
   run_date: string;
+  git_run: GitState;
+  git_attuale: GitState;
+  disallineato: boolean;
+  avviso_disallineamento: string | null;
   blind: boolean;
   metriche: string[];
   stadi_errore: Record<string, string>;

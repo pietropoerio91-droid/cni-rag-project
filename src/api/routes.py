@@ -463,6 +463,21 @@ LOSS_STAGES = {
 }
 
 
+def _git_head() -> dict[str, Any]:
+    """Commit attualmente in uso, per confrontarlo con quello del run."""
+    import subprocess
+
+    def run(*cmd: str) -> str | None:
+        try:
+            return subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True).strip()
+        except Exception:
+            return None
+
+    return {"commit": run("git", "rev-parse", "HEAD"),
+            "commit_breve": run("git", "rev-parse", "--short", "HEAD"),
+            "branch": run("git", "rev-parse", "--abbrev-ref", "HEAD")}
+
+
 def _annotations_path(run_id: str) -> Path:
     safe = "".join(ch for ch in run_id if ch.isalnum() or ch in "-_")
     return _RESULTS_DIR / f"annotations_{safe}.json"
@@ -551,9 +566,46 @@ async def annotation_queue(run_id: str | None = None, blind: bool = True):
         items.append(voce)
 
     fatte = sum(1 for i in items if i["annotazione"])
+
+    # Un run prodotto da una versione diversa del codice contiene risposte che
+    # il sistema non genera piu': annotarle significherebbe misurare qualcosa
+    # che non esiste. Il caso si e' presentato davvero — un run del 24 agosto
+    # con il prompt precedente alla correzione delle citazioni.
+    git_run = run.get("git") or {}
+    git_ora = _git_head()
+    disallineato = bool(
+        git_run.get("commit") and git_ora.get("commit")
+        and git_run["commit"] != git_ora["commit"]
+    )
+    tracciato = bool(git_run.get("commit"))
+
+    avviso = None
+    if not tracciato:
+        avviso = (
+            "Questo run e' precedente al tracciamento del commit: non e' possibile "
+            "verificare che sia stato prodotto dal codice attuale. Se il prompt o la "
+            "configurazione sono cambiati da allora, le risposte non sono piu' quelle "
+            "che il sistema genera oggi e l'annotazione non sarebbe utilizzabile."
+        )
+    elif disallineato:
+        avviso = (
+            f"Questo run e' stato prodotto dal commit {git_run.get('commit_breve')}, "
+            f"mentre il codice attuale e' {git_ora.get('commit_breve')}. Le risposte "
+            f"potrebbero non corrispondere a quelle che il sistema genera adesso."
+        )
+    elif git_run.get("dirty"):
+        avviso = (
+            "Questo run e' stato prodotto con modifiche non committate: non e' "
+            "riproducibile a partire dal solo commit."
+        )
+
     return {
         "run_id": rid,
         "run_date": latest.get("run_date"),
+        "git_run": git_run,
+        "git_attuale": git_ora,
+        "disallineato": disallineato or not tracciato,
+        "avviso_disallineamento": avviso,
         "blind": blind,
         "metriche": list(ANNOTATION_METRICS),
         "stadi_errore": LOSS_STAGES,

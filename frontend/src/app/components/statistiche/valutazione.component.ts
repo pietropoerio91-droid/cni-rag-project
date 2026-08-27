@@ -119,6 +119,19 @@ import {
 
       <!-- ================= ANNOTAZIONE ================= -->
       <ng-container *ngIf="vista === 'annota' && coda && !caricando">
+
+        <div class="stale" *ngIf="coda.disallineato">
+          <div class="stale-h">Le risposte di questo run non sono aggiornate</div>
+          <p>{{ coda.avviso_disallineamento }}</p>
+          <p class="stale-w">
+            Annotare risposte che il sistema non produce piu' significa misurare
+            qualcosa che non esiste. Esegui un nuovo run end-to-end e annota quello.
+          </p>
+          <button class="btn-ghost" (click)="ignoraDisallineamento = true"
+                  *ngIf="!ignoraDisallineamento">Annota lo stesso</button>
+        </div>
+
+        <ng-container *ngIf="!coda.disallineato || ignoraDisallineamento">
         <div class="progress">
           <div class="bar"><i [style.width.%]="coda.totale ? 100 * coda.annotate / coda.totale : 0"></i></div>
           <span>{{ coda.annotate }} di {{ coda.totale }} annotate · ne mancano {{ coda.mancanti }}</span>
@@ -205,6 +218,7 @@ import {
             <span class="saved" *ngIf="messaggio">{{ messaggio }}</span>
           </div>
         </div>
+        </ng-container>
       </ng-container>
 
       <!-- ================= CORRISPONDENZA ================= -->
@@ -345,6 +359,15 @@ import {
 
     .warn { padding: 12px 16px; border-left: 3px solid #d97706; background: rgba(217,119,6,.08);
             border-radius: 4px; font-size: 13.5px; margin-bottom: 16px; }
+    .stale {
+      border: 1px solid var(--error, #dc2626);
+      border-left: 4px solid var(--error, #dc2626);
+      background: rgba(220,38,38,.06);
+      border-radius: 8px; padding: 18px 20px; margin-bottom: 18px;
+    }
+    .stale-h { font-weight: 700; font-size: 15px; color: #b91c1c; margin-bottom: 8px; }
+    .stale p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.55; }
+    .stale-w { color: var(--text-secondary); }
     .blind { padding: 10px 14px; border-radius: 6px; background: rgba(37,99,235,.08);
              font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
 
@@ -469,6 +492,7 @@ export class ValutazioneComponent implements OnInit {
   messaggio = '';
 
   indice = 0;
+  ignoraDisallineamento = false;
   voti: Record<string, number | null> = { faithfulness: null, answer_relevance: null, correctness: null };
   stadio: string | null = null;
   nota = '';
