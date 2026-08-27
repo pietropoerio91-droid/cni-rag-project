@@ -25,6 +25,11 @@ chunking:
 retrieval:
   top_k: 25
   score_threshold: 0.3
+  # Filtro rigido sulla categoria predetta dal classificatore.
+  # Disattivato sulla base dell'ablation del 27/08: le sei categorie che il
+  # classificatore non puo' produrre contengono il 75,8% dei chunk, quindi
+  # ogni query classificata escludeva i tre quarti dell'indice.
+  category_filter: false
   hybrid_search:
     enabled: true
     dense_weight: 0.7
