@@ -105,6 +105,41 @@ def parse_judge_score(text: str) -> tuple[int, str]:
     return score, reason
 
 
+def git_state() -> dict[str, Any]:
+    """Stato del repository al momento del run.
+
+    Il config_snapshot registra solo il YAML: una modifica al prompt, al
+    reranker o al citation builder non comparirebbe da nessuna parte, e i
+    risultati non sarebbero riconducibili al codice che li ha prodotti.
+
+    `dirty` a True significa che c'erano modifiche non committate: il run NON
+    e' riproducibile a partire dal solo commit, e va dichiarato.
+    """
+    import subprocess
+
+    def run(*cmd: str, strip: bool = True) -> str | None:
+        try:
+            out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True)
+            return out.strip() if strip else out
+        except Exception:
+            return None
+
+    # NB: `git status --porcelain` usa i primi due caratteri di ogni riga come
+    # codice di stato, e per un file modificato ma non in stage il primo e' uno
+    # SPAZIO (" M path"). Non si puo' quindi fare strip() sull'output completo,
+    # altrimenti la prima riga perde un carattere e il percorso risulta troncato.
+    grezzo = run("git", "status", "--porcelain", strip=False) or ""
+    righe = [l for l in grezzo.splitlines() if l.strip()]
+
+    return {
+        "commit": run("git", "rev-parse", "HEAD"),
+        "commit_breve": run("git", "rev-parse", "--short", "HEAD"),
+        "branch": run("git", "rev-parse", "--abbrev-ref", "HEAD"),
+        "dirty": bool(righe),
+        "file_modificati": [l[3:] for l in righe],
+    }
+
+
 K_VALUES = (1, 3, 5, 10)
 
 # Le metriche di retrieval vivono in benchmarks/metrics.py, condivise con
@@ -271,6 +306,15 @@ def main() -> None:
         done_ids = {r["question_id"] for r in rows}
         items = [i for i in items if i["id"] not in done_ids]
         console.print(f"[yellow]Resume: {len(rows)} domande gia' completate, ne restano {len(items)}[/yellow]")
+
+    stato_git = git_state()
+    if stato_git["dirty"]:
+        console.print(
+            "[yellow]ATTENZIONE: ci sono modifiche non committate.[/yellow] "
+            f"Il run non sara' riproducibile dal solo commit {stato_git['commit_breve']}.\n"
+            f"File modificati: {', '.join(stato_git['file_modificati'][:8])}"
+            + (" …" if len(stato_git["file_modificati"]) > 8 else "") + "\n"
+        )
 
     console.print("[bold cyan]CNI RAG - Valutazione end-to-end[/bold cyan]")
     console.print(f"Domande: {len(items)} | Judge LLM: {'OFF' if args.no_judge else 'ON'} | run_id: {run_id}\n")
@@ -466,6 +510,7 @@ def main() -> None:
         "judge_validated": False,
         "judge_model": ConfigLoader.get_rag_config().get("llm", {}).get("model"),
         "config_snapshot": ConfigLoader.get_rag_config(),
+        "git": git_state(),
         "stats_environment": S.describe_environment(),
         "k_values": list(K_VALUES),
         "aggregate": aggregate,
