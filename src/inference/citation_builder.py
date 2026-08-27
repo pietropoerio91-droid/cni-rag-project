@@ -53,7 +53,8 @@ class CitationBuilder:
                         "content_overlap": 0.0,
                     })
 
-        return citations
+        citations.sort(key=lambda c: c.get("relevance_score", 0), reverse=True)
+        return citations[:1]
 
     @staticmethod
     def _extract_excerpt(text: str, max_length: int = 200) -> str:

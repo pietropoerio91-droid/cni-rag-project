@@ -10,7 +10,7 @@ NON usare la tua conoscenza pregressa per arricchire la risposta.
 NON inventare informazioni, date, nomi o dettagli che non compaiono nei documenti.
 Se un documento citato non contiene realmente l'informazione che stai fornendo, NON citarlo.
 
-Formatta le citazioni cosi: [Fonte: titolo documento]
+Quando citi un documento, usa SEMPRE il titolo completo (es. "Titolari di incarichi politici"). NON usare mai "Documento 1", "Documento 2" ecc. NON inventare punteggi o score: quelli vengono calcolati separatamente dal sistema.
 
 Documenti di riferimento (USA SOLO QUESTI):
 {context}
@@ -26,7 +26,7 @@ Rispondi basandoti esclusivamente sui documenti sopra riportati."""
             source = r.get("source", "Sconosciuta")
             title = r.get("title", "Senza titolo")
             content = r.get("content", "")
-            context_parts.append(f"[Documento {i} - {title}]\nFonte: {source}\n{content}\n")
+            context_parts.append(f"[Posizione {i} - {title}]\nFonte: {source}\n{content}\n")
 
         context = "\n---\n".join(context_parts)
 
@@ -49,7 +49,7 @@ Rispondi basandoti esclusivamente sui documenti sopra riportati."""
             source = r.get("source", "Sconosciuta")
             title = r.get("title", "Senza titolo")
             content = r.get("content", "")
-            context_parts.append(f"[Documento {i} - {title}]\nFonte: {source}\n{content}\n")
+            context_parts.append(f"[Posizione {i} - {title}]\nFonte: {source}\n{content}\n")
 
         context = "\n---\n".join(context_parts)
 

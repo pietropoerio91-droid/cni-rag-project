@@ -52,7 +52,7 @@ import { Subscription } from 'rxjs';
               <div class="citation" *ngFor="let c of msg.citations">
                 <span class="citation-icon">📄</span>
                 <a [href]="c.source" target="_blank" class="citation-link">{{ c.title }}</a>
-                <span class="citation-score">({{ (c.relevance_score * 100).toFixed(0) }}%)</span>
+                <span class="citation-score"><span class="score-badge">{{ c.relevance_score.toFixed(2) }}</span></span>
               </div>
             </div>
             <div class="message-feedback" *ngIf="msg.role === 'assistant' && msg.category">
@@ -273,6 +273,15 @@ import { Subscription } from 'rxjs';
       color: var(--text-secondary);
       font-size: 11px;
       flex-shrink: 0;
+    }
+    .score-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
     }
     .message-feedback {
       display: flex;
