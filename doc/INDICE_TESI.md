@@ -167,7 +167,13 @@ risultati venivano presentati senza mai stabilire perché fossero credibili.*
 
 ---
 
-### Conclusioni ⬜
+### Conclusioni 🟡
+
+Bozza completa in `doc/CONCLUSIONI_TESI.md`: argomentazione e struttura
+definitive, valori numerici ancora segnaposto in attesa dei run finali su
+golden dataset v2 (§5.1), test a contesto oracolo (§6.5) e accordo
+giudice-umano (§5.5) — non eseguibili senza la piattaforma locale
+(Ollama + indice Qdrant popolato).
 
 ---
 
