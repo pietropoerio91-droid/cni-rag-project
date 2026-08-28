@@ -153,12 +153,31 @@ def indicizza(manager, chunks: list[dict[str, Any]], modello: str, batch: int = 
 
 def valuta(manager, collection: str, modello: str, items: list[dict],
            top_k: int, soglia: float, filtro_categoria: bool,
-           reranker_nome: str | None, rerank_top_k: int) -> dict[str, Any]:
-    """Retrieval + rerank opzionale sulle domande del golden dataset."""
-    from sentence_transformers import SentenceTransformer
+           reranker_nome: str | None, rerank_top_k: int,
+           embedder: Any = None) -> dict[str, Any]:
+    """Retrieval + rerank opzionale sulle domande del golden dataset.
+
+    `embedder`, se passato, e' un oggetto LangChain con `.embed_query()`
+    (tipicamente `ModelFactory.create_embeddings()`) usato al posto di
+    `SentenceTransformer(modello).encode()`. Va passato quando si valuta il
+    modello "attuale" contro la collection di produzione (`cni_documents`):
+    quella collection e' stata costruita con `ModelFactory.create_embeddings()`
+    in fase di ingestion, e interrogarla con un percorso di vettorizzazione
+    diverso puo' produrre vettori leggermente diversi da quelli con cui e'
+    stata indicizzata — score non confrontabili, candidati sistematicamente
+    tagliati dalla soglia. Diagnosticato in `diagnosi_soglia.py` ma non ancora
+    corretto qui: senza questo parametro il baseline "attuale" resta
+    sottostimato. Per i modelli candidati, valutati sulle loro collection
+    dedicate (costruite anch'esse con SentenceTransformer in `indicizza()`),
+    il percorso resta invariato: indicizzazione e query usano la stessa
+    classe, quindi non c'e' lo stesso rischio di mismatch.
+    """
     from src.rag.query_classifier import QueryClassifier
 
-    st = SentenceTransformer(modello)
+    st = None
+    if embedder is None:
+        from sentence_transformers import SentenceTransformer
+        st = SentenceTransformer(modello)
     qc = QueryClassifier()
     client = manager.get_client()
     pref_q, _ = prefissi_per(modello)
@@ -180,7 +199,10 @@ def valuta(manager, collection: str, modello: str, items: list[dict],
                 rest.FieldCondition(key="category", match=rest.MatchValue(value=categoria))
             ])
 
-        vettore = st.encode(pref_q + domanda, normalize_embeddings=True).tolist()
+        if embedder is not None:
+            vettore = embedder.embed_query(pref_q + domanda)
+        else:
+            vettore = st.encode(pref_q + domanda, normalize_embeddings=True).tolist()
         punti = client.query_points(
             collection_name=collection, query=vettore, limit=top_k,
             score_threshold=soglia, query_filter=filtro,
@@ -208,7 +230,8 @@ def valuta(manager, collection: str, modello: str, items: list[dict],
             "context": stadi["context"],
         })
 
-    del st
+    if st is not None:
+        del st
     pre = [r["retrieved"] for r in per_domanda]
     post = [r["context"] for r in per_domanda]
     chiavi = ["mrr"] + [f"{m}_at_{k}" for k in K_VALUES for m in ("hit", "recall", "ndcg")]
@@ -296,7 +319,10 @@ def main() -> None:
     risultati = []
 
     console.print("[cyan]1[/cyan] modello attuale — nessuna reindicizzazione")
-    r = valuta(manager, base_collection, attuale, items, top_k, soglia, filtro, reranker, rerank_top_k)
+    from src.core.model_factory import ModelFactory
+    embedder_attuale = ModelFactory.create_embeddings()
+    r = valuta(manager, base_collection, attuale, items, top_k, soglia, filtro, reranker, rerank_top_k,
+               embedder=embedder_attuale)
     r["nome"] = "attuale"
     risultati.append(r)
     console.print(f"   Hit@5 {S.format_ci(r['ci_context']['hit_at_5'], pct=True)} · "
