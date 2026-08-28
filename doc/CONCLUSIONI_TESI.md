@@ -15,7 +15,7 @@
 > | Segnaposto | Fonte |
 > |---|---|
 > | ~~Accuratezza di retrieval e generazione~~ | **fatto** — `results/report_FINAL_V2.md`, n=30, run `FINAL_V2` del 28/08 |
-> | Quota d'errore imputabile al generatore (§1) | `python benchmarks/oracle_context.py --confronta results/2026-08-28/eval_14-12-22.json` (§6.5) — ancora da eseguire |
+> | ~~Quota d'errore imputabile al generatore~~ | **fatto** — `results/oracle_context_2026-08-28_14-35.json`: 23,3 punti generatore, 26,7 punti retrieval, n=30, McNemar p=0,115 (non significativo) |
 > | Effetto del reranking sull'accuratezza finale (§1) | `python benchmarks/compare_runs.py` pre/post reranking su risposte generate (§6.3) — l'effetto sul solo retrieval è già in `results/report_ablation_2026-08-27.md` (non significativo, n=30) |
 > | Accordo giudice-umano (§2) | `python benchmarks/compute_judge_agreement.py` (§5.5) |
 > | Decomposizione dell'errore per stadio (§1) | `python benchmarks/ablation_retrieval.py` + analisi manuale dei fallimenti (§6.4) |
@@ -67,16 +67,26 @@ renderebbe visibile.
 
 Sul secondo punto — la ragione per cui questa tesi include un test a
 contesto oracolo (§6.5) — il risultato è che, fornendo al generatore il
-documento corretto per costruzione, la correttezza sale a `[X]/5`, contro
-`[X]/5` nella pipeline end-to-end. La differenza, pari a `[X]` punti
-percentuali, è la stima diretta di quanto pesa la pipeline di retrieval
-sull'errore complessivo; il residuo che permane anche a contesto oracolo
-(`[X]` punti) è la stima diretta di quanto pesa il modello generativo da 3B
-parametri eseguito su CPU, senza accelerazione hardware. Questa
-scomposizione — non disponibile confrontando due macchine diverse, per le
-ragioni metodologiche discusse in §6.5 — è ciò che permette di rispondere
-alla seconda parte della domanda di ricerca con un numero anziché con
-un'impressione.
+documento corretto per costruzione, la quota di risposte corrette
+(must-contain) sale a **76,7% [59,1%, 88,2%]**, contro **50,0%** nella
+pipeline end-to-end (stessa metrica deterministica, stesse 30 domande —
+`results/oracle_context_2026-08-28_14-35.json`). La differenza, **26,7
+punti percentuali**, è la stima diretta di quanto pesa la pipeline di
+retrieval sull'errore complessivo; il residuo che permane anche a
+contesto oracolo, **23,3 punti**, è la stima diretta di quanto pesa il
+modello generativo da 3B parametri eseguito su CPU, senza accelerazione
+hardware. Il test McNemar sulla differenza appaiata non raggiunge la
+significatività a questa numerosità (p=0,115) — coerente con il limite
+di potenza statistica già discusso, e un'ulteriore ragione per leggere
+questi due numeri come stime con margine, non come valori esatti.
+Questa scomposizione — non disponibile confrontando due macchine diverse,
+per le ragioni metodologiche discusse in §6.5 — è ciò che permette di
+rispondere alla seconda parte della domanda di ricerca con un numero
+anziché con un'impressione: **della quota di errore non spiegata dal
+contesto oracolo, poco più della metà (23,3 punti su 50,0 mancanti) è
+imputabile al vincolo hardware sul generatore; il resto (26,7 punti) è
+un limite del retrieval, in linea di principio risolvibile senza cambiare
+la piattaforma.**
 
 ## Il contributo del lavoro
 
@@ -172,9 +182,16 @@ sua giustificazione a posteriori, si è rivelato produttivo proprio perché
 costringe a misurare — non solo ad affermare — quanto costa in accuratezza
 la sovranità del dato quando l'alternativa (inviare dati della pubblica
 amministrazione a un servizio terzo) non è percorribile. Il test a
-contesto oracolo è la risposta diretta a questa domanda: `[X]` punti di
-correttezza sono il prezzo pagato al modello da 3B parametri su CPU, non
-all'architettura RAG in sé, che a parità di contesto corretto si comporta
-in modo `[X]`. È su questa distinzione — fra ciò che l'architettura può
-fare e ciò che l'hardware disponibile le permette di fare — che si fonda
-la risposta finale alla domanda di ricerca.
+contesto oracolo è la risposta diretta a questa domanda: **23,3 punti
+percentuali** di risposte corrette in meno sono il prezzo pagato al
+modello da 3B parametri su CPU, non all'architettura RAG in sé, che a
+parità di contesto corretto risponde correttamente **76,7% delle volte**
+— un tasso che la sola pipeline end-to-end, appesantita anche dal 26,7%
+di errore imputabile al retrieval, non lascia intravedere. È su questa
+distinzione — fra ciò che l'architettura può fare e ciò che l'hardware
+disponibile le permette di fare — che si fonda la risposta finale alla
+domanda di ricerca: il sistema realizzato è più accurato di quanto la
+sua cifra aggregata (50,0% pipeline reale) suggerisca da sola, e la parte
+mancante si divide in modo quasi paritario fra un limite ingegneristico
+(il retrieval, migliorabile) e un limite strutturale (il generatore,
+vincolato dall'hardware).
