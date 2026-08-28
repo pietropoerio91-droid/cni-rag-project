@@ -12,6 +12,62 @@ from src.core.config_loader import ConfigLoader
 logger = logging.getLogger(__name__)
 
 
+# Prefissi obbligatori per famiglia di modelli.
+#
+# Alcuni modelli di embedding non sono simmetrici: sono addestrati con due
+# istruzioni testuali diverse a seconda che il testo sia una domanda o un
+# passaggio da indicizzare. La famiglia `multilingual-e5` (e `e5` in generale)
+# richiede letteralmente "query: " davanti alla domanda e "passage: " davanti
+# al documento. Non e' una convenzione estetica: senza prefissi il modello
+# lavora fuori dalla distribuzione vista in addestramento e la qualita' del
+# recupero cala in modo misurabile.
+#
+# `paraphrase-multilingual-MiniLM-L12-v2`, il modello attuale, e' invece
+# simmetrico e non vuole alcun prefisso: la tabella restituisce due stringhe
+# vuote e il comportamento resta identico a prima.
+#
+# ATTENZIONE — la regola vale per l'indicizzazione tanto quanto per la ricerca.
+# Un indice costruito con i prefissi e interrogato senza (o viceversa) e'
+# silenziosamente degradato: nessun errore, solo risultati peggiori. Per questo
+# i prefissi risolti vengono scritti nel log all'avvio.
+PREFISSI_PER_FAMIGLIA: list[tuple[tuple[str, ...], tuple[str, str]]] = [
+    (("multilingual-e5", "/e5-", "e5-small", "e5-base", "e5-large"), ("query: ", "passage: ")),
+    (("bge-m3", "paraphrase-", "distiluse", "labse"), ("", "")),
+]
+
+
+def prefissi_per_modello(model_name: str) -> tuple[str, str]:
+    """Restituisce (prefisso_query, prefisso_documento) per il modello dato."""
+    nome = model_name.lower()
+    for marcatori, prefissi in PREFISSI_PER_FAMIGLIA:
+        if any(m in nome for m in marcatori):
+            return prefissi
+    return ("", "")
+
+
+class PrefixedEmbeddings(Embeddings):
+    """Adattatore che antepone i prefissi richiesti dal modello.
+
+    Avvolge l'oggetto `Embeddings` vero e proprio invece di modificare i punti
+    di chiamata. Il progetto ne ha tre — `EmbeddingGenerator`,
+    `VectorRetriever` e il browser Qdrant dell'API — e tutti ricevono il
+    modello da `ModelFactory.create_embeddings()`: incapsulando qui la regola
+    non e' possibile che uno dei tre se ne dimentichi, che e' esattamente il
+    modo in cui un indice e una query finiscono per divergere.
+    """
+
+    def __init__(self, inner: Embeddings, query_prefix: str = "", document_prefix: str = "") -> None:
+        self.inner = inner
+        self.query_prefix = query_prefix
+        self.document_prefix = document_prefix
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.inner.embed_query(f"{self.query_prefix}{text}")
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self.inner.embed_documents([f"{self.document_prefix}{t}" for t in texts])
+
+
 class ModelFactory:
     @staticmethod
     def create_embeddings() -> Embeddings:
@@ -22,7 +78,7 @@ class ModelFactory:
         device = os.getenv("EMBEDDING_DEVICE") or emb_config.get("device", "cpu")
 
         logger.info(f"Loading embedding model: {model_name} on {device}")
-        return HuggingFaceEmbeddings(
+        modello = HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={"device": device},
             encode_kwargs={
@@ -30,6 +86,21 @@ class ModelFactory:
                 "batch_size": emb_config.get("batch_size", 32),
             },
         )
+
+        # Il YAML puo' forzare i prefissi; altrimenti valgono quelli della famiglia.
+        automatici = prefissi_per_modello(model_name)
+        query_prefix = emb_config.get("query_prefix", automatici[0])
+        document_prefix = emb_config.get("document_prefix", automatici[1])
+
+        if not query_prefix and not document_prefix:
+            logger.info("Embedding prefixes: none (symmetric model)")
+            return modello
+
+        logger.info(
+            f"Embedding prefixes: query={query_prefix!r} document={document_prefix!r} "
+            f"— l'indice va costruito con gli stessi prefissi"
+        )
+        return PrefixedEmbeddings(modello, query_prefix, document_prefix)
 
     @staticmethod
     def create_llm() -> BaseLLM:

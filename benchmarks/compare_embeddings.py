@@ -237,7 +237,9 @@ def main() -> None:
     ap.add_argument("--skip-index", action="store_true",
                     help="non rivettorizzare: usa collection gia' create")
     ap.add_argument("--no-filter", action="store_true",
-                    help="disattiva il filtro di categoria (esclude il 75%% dell'indice)")
+                    help="forza il filtro di categoria spento, ignorando il YAML")
+    ap.add_argument("--con-filter", action="store_true",
+                    help="forza il filtro di categoria acceso, ignorando il YAML")
     ap.add_argument("--no-rerank", action="store_true")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--markdown", action="store_true")
@@ -255,7 +257,24 @@ def main() -> None:
     soglia = rag.get("retrieval", {}).get("score_threshold", 0.3)
     reranker = None if args.no_rerank else rag.get("reranking", {}).get("model")
     rerank_top_k = rag.get("reranking", {}).get("top_k", 5)
-    filtro = not args.no_filter
+    # Il filtro di categoria segue il YAML, non un default scritto qui.
+    #
+    # Difetto corretto il 27/08: questa riga era `filtro = not args.no_filter`,
+    # cioe' acceso salvo richiesta contraria. Quando `retrieval.category_filter`
+    # e' stato portato a `false` in configurazione, questo script ha continuato
+    # a confrontare i modelli con il filtro acceso — cioe' in un regime che il
+    # progetto aveva gia' abbandonato, e per giunta quello che esclude il 75,8%
+    # dell'indice. Un confronto fra embedder svolto in quelle condizioni misura
+    # soprattutto il filtro.
+    filtro_yaml = rag.get("retrieval", {}).get("category_filter", True)
+    if args.no_filter and args.con_filter:
+        raise SystemExit("--no-filter e --con-filter sono incompatibili")
+    if args.no_filter:
+        filtro, origine_filtro = False, "forzato da riga di comando"
+    elif args.con_filter:
+        filtro, origine_filtro = True, "forzato da riga di comando"
+    else:
+        filtro, origine_filtro = filtro_yaml, "da rag_config.yaml"
 
     from src.vectorstore.qdrant_client import QdrantClientManager
     manager = QdrantClientManager()
@@ -265,7 +284,7 @@ def main() -> None:
     console.print(f"attuale: [bold]{attuale}[/bold]")
     console.print(f"candidati: {', '.join(args.models)}")
     console.print(f"domande: [bold]{len(items)}[/bold] · top_k={top_k} · "
-                  f"filtro categoria={'sì' if filtro else 'no'} · "
+                  f"filtro categoria={'sì' if filtro else 'no'} ({origine_filtro}) · "
                   f"rerank={reranker.split('/')[-1] if reranker else 'no'}\n")
 
     chunks = []
