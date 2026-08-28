@@ -90,7 +90,7 @@ async def query(request: QueryRequest):
     try:
         chain = get_rag_chain()
         t0 = time.perf_counter()
-        result = chain.query(request.question)
+        result = await asyncio.to_thread(chain.query, request.question)
         latency = round((time.perf_counter() - t0) * 1000, 1)
 
         doc_count = len(result.get("citations", []))
@@ -772,7 +772,7 @@ async def query_run_test():
     correct = 0
     for item in test_data:
         try:
-            result = chain.query(item["question"])
+            result = await asyncio.to_thread(chain.query, item["question"])
             predicted = result["category"]
             expected = item["expected_category"]
             is_correct = predicted == expected
