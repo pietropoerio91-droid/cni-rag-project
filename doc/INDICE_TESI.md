@@ -170,10 +170,14 @@ risultati venivano presentati senza mai stabilire perché fossero credibili.*
 ### Conclusioni 🟡
 
 Bozza completa in `doc/CONCLUSIONI_TESI.md`: argomentazione e struttura
-definitive, valori numerici ancora segnaposto in attesa dei run finali su
-golden dataset v2 (§5.1), test a contesto oracolo (§6.5) e accordo
-giudice-umano (§5.5) — non eseguibili senza la piattaforma locale
-(Ollama + indice Qdrant popolato).
+definitive. Un primo dato reale è stato recuperato e incorporato: l'ablation
+sul retrieval del 27/08 (n=30, `results/report_ablation_2026-08-27.md`),
+nessuna differenza statisticamente significativa fra configurazioni —
+prova diretta del limite di potenza statistica dichiarato in §5.1/§7.2.
+Restano segnaposto i numeri che richiedono generazione: accuratezza
+end-to-end, test a contesto oracolo (§6.5) e accordo giudice-umano (§5.5)
+— non eseguibili senza la piattaforma locale (Ollama + indice Qdrant
+popolato).
 
 ---
 

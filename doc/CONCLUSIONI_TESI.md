@@ -7,15 +7,22 @@
 > |---|---|
 > | Accuratezza di retrieval e generazione (§ Risposta alla domanda di ricerca, §1) | `python benchmarks/run_evaluation.py` sul golden dataset v2 completo (§5.1–5.2) |
 > | Quota d'errore imputabile al generatore (§1) | `python benchmarks/oracle_context.py` (§6.5) |
-> | Effetto del reranking (§1) | `python benchmarks/compare_runs.py` pre/post reranking (§6.3) |
+> | Effetto del reranking sull'accuratezza finale (§1) | `python benchmarks/compare_runs.py` pre/post reranking su risposte generate (§6.3) — l'effetto sul solo retrieval è già in `results/report_ablation_2026-08-27.md` (non significativo, n=30) |
 > | Accordo giudice-umano (§2) | `python benchmarks/compute_judge_agreement.py` (§5.5) |
 > | Decomposizione dell'errore per stadio (§1) | `python benchmarks/ablation_retrieval.py` + analisi manuale dei fallimenti (§6.4) |
+> | ~~Effetto del filtro di categoria e del reranker~~ | **fatto** — `results/report_ablation_2026-08-27.md`, n=30, non significativo |
 >
 > Finché questi run non sono stati eseguiti sul dataset esteso, il capitolo
 > resta una bozza strutturale: l'argomentazione è completa, i numeri no.
 > Il run `FULL1` (10 domande, 24 agosto) è troppo esiguo per fondarci queste
 > affermazioni ed è stato usato solo come prova di funzionamento della
 > pipeline di valutazione, non come risultato finale.
+>
+> **Aggiornamento 28/08**: recuperato `results/ablation_retrieval_2026-08-27_*.json`
+> (due run, n=30, golden dataset v2) — vedi `results/report_ablation_2026-08-27.md`.
+> Copre solo lo stadio di retrieval/reranking, non la generazione: i segnaposto
+> su accuratezza finale e test a contesto oracolo restano da produrre. Il
+> risultato dell'ablation è già incorporato in "Limiti", sotto.
 
 ---
 
@@ -99,12 +106,29 @@ I limiti del lavoro sono discussi in dettaglio nel capitolo 7; qui vale la
 pena richiamarne la gerarchia. Il più rilevante è la dimensione del golden
 dataset (§5.1): un impianto statistico accurato non compensa un campione
 piccolo, ed è la ragione per cui ogni intervallo di confidenza in questa
-tesi va letto con la sua ampiezza, non solo con il suo punto centrale. Il
-secondo è la dipendenza dal giudice automatico, mitigata ma non eliminata
-dalla validazione umana su un sottoinsieme. Il terzo è la portata dei
-risultati: un sistema validato su un solo corpus (i dati pubblici del CNI)
-e su una sola piattaforma hardware non generalizza automaticamente ad
-altri enti o ad altre configurazioni.
+tesi va letto con la sua ampiezza, non solo con il suo punto centrale.
+Non è un'affermazione astratta: l'ablation study sul retrieval (n=30,
+§6.2 — due esecuzioni indipendenti del 27 agosto, riportate per intero in
+`results/report_ablation_2026-08-27.md`) mostra un Hit@5 più alto senza
+filtro di categoria (40,0%) che con filtro (33,3%–36,7% a seconda della
+run), coerente con la decisione presa in configurazione — ma con
+intervalli di confidenza al 95% ampiamente sovrapposti e nessuna
+differenza, su nessuna metrica, che raggiunga la significatività
+statistica (tutte p > 0,05, effetto sempre "trascurabile" per il delta di
+Cliff). La decisione di disattivare il filtro resta comunque motivata,
+ma dall'argomento strutturale — le sei categorie che il classificatore
+non può produrre contengono il 75,8% dei chunk dell'indice — non dalla
+significatività di questo esperimento. È l'evidenza diretta che con
+n=30 il sistema di valutazione non ha la potenza per distinguere
+configurazioni con differenze di questa entità, e che estendere il
+golden dataset non è un rifinimento ma una precondizione per conclusioni
+quantitative difendibili.
+
+Il secondo limite è la dipendenza dal giudice automatico, mitigata ma non
+eliminata dalla validazione umana su un sottoinsieme. Il terzo è la
+portata dei risultati: un sistema validato su un solo corpus (i dati
+pubblici del CNI) e su una sola piattaforma hardware non generalizza
+automaticamente ad altri enti o ad altre configurazioni.
 
 Un limite dichiarato per scelta, non per vincolo, è l'assenza di ricerca
 ibrida (BM25 + densa): la configurazione la prevede ma il retriever
