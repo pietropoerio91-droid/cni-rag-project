@@ -34,5 +34,14 @@
     "hit_at_5": 0.4,
     "mrr": 0.3309,
     "avg_correctness": 1.6
+  },
+  {
+    "run_date": "2026-08-28T14:12:22",
+    "run_id": "FINAL_V2",
+    "file": "results/2026-08-28/eval_14-12-22.json",
+    "total_questions": 30,
+    "hit_at_5": 0.2667,
+    "mrr": 0.2129,
+    "avg_correctness": 1.333
   }
 ]
