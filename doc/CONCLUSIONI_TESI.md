@@ -14,8 +14,8 @@
 >
 > | Segnaposto | Fonte |
 > |---|---|
-> | Accuratezza di retrieval e generazione (§ Risposta alla domanda di ricerca, §1) | `python benchmarks/run_evaluation.py` sul golden dataset v2 completo (§5.1–5.2) |
-> | Quota d'errore imputabile al generatore (§1) | `python benchmarks/oracle_context.py` (§6.5) |
+> | ~~Accuratezza di retrieval e generazione~~ | **fatto** — `results/report_FINAL_V2.md`, n=30, run `FINAL_V2` del 28/08 |
+> | Quota d'errore imputabile al generatore (§1) | `python benchmarks/oracle_context.py --confronta results/2026-08-28/eval_14-12-22.json` (§6.5) — ancora da eseguire |
 > | Effetto del reranking sull'accuratezza finale (§1) | `python benchmarks/compare_runs.py` pre/post reranking su risposte generate (§6.3) — l'effetto sul solo retrieval è già in `results/report_ablation_2026-08-27.md` (non significativo, n=30) |
 > | Accordo giudice-umano (§2) | `python benchmarks/compute_judge_agreement.py` (§5.5) |
 > | Decomposizione dell'errore per stadio (§1) | `python benchmarks/ablation_retrieval.py` + analisi manuale dei fallimenti (§6.4) |
@@ -46,14 +46,24 @@ Sul primo punto, il sistema realizzato — un'architettura RAG completa
 (crawling mirato del sito `cni.it`, filtro dei dati pubblici, chunking,
 embedding multilingue, indicizzazione vettoriale HNSW, retrieval con
 reranking cross-encoder, generazione con auto-verifica e pipeline
-orchestrata in LangGraph) — raggiunge un'accuratezza di `[X]%` in Hit@5 sul
-retrieval e un punteggio medio di correttezza di `[X]/5` sulla generazione,
-con intervallo di confidenza al 95% pari a `[X]` (bootstrap, N=`[X]`
-domande del golden dataset v2). Questi valori vanno letti insieme, non
-separatamente: il capitolo 6 mostra che gran parte delle risposte errate
-non nasce da un fallimento della generazione ma da un fallimento a monte,
-nel retrieval o nel reranking — un dato che la sola metrica di correttezza
-finale non renderebbe visibile.
+orchestrata in LangGraph) — raggiunge un'accuratezza di **40,0% [24,6%,
+57,7%]** in Hit@5 sul retrieval (contesto passato al generatore) e un
+punteggio medio di correttezza di **1,33/5 [0,73, 1,97]** (mediana 0)
+sulla generazione, su N=30 domande del golden dataset v2 (run `FINAL_V2`,
+28/08 — dettaglio completo in `results/report_FINAL_V2.md`). Questi
+valori vanno letti insieme, non separatamente: la decomposizione
+dell'errore per stadio (§6.4) mostra che il **57% delle domande (17/30)**
+fallisce già al retrieval — la fonte corretta non entra mai fra i 25
+candidati — contro un 20% (6/30) in cui il contesto era corretto ma la
+generazione ha comunque sbagliato, e un 3% (1/30) perso dal reranker. Il
+collo di bottiglia dominante è quindi a monte della generazione, non
+dentro di essa — un dato che la sola metrica di correttezza finale non
+renderebbe visibile.
+
+> Nota metodologica: questi punteggi di correttezza/fedeltà/pertinenza
+> sono ancora **non validati** (giudice = stesso modello del generatore,
+> `qwen2.5:3b`) — l'accordo giudice-umano (§5.5) va completato prima di
+> riportarli come definitivi in tesi.
 
 Sul secondo punto — la ragione per cui questa tesi include un test a
 contesto oracolo (§6.5) — il risultato è che, fornendo al generatore il
@@ -102,12 +112,21 @@ giudice viene riportato nel capitolo dei risultati senza questa
 validazione a monte.
 
 **Una scomposizione causale dell'errore, non solo una sua misura.** Sapere
-che il sistema sbaglia `[X]%` delle volte è meno utile di sapere *dove*
-sbaglia: assenza del dato dal corpus, mancato recupero, scarto in fase di
-reranking, o errore proprio della generazione (§6.4). Questa tassonomia,
-insieme al test a contesto oracolo, è ciò che permette di distinguere un
-limite risolvibile con ingegneria (retrieval, reranking) da un limite
-strutturale del vincolo hardware (dimensione del modello generativo).
+che il sistema sbaglia è meno utile di sapere *dove* sbaglia: su 30
+domande, il 57% degli errori nasce dal mancato recupero della fonte
+(mai fra i candidati), il 3% viene scartato dal reranking, il 20% arriva
+al generatore con il contesto giusto e sbaglia comunque, il 20% restante
+riceve una risposta corretta (§6.4, `results/report_FINAL_V2.md`).
+Questa tassonomia, insieme al test a contesto oracolo (in corso), è ciò
+che permette di distinguere un limite risolvibile con ingegneria
+(retrieval, reranking — qui il più rilevante) da un limite strutturale
+del vincolo hardware (dimensione del modello generativo). Un caso
+concreto emerso da questo run è anche una scoperta a sé: in una risposta
+(Q15) il modello ha ripetuto testualmente l'istruzione di correzione
+iniettata nel system prompt dal nodo di self-check invece di limitarsi a
+correggere — un bug non documentato prima d'ora, e un indizio
+comportamentale del limite del modello da 3B nel seguire istruzioni di
+sistema senza trascriverle nell'output.
 
 ## Limiti
 
