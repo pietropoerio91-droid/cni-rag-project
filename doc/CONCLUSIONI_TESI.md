@@ -1,4 +1,13 @@
-# Conclusioni
+# Conclusioni — MATERIALE DI LAVORO, NON TESTO DA CONSEGNARE
+
+> ⚠️ **Questo file è un appunto tecnico per me (Claude), non una bozza da
+> incollare nella tesi.** L'uso di AI concordato per questo progetto copre lo
+> sviluppo del sistema (codice, benchmark, fix, esperimenti), non la stesura
+> del testo della tesi, che passa per un controllo antiplagio. Il capitolo
+> Conclusioni va scritto da Pietro con le proprie parole; questo documento
+> serve solo a tenere allineati i dati, la struttura logica e cosa ancora
+> manca, cosi' l'aiuto sui numeri e sulla verifica dei fatti resta utile
+> senza sconfinare nella stesura.
 
 > **Nota per la compilazione.** I segnaposto `[X]` vanno sostituiti con i
 > valori prodotti dai run finali. Corrispondenza fra segnaposto e comando:
