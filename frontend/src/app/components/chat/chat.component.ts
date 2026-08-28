@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
+import { ChatStateService } from '../../services/chat-state.service';
 import { ChatMessage } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 
@@ -393,9 +394,11 @@ import { Subscription } from 'rxjs';
   `]
 })
 export class ChatComponent implements OnInit, OnDestroy {
-  messages: ChatMessage[] = [];
-  currentQuestion = '';
-  isLoading = false;
+  get messages(): ChatMessage[] { return this.chatState.messages; }
+  get currentQuestion(): string { return this.chatState.currentQuestion; }
+  set currentQuestion(value: string) { this.chatState.currentQuestion = value; }
+  get isLoading(): boolean { return this.chatState.isLoading; }
+  set isLoading(value: boolean) { this.chatState.isLoading = value; }
   stats: { docs: number; categories: number; sources: number } | null = null;
   currentTip = 'Prova a chiedere "Quali servizi offre il CNI?" per iniziare';
   displayTitle = '';
@@ -422,7 +425,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     'Quali sono i temi trattati dal CNI?',
   ];
 
-  constructor(private ragService: RagService) {}
+  constructor(private ragService: RagService, private chatState: ChatStateService) {}
 
   ngOnInit() {
     this.typeTitle();
@@ -525,9 +528,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   resetHome() {
-    this.messages = [];
-    this.currentQuestion = '';
-    this.isLoading = false;
+    this.chatState.reset();
     this.displayTitle = '';
     this.titleTyping = true;
   }
