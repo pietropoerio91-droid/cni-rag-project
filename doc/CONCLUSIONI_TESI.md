@@ -175,6 +175,21 @@ fra gli sviluppi futuri (§8.1) invece che presentata come parte del
 sistema, per evitare la discrepanza fra documentazione e sorgenti che nella
 versione precedente dell'indice della tesi era presente.
 
+Tre estensioni sono state predisposte a livello di strumentazione ma
+deliberatamente non eseguite, per la scarsa incidenza attesa sulla
+risposta alla domanda di ricerca rispetto al tempo richiesto: il cambio
+del modello di embedding in produzione (i dati del confronto in
+`report_compare_embeddings.md` sono direzionalmente favorevoli a
+`e5-small` ma non raggiungono la significatività su n=30, §6.4), il
+confronto fra modelli generativi locali a contesto congelato
+(`benchmarks/compare_generators.py`, script pronto e mai eseguito, misura
+qualità e prestazioni hardware separatamente proprio per non confondere
+le due cose) e un insieme di controllo held-out per verificare che la
+configurazione scelta con l'ablation generalizzi fuori dal golden
+dataset v2 (`config/holdout_v1.json`, scaffold predisposto con 10 id ma
+mai compilato). Sono collocati fra gli sviluppi futuri (§8.1), non fra i
+risultati.
+
 ## Chiusura
 
 Il vincolo di esecuzione locale, posto come premessa del lavoro e non come

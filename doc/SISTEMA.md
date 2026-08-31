@@ -247,15 +247,19 @@ Tre strumenti distinti, non intercambiabili — usare quello giusto per la doman
 | Script | Cosa misura | Richiede LLM? | Stato dati raccolti |
 |---|---|---|---|
 | `benchmarks/run_benchmark.py` | retrieval con keyword matching | no | **limite noto**: dà punteggi alti anche quando il sistema non sa rispondere (vedi caso "presidente del CNI" in §11). Da non usare per risultati di tesi |
-| `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | solo `FULL1` (10 domande, 24/08) committato — troppo esiguo, vedi §12 |
+| `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | **fatto**: `FINAL_V2`, n=30, 28/08 — `results/report_FINAL_V2.md` |
 | `benchmarks/ablation_retrieval.py` | solo retrieval/reranking, nessuna generazione — isola l'effetto di `top_k`, reranker, filtro categoria | no | **fatto**: n=30, 27/08, due run — `results/report_ablation_2026-08-27.md` |
-| `benchmarks/oracle_context.py` | quota d'errore imputabile al generatore (contesto perfetto per costruzione) | sì | non ancora eseguito |
-| `benchmarks/compute_judge_agreement.py` | accordo giudice-umano (kappa, Krippendorff, MAE) | no | dati umani quasi vuoti (solo Q01 in `results/validation_2026-08-26.csv`) |
-| `benchmarks/compare_embeddings.py`, `compare_generators.py` | confronto fra modelli alternativi | sì | lavoro in corso, non ancora committato (vedi §12) |
+| `benchmarks/oracle_context.py` | quota d'errore imputabile al generatore (contesto perfetto per costruzione) | sì | **fatto**: n=30, 28/08 — `results/report_oracle_context.md` |
+| `benchmarks/compute_judge_agreement.py` | accordo giudice-umano (kappa, Krippendorff, MAE) | no | in attesa della validazione umana in cieco su `FINAL_V2` (in corso lato utente) |
+| `benchmarks/compare_embeddings.py` | confronto fra modello di embedding attuale e candidato (`e5-small`) | sì | **fatto**: 28/08 — `results/report_compare_embeddings.md` |
+| `benchmarks/compare_generators.py` | confronto fra generatori locali (qwen2.5:3b vs llama3.2:3b/phi3.5), contesto congelato | sì | script pronto, **mai eseguito** — nessun `results/generators_*.json`. Richiede scaricare modelli extra (~2GB l'uno) e ore di run su CPU per la fase qualità; la fase prestazioni da sola è questione di minuti (`--solo-prestazioni`). Trattato come lavoro futuro, non necessario per rispondere alla domanda di ricerca |
+| `benchmarks/valida_dataset.py` | valida un dataset di valutazione prima di lanciare un run (campi obbligatori, id duplicati, criteri irraggiungibili, sovrapposizione lessicale con un altro dataset) | no | strumento di controllo qualità, non produce risultati di tesi di per sé |
 | `benchmarks/stats.py` | libreria condivisa: IC bootstrap/Wilson, Wilcoxon, McNemar, delta di Cliff | — | verificato corretto in questa sessione |
 | `benchmarks/metrics.py` | libreria condivisa: definizioni di Hit@k/Recall@k/MRR/nDCG, un'unica definizione di "rilevante" per tutte le metriche | — | verificato corretto in questa sessione |
 
-Golden dataset: `config/golden_dataset.json` (v1, 10 domande) e `config/golden_dataset_v2.json` (v2.0-draft, **30 domande**, usato dall'ablation).
+Golden dataset: `config/golden_dataset.json` (v1, 10 domande) e `config/golden_dataset_v2.json` (v2.0-draft, **30 domande**, usato da tutti e quattro gli esperimenti completati).
+
+`config/holdout_v1.json` è un **scaffold vuoto** (10 id, tutti i campi da compilare): l'idea è un insieme di controllo scritto senza guardare l'indice, per stimare se la configurazione scelta con l'ablation generalizza fuori dal golden dataset v2. Non è mai stato compilato né eseguito — trattato come lavoro futuro (vedi §12 e i limiti in `CONCLUSIONI_TESI.md`).
 
 ---
 
@@ -331,32 +335,39 @@ raccolti (§12).
 
 Le pagine `/en/` sono ora bloccate dal crawler (§4.1) e uno script dedicato
 (`scripts/purge_english_chunks.py`) rimuove i chunk inglesi già indicizzati.
+Eseguito il 27/08 alle 16:02 (`results/purge_2026-08-27_16-02.json`): rimossi
+**3.361 chunk** su 17.145 (pattern `/en/`), indice sceso a **13.784 chunk** —
+il numero che compare da allora in `documents_indexed` nell'health check e in
+tutti gli esperimenti successivi (ablation, `FINAL_V2`, oracle context,
+confronto embedding). Motivo dichiarato nel log: allineamento dell'indice a
+`CNICrawler.DENIED_PATTERNS`, introdotto il 2 luglio 2026 ma applicato solo
+al crawl, non retroattivamente all'indice già esistente.
 
 ---
 
-## 12. Stato del progetto al 28/08/2026 e cosa manca
+## 12. Stato del progetto al 31/08/2026 e cosa manca
 
-**Fatto e verificato in questa sessione:**
-- Fix del blocco dell'event loop su `/query` (§11.2) — pushato, da testare in locale con `pytest`
-- Recuperato e committato l'ablation study reale del 27/08 (n=30) — `results/report_ablation_2026-08-27.md`
-- Verificata la correttezza di `metrics.py` e `stats.py` (le formule che produrranno i numeri della tesi)
-- Scoperto e documentato il troncamento dell'embedding (§11.1) — da decidere se correggere prima dei run finali o discutere come limite
+**Fatto e verificato:**
+- Fix del blocco dell'event loop su `/query` (§11.2) — pushato, verificato con `pytest` (24/24 test passano)
+- Fix reale in produzione: `CitationBuilder.build()` troncava sempre a 1 citazione (`return citations[:1]`) — corretto, ora restituisce l'elenco completo (commit `1bb0ba1`)
+- Tutti e quattro gli esperimenti pianificati sono stati eseguiti su n=30 (`golden_dataset_v2.json`): ablation study, valutazione end-to-end (`FINAL_V2`), test a contesto oracolo, confronto fra modelli di embedding — ciascuno con un report dedicato in `results/report_*.md` e una spiegazione discorsiva in `doc/GUIDA_ESPERIMENTI.md`
+- Bug scoperto e corretto in `compare_embeddings.py`: il modello "attuale" veniva interrogato con `SentenceTransformer(...).encode()` invece di `ModelFactory.create_embeddings()`, producendo vettori incoerenti con l'indice e un MRR baseline artificialmente basso (0,17 invece di 0,294) — rieseguito dopo il fix, numeri coerenti con `FINAL_V2`
+- Verificata la correttezza di `metrics.py` e `stats.py` (le formule che producono i numeri della tesi)
+- Documentato il troncamento dell'embedding (§11.1): 128 token max, mediana chunk 266 token, 82,2% dei chunk troncati — riportato come limite dichiarato in `CONCLUSIONI_TESI.md`, non ancora corretto in produzione (cambio di modello valutato e rimandato, vedi sotto)
+- Documentato il purge dei chunk inglesi (§11.6): 17.145 → 13.784 chunk, 27/08
+- `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`, `doc/NOTE_CAP1_CAP2.md`, `doc/CONCLUSIONI_TESI.md` creati come materiale di riferimento consolidato
+
+**Deliberatamente rimandato (non necessario per rispondere alla domanda di ricerca, tempo limitato fino al 13/10):**
+- Cambio del modello di embedding in produzione (`e5-small` mostra risultati migliori ma non statisticamente significativi su n=30, vedi `report_compare_embeddings.md`) + re-indicizzazione + nuova valutazione completa
+- `benchmarks/compare_generators.py`: script pronto, mai eseguito (vedi §9)
+- `config/holdout_v1.json`: scaffold vuoto, mai compilato né eseguito (vedi §9)
+- Confronto con un modello cloud (es. API Claude) sulle domande di tipo `generation_miss`
 
 **Cosa manca, in ordine di impatto sulla tesi:**
 
-1. **Il run end-to-end finale** su `golden_dataset_v2` (30 domande) con `run_evaluation.py` — è il numero che risponde alla prima metà della domanda di ricerca (accuratezza del sistema). Non fatto.
-2. **Il test a contesto oracolo** (`oracle_context.py`) — risponde alla seconda metà della domanda di ricerca (quota d'errore imputabile al generatore/hardware). Non fatto.
-3. **Completare la validazione umana**: `results/validation_2026-08-26.csv` ha voti umani solo per 1 domanda su 10. Senza questo, l'accordo giudice-umano (§5.5 della tesi) non ha dati.
-4. **Decidere sul troncamento dell'embedding** (§11.1): correggerlo (richiede re-indicizzazione) o riportarlo come limite dichiarato con dati alla mano — è comunque materiale nuovo per §7.2/§7.3 della tesi.
-5. **Versionare il lavoro in corso**: risultano non committati `benchmarks/compare_generators.py`, `diagnosi_soglia.py`, `valida_dataset.py`, `config/holdout_v1.json`, `results/compare_embeddings_2026-08-28_10-19.json`, `results/purge_2026-08-27_16-02.json` (visti nello `status` git della sessione) — probabilmente contengono altri risultati utili.
-6. **Testare in locale il fix di `/query`** (§11.2) con `pytest`.
-
-**Cosa deve fare tu, concretamente, nell'ordine:**
-1. Lanciare `python benchmarks/run_evaluation.py` sul golden dataset v2 completo (richiede API + Ollama attivi)
-2. Lanciare `python benchmarks/oracle_context.py --confronta <il file del punto 1>`
-3. Completare i voti umani mancanti in `results/validation_2026-08-26.csv`, poi `python benchmarks/compute_judge_agreement.py`
-4. Ogni volta che produci un file in `results/`, fai `git add`/`commit`/`push` — è già successo due volte in questa sessione che risultati reali restassero solo sul disco locale
-5. Deciso cosa fare del punto 11.1 (troncamento), aggiornarmi e aggiorno `CONCLUSIONI_TESI.md` con i numeri veri
+1. **Completare la validazione umana in cieco** su `FINAL_V2` (interfaccia Angular, tab Annotazione) — senza questo l'accordo giudice-umano (kappa, MAE) in `CONCLUSIONI_TESI.md` resta un placeholder `[X]`. In corso lato utente.
+2. **Scrittura dei capitoli 1-4 della tesi** — materiale di riferimento pronto in `doc/NOTE_CAP1_CAP2.md`, `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`.
+3. Valutare se i tre punti rimandati sopra vadano citati esplicitamente come "lavori futuri" nel capitolo delle conclusioni (probabilmente sì, sono limiti onesti e concreti).
 
 ---
 
