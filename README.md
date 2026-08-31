@@ -195,6 +195,32 @@ kill $(lsof -t -i :8000) 2>/dev/null   # ferma API
 kill $(lsof -t -i :4200) 2>/dev/null   # ferma frontend
 ```
 
+### Riavvio API prima di script che usano Qdrant direttamente
+
+Qdrant in modalità locale (`data/qdrant_db`) usa un lock a livello di processo: un solo
+processo alla volta può accedervi. Se l'API resta attiva, qualsiasi script che apre
+direttamente il database (es. `benchmarks/oracle_context.py`, `benchmarks/compare_embeddings.py`,
+`benchmarks/ablation_retrieval.py`, `benchmarks/diagnosi_soglia.py`) fallisce con:
+
+```
+RuntimeError: Storage folder ./data/qdrant_db is already accessed by another instance of Qdrant client
+```
+
+Prima di lanciare uno di questi script (o per un riavvio pulito dell'API), termina il
+processo con:
+
+```bash
+pkill -9 -f run_api.py
+```
+
+- `pkill -f` cerca il processo per corrispondenza sull'intera riga di comando (necessario
+  perché il processo gira come `python scripts/run_api.py ...`, non come `run_api.py`)
+- `-9` invia `SIGKILL`, terminazione immediata e forzata — un kill "gentile" a volte non
+  libera il lock di Qdrant abbastanza in fretta
+
+Dopo aver eseguito lo script, riavvia normalmente l'API (`./scripts/restart_api.sh` o
+`python scripts/run_api.py --no-reload`).
+
 ## API Endpoints
 
 | Endpoint | Metodo | Descrizione |
