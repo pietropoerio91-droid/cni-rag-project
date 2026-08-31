@@ -46,6 +46,13 @@ class TestIngestionPipeline:
 
     def test_quality_check_valid(self):
         qc = QualityChecker()
-        text = "Testo valido con contenuto sufficiente per passare il controllo qualità. " * 10
+        text = (
+            "Il Consiglio Nazionale degli Ingegneri promuove la formazione continua "
+            "dei propri iscritti attraverso corsi accreditati e seminari tecnici. "
+            "Gli iscritti all'albo devono maturare un numero minimo di crediti "
+            "formativi professionali ogni anno per mantenere l'iscrizione attiva. "
+            "La normativa vigente stabilisce l'obbligo di aggiornamento professionale "
+            "continuo per tutti gli ingegneri operanti sul territorio nazionale."
+        )
         ok, issues = qc.check(text)
-        assert ok
+        assert ok, issues

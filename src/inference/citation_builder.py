@@ -54,7 +54,7 @@ class CitationBuilder:
                     })
 
         citations.sort(key=lambda c: c.get("relevance_score", 0), reverse=True)
-        return citations[:1]
+        return citations
 
     @staticmethod
     def _extract_excerpt(text: str, max_length: int = 200) -> str:
