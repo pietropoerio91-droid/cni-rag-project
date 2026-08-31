@@ -1,0 +1,88 @@
+{
+  "description": "Insieme di controllo (held-out). Dieci domande scritte da Pietro Poerio dopo il congelamento della configurazione, senza consultare l'indice e senza vedere le risposte del sistema. Non e' mai stato usato per scegliere parametri: serve a stimare la generalizzazione fuori dal golden dataset v2, sul quale sono state provate nove configurazioni di ablation.",
+  "version": "holdout-1.0",
+  "created": "DA COMPILARE (data in cui le domande sono state scritte)",
+  "config_congelata_al_commit": "DA COMPILARE (git rev-parse --short HEAD al momento della scrittura)",
+  "items": [
+    {
+      "id": "H01",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H02",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H03",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H04",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H05",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H06",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H07",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H08",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H09",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    },
+    {
+      "id": "H10",
+      "question": "",
+      "category": "",
+      "reference_answer": "",
+      "expected_sources": [],
+      "must_contain": []
+    }
+  ]
+}

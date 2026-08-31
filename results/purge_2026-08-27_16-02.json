@@ -1,0 +1,34 @@
+{
+  "data": "2026-08-27T16:02:17",
+  "collection": "cni_documents",
+  "pattern": [
+    "/en/"
+  ],
+  "chunk_prima": 17145,
+  "chunk_rimossi": 3361,
+  "chunk_dopo": 13784,
+  "per_categoria": {
+    "news": 2726,
+    "eventi": 165,
+    "normativa": 64,
+    "formazione": 114,
+    "organi": 56,
+    "giornale": 24,
+    "contatti": 22,
+    "temi": 37,
+    "documenti": 42,
+    "chi_siamo": 28,
+    "generico": 49,
+    "commissioni": 13,
+    "albo": 10,
+    "servizi": 11
+  },
+  "esempi": [
+    "https://www.cni.it/en/media-ing/news/240-2023/4479-rogo-rsa-il-cni-insiste-sulla-necessita-di-un-adeguata-progettazione-per-la-prevenzione-degli-incendi",
+    "https://www.cni.it/en/media-ing/news/290-2025/5050-riconnettere-i-porti-e-le-citta",
+    "https://www.cni.it/en/media-ing/news/230-2022/4125-gli-ingegneri-italiani-salpano-da-genova-per-esplorare-e-superare-i-confini",
+    "https://www.cni.it/en/eventi/eventdetail/22116/-/ingegneria-e-sostenibilita-ambientale-dei-processi-produttivi-e-dei-prodotti",
+    "https://www.cni.it/en/media-ing/news/240-2023?start=130"
+  ],
+  "motivo": "Allineamento dell'indice a CNICrawler.DENIED_PATTERNS, che esclude i percorsi /en/ dal 2 luglio 2026. L'indice era anteriore a quella regola."
+}
