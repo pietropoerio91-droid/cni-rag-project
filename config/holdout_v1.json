@@ -6,15 +6,15 @@
   "items": [
     {
       "id": "H01",
-      "question": "",
-      "category": "",
-      "reference_answer": "",
-      "expected_sources": [],
-      "must_contain": []
+      "question": "Quale obbligo ha introdotto il Decreto Legge 159/2025 per le imprese con più di quindici dipendenti in materia di mancati infortuni?",
+      "category": "normativa",
+      "reference_answer": "Il Decreto Legge 159 del 2025, convertito nella Legge 198/2025, ha introdotto per le imprese con più di quindici dipendenti l'obbligo di identificare, tracciare e analizzare i mancati infortuni.",
+      "expected_sources": ["<slug esatto dell'articolo>"],
+      "must_contain": ["mancati infortuni", "quindici dipendenti"]
     },
     {
       "id": "H02",
-      "question": "",
+      "question": "Mi dici il tempo di validità del Protocollo d’Intesa tra il Consiglio Nazionale e il Ministro per la pubblica amministrazione sulla piattaforma Syllabus?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -22,7 +22,7 @@
     },
     {
       "id": "H03",
-      "question": "",
+      "question": "Qual'è il ruolo dell'agennzia certing?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -30,7 +30,7 @@
     },
     {
       "id": "H04",
-      "question": "",
+      "question": "Quali sono le sfide etiche e professionali tra inteliggenza artificiale e ingegneria? ",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -38,7 +38,7 @@
     },
     {
       "id": "H05",
-      "question": "",
+      "question": "Quanto costa l'iscrizione annuale all'albo degli ingegneri?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -46,7 +46,7 @@
     },
     {
       "id": "H06",
-      "question": "",
+      "question": "Quando è stata costituita la struttura tecnica nazionale?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -54,7 +54,7 @@
     },
     {
       "id": "H07",
-      "question": "",
+      "question": "Dove è stata fatta l'ottava giornata nazionale della prevenzione sismica?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -62,7 +62,7 @@
     },
     {
       "id": "H08",
-      "question": "",
+      "question": "Quali donni ha provocato l'interruzzione della tranisione 5.0?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -70,7 +70,7 @@
     },
     {
       "id": "H09",
-      "question": "",
+      "question": "Dove è stato fatto il settantesimo congresso nazionanle degli inngegneri?",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
@@ -78,7 +78,7 @@
     },
     {
       "id": "H10",
-      "question": "",
+      "question": "Di cosa parla la delibera n. 389 del 28 gennaio 2026? ",
       "category": "",
       "reference_answer": "",
       "expected_sources": [],
