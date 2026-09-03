@@ -17,7 +17,7 @@
 > | ~~Accuratezza di retrieval e generazione~~ | **fatto** — `results/report_FINAL_V2.md`, n=30, run `FINAL_V2` del 28/08 |
 > | ~~Quota d'errore imputabile al generatore~~ | **fatto** — `results/oracle_context_2026-08-28_14-35.json`: 23,3 punti generatore, 26,7 punti retrieval, n=30, McNemar p=0,115 (non significativo) |
 > | Effetto del reranking sull'accuratezza finale (§1) | `python benchmarks/compare_runs.py` pre/post reranking su risposte generate (§6.3) — l'effetto sul solo retrieval è già in `results/report_ablation_2026-08-27.md` (non significativo, n=30) |
-> | Accordo giudice-umano (§2) | `python benchmarks/compute_judge_agreement.py` (§5.5) |
+> | ~~Accordo giudice-umano (§2)~~ | **fatto** — `results/annotations_FINAL_V2.json`, n=30, 02-03/09: kappa medio 0,475 ("moderato"), pertinenza e correttezza sostanziale (0,770 / 0,674), fedeltà nessun accordo (-0,019) — vedi "Il contributo del lavoro" |
 > | Decomposizione dell'errore per stadio (§1) | `python benchmarks/ablation_retrieval.py` + analisi manuale dei fallimenti (§6.4) |
 > | ~~Effetto del filtro di categoria e del reranker~~ | **fatto** — `results/report_ablation_2026-08-27.md`, n=30, non significativo |
 >
@@ -27,11 +27,12 @@
 > affermazioni ed è stato usato solo come prova di funzionamento della
 > pipeline di valutazione, non come risultato finale.
 >
-> **Aggiornamento 28/08**: recuperato `results/ablation_retrieval_2026-08-27_*.json`
-> (due run, n=30, golden dataset v2) — vedi `results/report_ablation_2026-08-27.md`.
-> Copre solo lo stadio di retrieval/reranking, non la generazione: i segnaposto
-> su accuratezza finale e test a contesto oracolo restano da produrre. Il
-> risultato dell'ablation è già incorporato in "Limiti", sotto.
+> **Aggiornamento 03/09**: annotazione umana in cieco completata su tutte
+> le 30 domande di `FINAL_V2` e confrontata col giudice automatico — vedi
+> tabella sopra. Con questo, tutti i segnaposto `[X]` del documento sono
+> compilati con dati reali; restano solo i due punti a bassa priorità
+> (effetto reranking isolato, §1) non necessari per rispondere alla
+> domanda di ricerca centrale.
 
 ---
 
@@ -49,21 +50,50 @@ reranking cross-encoder, generazione con auto-verifica e pipeline
 orchestrata in LangGraph) — raggiunge un'accuratezza di **40,0% [24,6%,
 57,7%]** in Hit@5 sul retrieval (contesto passato al generatore) e un
 punteggio medio di correttezza di **1,33/5 [0,73, 1,97]** (mediana 0)
-sulla generazione, su N=30 domande del golden dataset v2 (run `FINAL_V2`,
-28/08 — dettaglio completo in `results/report_FINAL_V2.md`). Questi
-valori vanno letti insieme, non separatamente: la decomposizione
-dell'errore per stadio (§6.4) mostra che il **57% delle domande (17/30)**
-fallisce già al retrieval — la fonte corretta non entra mai fra i 25
-candidati — contro un 20% (6/30) in cui il contesto era corretto ma la
-generazione ha comunque sbagliato, e un 3% (1/30) perso dal reranker. Il
-collo di bottiglia dominante è quindi a monte della generazione, non
-dentro di essa — un dato che la sola metrica di correttezza finale non
-renderebbe visibile.
+sulla generazione, secondo il giudice automatico, su N=30 domande del
+golden dataset v2 (run `FINAL_V2`, 28/08 — dettaglio completo in
+`results/report_FINAL_V2.md`). Questo secondo numero va letto con la sua
+calibrazione nota (si veda la nota metodologica subito sotto): la
+correttezza umana mediata sulle stesse 30 domande è **2,35/5**, quindi il
+giudice automatico sottostima sistematicamente di circa un punto — l'
+*ordinamento* delle risposte è comunque affidabile (kappa 0,674,
+"sostanziale"), solo il livello assoluto no. Questi valori vanno letti
+insieme, non separatamente: la decomposizione dell'errore per stadio
+(§6.4, metodo automatico su rango pre/post-rerank) mostra che il **57%
+delle domande (17/30)** fallisce già al retrieval — la fonte corretta
+non entra mai fra i 25 candidati — contro un 20% (6/30) in cui il
+contesto era corretto ma la generazione ha comunque sbagliato, e un 3%
+(1/30) perso dal reranker. Una seconda decomposizione, indipendente,
+fatta dall'annotatore umano in cieco sulle stesse 30 domande
+(`results/annotations_FINAL_V2.json`, non un calcolo automatico ma una
+lettura diretta di risposta e documenti) converge sullo stesso
+collo di bottiglia ma con proporzioni diverse: **46,7% (14/30)
+retrieval_miss**, **43,3% (13/30) ok**, 6,7% (2/30) generation_miss, 3,3%
+(1/30) reranker_drop. Le due decomposizioni concordano sul fatto
+qualitativo — il retrieval è la causa dominante, il reranker quasi
+irrilevante — ma non sui numeri: il metodo automatico, basato su soglie
+di correttezza e rango, classifica più casi come generation_miss (20%
+contro 6,7% umano) e meno come "ok" (20% contro 43,3% umano). È un
+disaccordo informativo, non un rumore da ignorare: un giudizio umano
+olistico è più indulgente nel decidere se una risposta "ha funzionato"
+di quanto lo sia una soglia numerica rigida. Con entrambe le letture, il
+collo di bottiglia dominante resta comunque a monte della generazione,
+non dentro di essa — un dato che la sola metrica di correttezza finale
+non renderebbe visibile.
 
-> Nota metodologica: questi punteggi di correttezza/fedeltà/pertinenza
-> sono ancora **non validati** (giudice = stesso modello del generatore,
-> `qwen2.5:3b`) — l'accordo giudice-umano (§5.5) va completato prima di
-> riportarli come definitivi in tesi.
+> Nota metodologica: l'accordo giudice-umano (§5.5, completato il
+> 02-03/09 su tutte le 30 domande — `results/annotations_FINAL_V2.json`,
+> `results/judge_agreement_2026-09-03.json`) dà un risultato **misto, non
+> uniforme fra le tre metriche**: pertinenza (kappa 0,770) e correttezza
+> (kappa 0,674) hanno un accordo "sostanziale" e sono quindi riportabili
+> con la calibrazione indicata sopra; la **fedeltà** ha un accordo
+> sostanzialmente nullo (kappa -0,019, MAE 2,0 punti) e **i suoi
+> punteggi automatici non vengono riportati come misura affidabile in
+> questo lavoro**. Il kappa medio sulle tre metriche è 0,475
+> ("moderato"), sotto la soglia di utilizzabilità dichiarata a monte
+> (≥0,61) — coerente con l'ipotesi di partenza di un rischio di
+> self-preference bias (giudice e generatore sono lo stesso modello),
+> confermata empiricamente almeno per la fedeltà.
 
 Sul secondo punto — la ragione per cui questa tesi include un test a
 contesto oracolo (§6.5) — il risultato è che, fornendo al generatore il
@@ -115,22 +145,44 @@ metodologiche documentate, non nascoste.
 presupporsi affidabile.** Il modello che genera le risposte e il modello
 che le valuta sono, per vincolo hardware, lo stesso modello (`qwen2.5:3b`
 locale): un rischio noto di bias di self-preference. Anziché ignorarlo, il
-lavoro lo misura: l'accordo fra il giudizio del modello e l'annotazione
-umana in cieco è `[X]` (kappa pesato), `[X]` (α di Krippendorff), con
-errore assoluto medio di `[X]` punti su scala 0-5. Nessun punteggio del
-giudice viene riportato nel capitolo dei risultati senza questa
-validazione a monte.
+lavoro lo misura, confrontando il giudizio automatico con l'annotazione
+umana in cieco sulle stesse 30 domande (`results/annotations_FINAL_V2.json`,
+02-03/09/2026). Il risultato non è uniforme fra le tre metriche, ed è
+proprio questa non uniformità il dato rilevante: su **pertinenza**
+(kappa pesato 0,770, "sostanziale") e **correttezza** (kappa 0,674,
+"sostanziale") il giudice concorda con l'annotatore umano in modo
+solido (r di Pearson 0,80 e 0,79). Su **fedeltà** l'accordo è invece
+sostanzialmente nullo (kappa -0,019, MAE 2,0 punti su scala 0-5): il
+giudice assegna in media 3,1, l'annotatore umano 4,7, con un effetto
+soffitto sul lato umano (28 domande su 30 valutate 5) che il giudice non
+riproduce. Il kappa medio sulle tre metriche è **0,475** ("moderato"),
+sotto la soglia di utilizzabilità dichiarata a monte (≥0,61): **per
+questo lavoro, i punteggi di fedeltà del giudice automatico non vengono
+riportati come misura affidabile**, mentre pertinenza e correttezza sì,
+con l'accordo dichiarato accanto al numero. È l'insufficienza stessa,
+non solo l'eventuale successo, a essere il risultato: un giudice
+automatico non validato a monte avrebbe riportato una fedeltà media
+"buona" (3,1/5) senza che nessuno potesse dire se fosse una misura reale
+o un artefatto del bias di self-preference.
 
-**Una scomposizione causale dell'errore, non solo una sua misura.** Sapere
-che il sistema sbaglia è meno utile di sapere *dove* sbaglia: su 30
-domande, il 57% degli errori nasce dal mancato recupero della fonte
-(mai fra i candidati), il 3% viene scartato dal reranking, il 20% arriva
-al generatore con il contesto giusto e sbaglia comunque, il 20% restante
-riceve una risposta corretta (§6.4, `results/report_FINAL_V2.md`).
-Questa tassonomia, insieme al test a contesto oracolo (in corso), è ciò
-che permette di distinguere un limite risolvibile con ingegneria
-(retrieval, reranking — qui il più rilevante) da un limite strutturale
-del vincolo hardware (dimensione del modello generativo). Un caso
+**Una scomposizione causale dell'errore, non solo una sua misura — misurata
+due volte, con due metodi indipendenti.** Sapere che il sistema sbaglia è
+meno utile di sapere *dove* sbaglia: il metodo automatico (rango
+pre/post-rerank + soglia di correttezza, §6.4, `results/report_FINAL_V2.md`)
+attribuisce il 57% degli errori al mancato recupero della fonte, il 3% al
+reranking, il 20% a un generatore che sbaglia pur col contesto giusto, il
+20% restante a risposte corrette. L'annotatore umano in cieco, leggendo
+le stesse 30 domande senza vedere questa classificazione a monte
+(`results/annotations_FINAL_V2.json`), arriva a proporzioni diverse ma
+alla stessa conclusione qualitativa: 46,7% retrieval_miss, 43,3% ok,
+6,7% generation_miss, 3,3% reranker_drop — il retrieval resta la causa
+dominante, il reranker quasi irrilevante, ma il metodo automatico
+sottostima quante risposte "funzionano" nel complesso rispetto a un
+giudizio umano olistico. Questa doppia misura, insieme al test a
+contesto oracolo (§6.5, completato), è ciò che permette di distinguere
+un limite risolvibile con ingegneria (retrieval, reranking — qui il più
+rilevante) da un limite strutturale del vincolo hardware (dimensione del
+modello generativo). Un caso
 concreto emerso da questo run è anche una scoperta a sé: in una risposta
 (Q15) il modello ha ripetuto testualmente l'istruzione di correzione
 iniettata nel system prompt dal nodo di self-check invece di limitarsi a

@@ -250,7 +250,8 @@ Tre strumenti distinti, non intercambiabili — usare quello giusto per la doman
 | `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | **fatto**: `FINAL_V2`, n=30, 28/08 — `results/report_FINAL_V2.md` |
 | `benchmarks/ablation_retrieval.py` | solo retrieval/reranking, nessuna generazione — isola l'effetto di `top_k`, reranker, filtro categoria | no | **fatto**: n=30, 27/08, due run — `results/report_ablation_2026-08-27.md` |
 | `benchmarks/oracle_context.py` | quota d'errore imputabile al generatore (contesto perfetto per costruzione) | sì | **fatto**: n=30, 28/08 — `results/report_oracle_context.md` |
-| `benchmarks/compute_judge_agreement.py` | accordo giudice-umano (kappa, Krippendorff, MAE) | no | in attesa della validazione umana in cieco su `FINAL_V2` (in corso lato utente) |
+| `benchmarks/compute_judge_agreement.py` | accordo giudice-umano da un CSV compilato a mano | no | **script obsoleto**, formato CSV superato dal flusso reale (annotazione via frontend → JSON). Il calcolo effettivo passa dall'endpoint `/evaluation/agreement` (`src/api/routes.py`), che usa `benchmarks/agreement.py::report_completo` sul JSON di `results/annotations_*.json` |
+| `benchmarks/agreement.py` | libreria: kappa pesato, α di Krippendorff, MAE, matrice di confusione — usata da `/evaluation/agreement` | no | **fatto**: eseguito su `FINAL_V2`, 03/09 — `results/report_judge_agreement.md` |
 | `benchmarks/compare_embeddings.py` | confronto fra modello di embedding attuale e candidato (`e5-small`) | sì | **fatto**: 28/08 — `results/report_compare_embeddings.md` |
 | `benchmarks/compare_generators.py` | confronto fra generatori locali (qwen2.5:3b vs llama3.2:3b/phi3.5), contesto congelato | sì | script pronto, **mai eseguito** — nessun `results/generators_*.json`. Richiede scaricare modelli extra (~2GB l'uno) e ore di run su CPU per la fase qualità; la fase prestazioni da sola è questione di minuti (`--solo-prestazioni`). Trattato come lavoro futuro, non necessario per rispondere alla domanda di ricerca |
 | `benchmarks/valida_dataset.py` | valida un dataset di valutazione prima di lanciare un run (campi obbligatori, id duplicati, criteri irraggiungibili, sovrapposizione lessicale con un altro dataset) | no | strumento di controllo qualità, non produce risultati di tesi di per sé |
@@ -327,9 +328,14 @@ configurazione.
 ### 11.5 Il giudice automatico è lo stesso modello del generatore
 
 `qwen2.5:3b` valuta le risposte che esso stesso (o un modello identico)
-genera — rischio noto di bias di self-preference. Mitigato dalla
-validazione umana in cieco (§8), che però ha ancora pochissimi dati
-raccolti (§12).
+genera — rischio noto di bias di self-preference. La validazione umana in
+cieco (§8), completata il 02-03/09 su tutte le 30 domande di `FINAL_V2`
+(`results/report_judge_agreement.md`), **conferma empiricamente il
+rischio, ma non uniformemente**: pertinenza (kappa 0,770) e correttezza
+(kappa 0,674) hanno accordo sostanziale e sono utilizzabili con la
+calibrazione nota (il giudice è ~1 punto più severo dell'umano sulla
+correttezza); la fedeltà ha accordo sostanzialmente nullo (kappa -0,019)
+e i suoi punteggi automatici non sono riportati come misura affidabile.
 
 ### 11.6 Duplicati EN/IT — risolto
 
@@ -356,18 +362,21 @@ al crawl, non retroattivamente all'indice già esistente.
 - Documentato il troncamento dell'embedding (§11.1): 128 token max, mediana chunk 266 token, 82,2% dei chunk troncati — riportato come limite dichiarato in `CONCLUSIONI_TESI.md`, non ancora corretto in produzione (cambio di modello valutato e rimandato, vedi sotto)
 - Documentato il purge dei chunk inglesi (§11.6): 17.145 → 13.784 chunk, 27/08
 - `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`, `doc/NOTE_CAP1_CAP2.md`, `doc/CONCLUSIONI_TESI.md` creati come materiale di riferimento consolidato
+- **Validazione umana in cieco completata** (02-03/09) su tutte le 30 domande di `FINAL_V2` — `results/annotations_FINAL_V2.json`, `results/report_judge_agreement.md`. Risultato: giudice automatico utilizzabile per pertinenza (kappa 0,770) e correttezza (kappa 0,674, con bias -0,966 punti da correggere), non per fedeltà (kappa -0,019). Un secondo caso concreto emerso durante l'annotazione (Q01, presidente CNI: il generatore ha risposto "Armando Zambrano" invece di "Angelo Domenico Perrini") ha confermato via ricerca diretta nell'indice (`/qdrant`) che l'informazione corretta è nel corpus ma non è mai stata recuperata — `retrieval_miss` verificato, non un'allucinazione da fonte assente
 
 **Deliberatamente rimandato (non necessario per rispondere alla domanda di ricerca, tempo limitato fino al 13/10):**
 - Cambio del modello di embedding in produzione (`e5-small` mostra risultati migliori ma non statisticamente significativi su n=30, vedi `report_compare_embeddings.md`) + re-indicizzazione + nuova valutazione completa
 - `benchmarks/compare_generators.py`: script pronto, mai eseguito (vedi §9)
-- `config/holdout_v1.json`: scaffold vuoto, mai compilato né eseguito (vedi §9)
+- `config/holdout_v1.json`: scaffold quasi vuoto (solo H01 compilata per intero, H02-H10 hanno solo il testo della domanda), mai eseguito (vedi §9)
 - Confronto con un modello cloud (es. API Claude) sulle domande di tipo `generation_miss`
 
-**Cosa manca, in ordine di impatto sulla tesi:**
+**Cosa manca:**
 
-1. **Completare la validazione umana in cieco** su `FINAL_V2` (interfaccia Angular, tab Annotazione) — senza questo l'accordo giudice-umano (kappa, MAE) in `CONCLUSIONI_TESI.md` resta un placeholder `[X]`. In corso lato utente.
-2. **Scrittura dei capitoli 1-4 della tesi** — materiale di riferimento pronto in `doc/NOTE_CAP1_CAP2.md`, `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`.
-3. Valutare se i tre punti rimandati sopra vadano citati esplicitamente come "lavori futuri" nel capitolo delle conclusioni (probabilmente sì, sono limiti onesti e concreti).
+Nessun'altra attività tecnica è necessaria per rispondere alla domanda di
+ricerca — il progetto è chiuso lato esperimenti e dati. Resta solo:
+
+1. **Scrittura dei capitoli 1-4 della tesi** — materiale di riferimento pronto in `doc/NOTE_CAP1_CAP2.md`, `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`, `doc/CONCLUSIONI_TESI.md` (quest'ultimo con tutti i numeri reali, nessun placeholder `[X]` residuo).
+2. Citare i punti deliberatamente rimandati sopra come "sviluppi futuri" nel capitolo delle conclusioni — già presente come paragrafo nei Limiti di `doc/CONCLUSIONI_TESI.md`.
 
 ---
 
