@@ -90,7 +90,7 @@ async def query(request: QueryRequest):
     try:
         chain = get_rag_chain()
         t0 = time.perf_counter()
-        result = chain.query(request.question)
+        result = await asyncio.to_thread(chain.query, request.question)
         latency = round((time.perf_counter() - t0) * 1000, 1)
 
         doc_count = len(result.get("citations", []))
@@ -187,66 +187,42 @@ async def query_stats():
     }
 
 
-_RELEVANCE_THRESHOLD = 0.3
+# ---------------------------------------------------------------------------
+# Metriche
+# ---------------------------------------------------------------------------
+# NOTA METODOLOGICA — perche' questo endpoint non espone piu' MRR/Recall/
+# Precision sulle query in tempo reale.
+#
+# La versione precedente definiva la rilevanza come `score > 0.3`, cioe' dal
+# punteggio di similarita' del retriever stesso. Usare il giudizio del sistema
+# per valutare il sistema e' circolare: alzando la soglia il "recall" scende
+# per costruzione, senza che nulla sia cambiato nella realta'. Inoltre
+# recall_at_k e precision_at_k erano calcolati con la stessa identica formula
+# (rilevanti_nei_primi_k / k, che e' la definizione di precision), quindi il
+# frontend mostrava sei valori distinti che erano tre numeri duplicati.
+#
+# Le query degli utenti in produzione NON hanno una verita' nota: nessuna
+# metrica di Information Retrieval e' calcolabile su di esse. Le metriche IR
+# vere si calcolano solo sul golden dataset, dove le fonti corrette sono note,
+# e sono servite da /evaluation/latest.
+#
+# Qui restano solo le grandezze effettivamente osservabili dal vivo:
+#   - telemetria operativa (latenza, documenti recuperati, distribuzione degli
+#     score di similarita' — descrittiva, non una metrica di qualita')
+#   - accuratezza di classificazione, che una verita' ce l'ha davvero:
+#       system_cls_acc  = categoria predetta vs categoria attesa nel test set
+#       human_cls_acc   = feedback pollice su/giu' degli utenti
 
 
 @router.get("/query/metrics")
 async def query_metrics():
-    if not _query_log:
-        return {
-            "total_queries": 0,
-            "mrr": 0,
-            "recall_at_1": 0,
-            "recall_at_3": 0,
-            "recall_at_5": 0,
-            "precision_at_1": 0,
-            "precision_at_3": 0,
-            "precision_at_5": 0,
-            "system_cls_acc": None,
-            "human_cls_acc": None,
-            "avg_cls_acc": None,
-            "test_total": 0,
-        }
+    """Metriche calcolabili sulle query dal vivo, senza ground truth.
 
-    mrr_values = []
-    recall_at_1 = []
-    recall_at_3 = []
-    recall_at_5 = []
-    precision_at_1 = []
-    precision_at_3 = []
-    precision_at_5 = []
-
-    for q in _query_log:
-        scores = q.get("citation_scores", [])
-        if not scores:
-            mrr_values.append(0)
-            recall_at_1.append(0)
-            recall_at_3.append(0)
-            recall_at_5.append(0)
-            precision_at_1.append(0)
-            precision_at_3.append(0)
-            precision_at_5.append(0)
-            continue
-
-        relevant = [s > _RELEVANCE_THRESHOLD for s in scores]
-
-        rank_first = next((i + 1 for i, r in enumerate(relevant) if r), None)
-        mrr_values.append(1.0 / rank_first if rank_first else 0)
-
-        def top_k_relevant(k):
-            return sum(relevant[:k])
-
-        recall_at_1.append(top_k_relevant(1) / 1)
-        recall_at_3.append(top_k_relevant(3) / 3)
-        recall_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
-
-        precision_at_1.append(top_k_relevant(1) / 1)
-        precision_at_3.append(top_k_relevant(3) / 3)
-        precision_at_5.append(top_k_relevant(min(5, len(scores))) / min(5, len(scores)))
-
+    Per le metriche di retrieval (MRR, Recall@k, nDCG@k) usare
+    /evaluation/latest, che le legge dai run sul golden dataset.
+    """
     feedback_values = list(_feedback_store.values())
     human_cls_acc = round(sum(feedback_values) / len(feedback_values), 4) if feedback_values else None
-
     system_cls_acc = _test_cache["cls_acc"] if _test_cache else None
 
     avg_cls_acc = None
@@ -257,21 +233,508 @@ async def query_metrics():
     elif system_cls_acc is not None:
         avg_cls_acc = system_cls_acc
 
-    n = len(mrr_values)
-    return {
-        "total_queries": n,
-        "mrr": round(sum(mrr_values) / n, 4),
-        "recall_at_1": round(sum(recall_at_1) / n, 4),
-        "recall_at_3": round(sum(recall_at_3) / n, 4),
-        "recall_at_5": round(sum(recall_at_5) / n, 4),
-        "precision_at_1": round(sum(precision_at_1) / n, 4),
-        "precision_at_3": round(sum(precision_at_3) / n, 4),
-        "precision_at_5": round(sum(precision_at_5) / n, 4),
+    payload: dict[str, Any] = {
+        "total_queries": len(_query_log),
         "system_cls_acc": system_cls_acc,
         "human_cls_acc": human_cls_acc,
         "avg_cls_acc": avg_cls_acc,
+        "human_cls_acc_n": len(feedback_values),
         "test_total": _test_cache["total"] if _test_cache else 0,
+        "retrieval_telemetry": None,
+        "note": (
+            "Le metriche di Information Retrieval non sono calcolabili sulle query "
+            "degli utenti, che non hanno fonti attese note. Vedi /evaluation/latest."
+        ),
     }
+
+    all_scores = [s for q in _query_log for s in (q.get("citation_scores") or [])]
+    top_scores = [q["top_score"] for q in _query_log if q.get("top_score", 0) > 0]
+    if all_scores:
+        ordered = sorted(all_scores)
+        payload["retrieval_telemetry"] = {
+            "n_scored_docs": len(ordered),
+            "score_mean": round(sum(ordered) / len(ordered), 4),
+            "score_median": round(ordered[len(ordered) // 2], 4),
+            "score_p10": round(ordered[int(0.10 * (len(ordered) - 1))], 4),
+            "score_p90": round(ordered[int(0.90 * (len(ordered) - 1))], 4),
+            "top_score_mean": round(sum(top_scores) / len(top_scores), 4) if top_scores else None,
+            "note": "Distribuzione degli score di similarita'. Descrittiva: uno score alto non implica che il documento sia rilevante.",
+        }
+
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# Risultati delle valutazioni sul golden dataset
+# ---------------------------------------------------------------------------
+
+_RESULTS_DIR = Path("results")
+
+
+def _load_run(path: Path) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _find_runs() -> list[Path]:
+    if not _RESULTS_DIR.exists():
+        return []
+    runs = [
+        p for p in sorted(_RESULTS_DIR.glob("*/eval_*.json"))
+        if not p.name.endswith(".partial.json")
+    ]
+    return runs
+
+
+@router.get("/evaluation/runs")
+async def evaluation_runs():
+    """Elenco dei run di valutazione disponibili, dal piu' recente."""
+    out = []
+    for path in reversed(_find_runs()):
+        try:
+            data = _load_run(path)
+        except (json.JSONDecodeError, OSError):
+            continue
+        agg = data.get("aggregate", {})
+        ctx = (agg.get("retrieval_stages", {}).get("context") or {}).get("point", {})
+        out.append({
+            "run_id": data.get("run_id"),
+            "run_date": data.get("run_date"),
+            "file": str(path),
+            "dataset": data.get("dataset"),
+            "dataset_version": data.get("dataset_version"),
+            "total_questions": agg.get("total_questions"),
+            "judge_enabled": data.get("judge_enabled"),
+            "judge_validated": data.get("judge_validated", False),
+            "judge_model": data.get("judge_model"),
+            "hit_at_5_context": ctx.get("hit_at_5"),
+            "mrr_context": ctx.get("mrr"),
+        })
+    return {"runs": out, "total": len(out)}
+
+
+@router.get("/evaluation/latest")
+async def evaluation_latest(run_id: str | None = None):
+    """Metriche del run piu' recente (o di `run_id`), con intervalli di confidenza.
+
+    Queste sono le uniche metriche di retrieval scientificamente valide del
+    sistema: calcolate sul golden dataset, dove le fonti corrette sono note.
+    """
+    runs = _find_runs()
+    if not runs:
+        raise HTTPException(
+            status_code=404,
+            detail="Nessun run di valutazione disponibile. Esegui: python benchmarks/run_evaluation.py",
+        )
+
+    target = runs[-1]
+    if run_id:
+        for path in runs:
+            try:
+                if _load_run(path).get("run_id") == run_id:
+                    target = path
+                    break
+            except (json.JSONDecodeError, OSError):
+                continue
+        else:
+            raise HTTPException(status_code=404, detail=f"Run '{run_id}' non trovato")
+
+    data = _load_run(target)
+    agg = data.get("aggregate", {})
+
+    return {
+        "run_id": data.get("run_id"),
+        "run_date": data.get("run_date"),
+        "file": str(target),
+        "dataset": data.get("dataset"),
+        "dataset_version": data.get("dataset_version"),
+        "total_questions": agg.get("total_questions"),
+        "config_snapshot": data.get("config_snapshot"),
+        # Lo stadio "context" e' quello che conta: e' cio' che riceve l'LLM.
+        "retrieval_stages": agg.get("retrieval_stages", {}),
+        "reranker_effect": agg.get("reranker_effect", {}),
+        "generation": agg.get("generation", {}),
+        "fallback_rate": agg.get("fallback_rate"),
+        "fallback_rate_ci": agg.get("fallback_rate_ci"),
+        "avg_latency_s": agg.get("avg_latency_s"),
+        "latency_ci": agg.get("latency_ci"),
+        # Il frontend deve marcare visibilmente i punteggi non validati.
+        "judge_enabled": data.get("judge_enabled"),
+        "judge_validated": data.get("judge_validated", False),
+        "judge_model": data.get("judge_model"),
+        "judge_warning": None if data.get("judge_validated") else (
+            "Questo run non riporta al suo interno l'accordo giudice-umano: "
+            "consulta la tab Corrispondenza (endpoint /evaluation/agreement) per "
+            "l'esito reale, per metrica, della validazione."
+        ),
+        "stats_environment": data.get("stats_environment"),
+    }
+
+
+@router.get("/evaluation/questions")
+async def evaluation_questions(run_id: str | None = None):
+    """Dettaglio per domanda dell'ultimo run: materia prima dell'analisi degli errori.
+
+    Espone per ogni domanda il rank della prima fonte corretta prima e dopo il
+    reranking, cosi' da individuare in quale stadio della pipeline si perde la
+    risposta.
+    """
+    latest = await evaluation_latest(run_id)
+    data = _load_run(Path(latest["file"]))
+
+    items = []
+    for r in data.get("results", []):
+        pre = r.get("retrieval") or {}
+        post = r.get("retrieval_context") or {}
+        items.append({
+            "question_id": r.get("question_id"),
+            "question": r.get("question"),
+            "category": r.get("category"),
+            "expected_sources": r.get("expected_sources"),
+            "response": r.get("response"),
+            "reference_answer": r.get("reference_answer"),
+            "must_contain": r.get("must_contain"),
+            "must_contain_pass": r.get("must_contain_pass"),
+            "fallback_triggered": r.get("fallback_triggered"),
+            "rank_pre_rerank": pre.get("first_relevant_rank"),
+            "rank_post_rerank": post.get("first_relevant_rank"),
+            "hit_at_5_pre": pre.get("hit_at_5"),
+            "hit_at_5_post": post.get("hit_at_5"),
+            "retrieved_sources": r.get("retrieved_sources"),
+            "reranked_sources": r.get("reranked_sources"),
+            "judgment": r.get("judgment"),
+            "latency_s": r.get("latency_s"),
+            # Stadio in cui si perde la risposta, per la tassonomia degli errori.
+            "loss_stage": _classify_loss_stage(pre, post, r),
+        })
+
+    return {
+        "run_id": latest["run_id"],
+        "judge_validated": latest["judge_validated"],
+        "items": items,
+    }
+
+
+def _classify_loss_stage(pre: dict[str, Any], post: dict[str, Any], row: dict[str, Any]) -> str:
+    """Attribuzione automatica preliminare dello stadio di fallimento.
+
+    Copre solo i casi decidibili dai dati del run. La distinzione fra
+    'informazione assente dal corpus' e 'presente ma non recuperata', e fra
+    'ignorata dal generatore' e 'allucinazione', richiede giudizio umano: e'
+    il lavoro di annotazione previsto dal frontend.
+    """
+    if row.get("fallback_triggered"):
+        return "fallback"
+    if not pre.get("first_relevant_rank"):
+        return "retrieval_miss"          # mai recuperata fra i candidati
+    if not post.get("first_relevant_rank"):
+        return "reranker_drop"           # recuperata, poi scartata dal reranker
+    if row.get("must_contain_pass") is False:
+        return "generation_miss"         # nel contesto, ma la risposta non la contiene
+    return "ok"
+
+
+# ---------------------------------------------------------------------------
+# Annotazione umana e accordo giudice-umano
+# ---------------------------------------------------------------------------
+# L'annotazione umana e' lo strumento di misura primario della valutazione
+# qualitativa: con 30 domande x 3 metriche sono 90 giudizi, fattibili a mano,
+# e il giudizio umano e' il gold standard. L'LLM-as-judge diventa oggetto di
+# studio — quanto riesce ad approssimarlo — invece che strumento.
+#
+# I voti sono salvati in results/annotations_<run_id>.json sul filesystem
+# locale: nessun servizio esterno, coerentemente col vincolo di esecuzione in
+# locale del progetto.
+#
+# L'annotazione avviene IN CIECO: l'endpoint usato dall'interfaccia di
+# valutazione non restituisce i punteggi del giudice, per non influenzare chi
+# annota (anchoring bias). I punteggi automatici compaiono solo dopo, nel
+# confronto.
+
+ANNOTATION_METRICS = ("faithfulness", "answer_relevance", "correctness")
+
+LOSS_STAGES = {
+    "corpus_miss": "L'informazione non e' presente nel corpus",
+    "retrieval_miss": "Nel corpus, ma non recuperata fra i candidati",
+    "reranker_drop": "Recuperata, ma scartata dal reranker",
+    "generation_miss": "Nel contesto, ma la risposta non la usa",
+    "hallucination": "Afferma cose non presenti in alcun documento",
+    "ok": "Risposta corretta",
+}
+
+
+def _git_head() -> dict[str, Any]:
+    """Commit attualmente in uso, per confrontarlo con quello del run."""
+    import subprocess
+
+    def run(*cmd: str) -> str | None:
+        try:
+            return subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True).strip()
+        except Exception:
+            return None
+
+    return {"commit": run("git", "rev-parse", "HEAD"),
+            "commit_breve": run("git", "rev-parse", "--short", "HEAD"),
+            "branch": run("git", "rev-parse", "--abbrev-ref", "HEAD")}
+
+
+def _annotations_path(run_id: str) -> Path:
+    safe = "".join(ch for ch in run_id if ch.isalnum() or ch in "-_")
+    return _RESULTS_DIR / f"annotations_{safe}.json"
+
+
+def _load_annotations(run_id: str) -> dict[str, Any]:
+    path = _annotations_path(run_id)
+    if not path.exists():
+        return {"run_id": run_id, "items": {}, "updated_at": None}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return {"run_id": run_id, "items": {}, "updated_at": None}
+
+
+def _save_annotations(data: dict[str, Any]) -> None:
+    _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    path = _annotations_path(data["run_id"])
+    tmp = path.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+    tmp.replace(path)
+
+
+def _judge_scores(run: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for r in run.get("results", []):
+        j = r.get("judgment") or {}
+        voti = {}
+        for m in ANNOTATION_METRICS:
+            s = (j.get(m) or {}).get("score")
+            if s is not None and s >= 0:
+                voti[m] = s
+        if voti:
+            out[r["question_id"]] = voti
+    return out
+
+
+class AnnotationRequest(BaseModel):
+    run_id: str
+    question_id: str
+    faithfulness: int | None = None
+    answer_relevance: int | None = None
+    correctness: int | None = None
+    error_stage: str | None = None
+    note: str | None = None
+
+
+@router.get("/evaluation/annotation-queue")
+async def annotation_queue(run_id: str | None = None, blind: bool = True):
+    """Le domande da annotare, con risposta e contesto recuperato.
+
+    Con blind=true (default) i punteggi del giudice NON sono inclusi: chi
+    annota non deve vederli prima di esprimere il proprio giudizio.
+    """
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+    salvate = _load_annotations(rid)["items"]
+
+    items = []
+    for r in run.get("results", []):
+        qid = r.get("question_id")
+        pre, post = r.get("retrieval") or {}, r.get("retrieval_context") or {}
+        voce = {
+            "question_id": qid,
+            "question": r.get("question"),
+            "category": r.get("category"),
+            "response": r.get("response"),
+            "reference_answer": r.get("reference_answer"),
+            "expected_sources": r.get("expected_sources"),
+            "must_contain": r.get("must_contain"),
+            "must_contain_pass": r.get("must_contain_pass"),
+            "fallback_triggered": r.get("fallback_triggered"),
+            "context_sources": r.get("reranked_sources"),
+            "rank_pre_rerank": pre.get("first_relevant_rank"),
+            "rank_post_rerank": post.get("first_relevant_rank"),
+            "citations": r.get("citations"),
+            "latency_s": r.get("latency_s"),
+            "annotazione": salvate.get(qid),
+            "suggerimento_stadio": _classify_loss_stage(pre, post, r),
+        }
+        if not blind:
+            voce["judgment"] = r.get("judgment")
+        items.append(voce)
+
+    fatte = sum(1 for i in items if i["annotazione"])
+
+    # Un run prodotto da una versione diversa del codice contiene risposte che
+    # il sistema non genera piu': annotarle significherebbe misurare qualcosa
+    # che non esiste. Il caso si e' presentato davvero — un run del 24 agosto
+    # con il prompt precedente alla correzione delle citazioni.
+    git_run = run.get("git") or {}
+    git_ora = _git_head()
+    disallineato = bool(
+        git_run.get("commit") and git_ora.get("commit")
+        and git_run["commit"] != git_ora["commit"]
+    )
+    tracciato = bool(git_run.get("commit"))
+
+    avviso = None
+    if not tracciato:
+        avviso = (
+            "Questo run e' precedente al tracciamento del commit: non e' possibile "
+            "verificare che sia stato prodotto dal codice attuale. Se il prompt o la "
+            "configurazione sono cambiati da allora, le risposte non sono piu' quelle "
+            "che il sistema genera oggi e l'annotazione non sarebbe utilizzabile."
+        )
+    elif disallineato:
+        avviso = (
+            f"Questo run e' stato prodotto dal commit {git_run.get('commit_breve')}, "
+            f"mentre il codice attuale e' {git_ora.get('commit_breve')}. Le risposte "
+            f"potrebbero non corrispondere a quelle che il sistema genera adesso."
+        )
+    elif git_run.get("dirty"):
+        avviso = (
+            "Questo run e' stato prodotto con modifiche non committate: non e' "
+            "riproducibile a partire dal solo commit."
+        )
+
+    return {
+        "run_id": rid,
+        "run_date": latest.get("run_date"),
+        "git_run": git_run,
+        "git_attuale": git_ora,
+        "disallineato": disallineato or not tracciato,
+        "avviso_disallineamento": avviso,
+        "blind": blind,
+        "metriche": list(ANNOTATION_METRICS),
+        "stadi_errore": LOSS_STAGES,
+        "totale": len(items),
+        "annotate": fatte,
+        "mancanti": len(items) - fatte,
+        "items": items,
+    }
+
+
+@router.post("/evaluation/annotations")
+async def save_annotation(body: AnnotationRequest):
+    """Salva (o aggiorna) l'annotazione umana di una domanda."""
+    for m in ANNOTATION_METRICS:
+        v = getattr(body, m)
+        if v is not None and not (0 <= v <= 5):
+            raise HTTPException(status_code=400, detail=f"{m}: il voto deve essere fra 0 e 5")
+    if body.error_stage and body.error_stage not in LOSS_STAGES:
+        raise HTTPException(status_code=400, detail=f"stadio '{body.error_stage}' non riconosciuto")
+
+    data = _load_annotations(body.run_id)
+    data["items"][body.question_id] = {
+        **{m: getattr(body, m) for m in ANNOTATION_METRICS},
+        "error_stage": body.error_stage,
+        "note": body.note,
+        "annotated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    data["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    _save_annotations(data)
+
+    return {
+        "salvata": True,
+        "question_id": body.question_id,
+        "file": str(_annotations_path(body.run_id)),
+        "annotate": len(data["items"]),
+    }
+
+
+@router.get("/evaluation/agreement")
+async def evaluation_agreement(run_id: str | None = None):
+    """Accordo fra annotazione umana e giudice automatico.
+
+    Kappa di Cohen con pesi quadratici (corretto per scale ordinali), alfa di
+    Krippendorff, MAE, accordo esatto ed entro un punto, matrice di
+    confusione. Vedi benchmarks/agreement.py per il razionale delle misure.
+    """
+    from benchmarks.agreement import report_completo
+
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+
+    umane = {
+        qid: {m: v.get(m) for m in ANNOTATION_METRICS}
+        for qid, v in _load_annotations(rid)["items"].items()
+    }
+    automatiche = _judge_scores(run)
+
+    rep = report_completo(umane, automatiche)
+    rep["run_id"] = rid
+    rep["judge_model"] = run.get("judge_model")
+    rep["giudice_uguale_al_generatore"] = (
+        run.get("judge_model") == (run.get("config_snapshot", {}).get("llm", {}) or {}).get("model")
+    )
+    rep["totale_domande_run"] = len(run.get("results", []))
+
+    # Distribuzione degli stadi d'errore annotati a mano: e' la tassonomia.
+    stadi = Counter(
+        v.get("error_stage") for v in _load_annotations(rid)["items"].values() if v.get("error_stage")
+    )
+    rep["tassonomia_errori"] = {
+        "conteggi": dict(stadi),
+        "etichette": LOSS_STAGES,
+        "totale_codificati": sum(stadi.values()),
+    }
+    return rep
+
+
+@router.get("/evaluation/annotations/export.csv")
+async def export_annotations(run_id: str | None = None):
+    """Esporta annotazioni umane e voti del giudice affiancati, in CSV.
+
+    Da allegare in appendice alla tesi, e per rendere i dati leggibili fuori
+    dall'applicazione.
+    """
+    latest = await evaluation_latest(run_id)
+    run = _load_run(Path(latest["file"]))
+    rid = latest["run_id"]
+    umane = _load_annotations(rid)["items"]
+    automatiche = _judge_scores(run)
+
+    campi = ["question_id", "question", "category", "response",
+             "must_contain_pass", "rank_pre_rerank", "rank_post_rerank",
+             "faithfulness_umano", "faithfulness_giudice",
+             "answer_relevance_umano", "answer_relevance_giudice",
+             "correctness_umano", "correctness_giudice",
+             "stadio_errore", "note", "annotato_il"]
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=campi)
+    writer.writeheader()
+    for r in run.get("results", []):
+        qid = r.get("question_id")
+        a = umane.get(qid, {})
+        g = automatiche.get(qid, {})
+        pre, post = r.get("retrieval") or {}, r.get("retrieval_context") or {}
+        riga = {
+            "question_id": qid,
+            "question": r.get("question"),
+            "category": r.get("category"),
+            "response": (r.get("response") or "").replace("\n", " "),
+            "must_contain_pass": r.get("must_contain_pass"),
+            "rank_pre_rerank": pre.get("first_relevant_rank"),
+            "rank_post_rerank": post.get("first_relevant_rank"),
+            "stadio_errore": a.get("error_stage", ""),
+            "note": a.get("note", ""),
+            "annotato_il": a.get("annotated_at", ""),
+        }
+        for m in ANNOTATION_METRICS:
+            riga[f"{m}_umano"] = a.get(m, "")
+            riga[f"{m}_giudice"] = g.get(m, "")
+        writer.writerow(riga)
+
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=annotazioni_{rid}.csv"},
+    )
 
 
 class FeedbackRequest(BaseModel):
@@ -309,7 +772,7 @@ async def query_run_test():
     correct = 0
     for item in test_data:
         try:
-            result = chain.query(item["question"])
+            result = await asyncio.to_thread(chain.query, item["question"])
             predicted = result["category"]
             expected = item["expected_category"]
             is_correct = predicted == expected

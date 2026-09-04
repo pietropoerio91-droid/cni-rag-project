@@ -12,8 +12,9 @@ Una volta compilato, calcolare l'accordo con:
 
 Usage:
     python benchmarks/export_validation_sheet.py                     # ultimo run
-    python benchmarks/run_export_validation_sheet.py --run results/2026-08-24/eval_FULL1.json
+    python benchmarks/export_validation_sheet.py --run results/2026-08-24/eval_FULL1.partial.json
 """
+from __future__ import annotations
 import argparse
 import csv
 import json
@@ -56,7 +57,7 @@ def main() -> None:
     with open(out_path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
         writer.writeheader()
-        for r in data.get("results", []):
+        for r in data.get("rows", []):
             j = r.get("judgment") or {}
             sc = lambda k: (j.get(k) or {}).get("score", "")  # noqa: E731
             writer.writerow({

@@ -7,15 +7,26 @@ matching), questo harness valuta la qualita' della risposta generata tramite
 LLM-as-judge (qwen2.5:3b locale) e calcola le metriche di retrieval contro le
 fonti attese del golden dataset.
 
-Metriche di retrieval:
-  - hit_at_k:    fraction di domande con almeno una fonte attesa nei top-k
-  - mrr:         Mean Reciprocal Rank della prima fonte attesa (su retrieved)
-  - recall_at_k: fraction di fonti attese trovate nei top-k
+Metriche di retrieval (definizioni in `benchmarks/metrics.py`):
+  - hit_at_k, recall_at_k, precision_at_k, mrr, ndcg_at_k
+
+Sono calcolate su DUE stadi della pipeline:
+  - "retrieved": l'uscita del retriever denso (i candidati, top_k = 25)
+  - "context":   cio' che l'LLM riceve davvero, dopo il reranking (top-5)
+La differenza fra i due e' il guadagno del reranker, misurato direttamente.
 
 Metriche qualitative (LLM-as-judge, scala 0-5):
   - faithfulness:      la risposta e' coerente con i documenti recuperati?
   - answer_relevance:  la risposta risponde effettivamente alla domanda?
   - correctness:       la risposta e' coerente con la reference answer?
+
+ATTENZIONE: i punteggi del judge non sono utilizzabili finche' il judge non
+e' stato validato contro giudizio umano. Vedi `compute_judge_agreement.py`.
+Ogni run riporta `judge_validated: false` finche' quella validazione manca.
+
+Tutte le medie aggregate sono accompagnate da un intervallo di confidenza al
+95% (bootstrap per le medie, Wilson per le proporzioni): vedi
+`benchmarks/stats.py`.
 
 Persistenza per giorno:
   results/YYYY-MM-DD/eval_HH-MM-SS.json   dettaglio completo del run
@@ -45,6 +56,8 @@ import httpx
 from rich.console import Console
 from rich.table import Table
 
+from benchmarks import metrics as M
+from benchmarks import stats as S
 from src.core.config_loader import ConfigLoader
 from src.inference.llm_client import LLMClient
 
@@ -92,36 +105,49 @@ def parse_judge_score(text: str) -> tuple[int, str]:
     return score, reason
 
 
-def doc_matches_source(doc: dict[str, Any], expected_sources: list[str]) -> bool:
-    source = (doc.get("source") or "").lower()
-    title = (doc.get("title") or "").lower()
-    return any(frag.lower() in source or frag.lower() in title for frag in expected_sources)
+def git_state() -> dict[str, Any]:
+    """Stato del repository al momento del run.
 
+    Il config_snapshot registra solo il YAML: una modifica al prompt, al
+    reranker o al citation builder non comparirebbe da nessuna parte, e i
+    risultati non sarebbero riconducibili al codice che li ha prodotti.
 
-def retrieval_metrics(docs: list[dict[str, Any]], expected_sources: list[str], k_values=(3, 5, 10)) -> dict[str, Any]:
-    hits = {k: 0 for k in k_values}
-    relevant_ranks = [i + 1 for i, d in enumerate(docs) if doc_matches_source(d, expected_sources)]
+    `dirty` a True significa che c'erano modifiche non committate: il run NON
+    e' riproducibile a partire dal solo commit, e va dichiarato.
+    """
+    import subprocess
 
-    first_rank = relevant_ranks[0] if relevant_ranks else None
-    for k in k_values:
-        hits[k] = int(first_rank is not None and first_rank <= k)
+    def run(*cmd: str, strip: bool = True) -> str | None:
+        try:
+            out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, text=True)
+            return out.strip() if strip else out
+        except Exception:
+            return None
 
-    n_expected = len(expected_sources)
-    found_sources = set()
-    for i, d in enumerate(docs):
-        if doc_matches_source(d, expected_sources):
-            for frag in expected_sources:
-                if frag.lower() in (d.get("source") or "").lower():
-                    found_sources.add(frag)
-    recall = len(found_sources) / n_expected if n_expected else 0.0
+    # NB: `git status --porcelain` usa i primi due caratteri di ogni riga come
+    # codice di stato, e per un file modificato ma non in stage il primo e' uno
+    # SPAZIO (" M path"). Non si puo' quindi fare strip() sull'output completo,
+    # altrimenti la prima riga perde un carattere e il percorso risulta troncato.
+    grezzo = run("git", "status", "--porcelain", strip=False) or ""
+    righe = [l for l in grezzo.splitlines() if l.strip()]
 
     return {
-        "first_relevant_rank": first_rank,
-        "mrr": 1.0 / first_rank if first_rank else 0.0,
-        **{f"hit_at_{k}": v for k, v in hits.items()},
-        "recall": recall,
-        "n_docs": len(docs),
+        "commit": run("git", "rev-parse", "HEAD"),
+        "commit_breve": run("git", "rev-parse", "--short", "HEAD"),
+        "branch": run("git", "rev-parse", "--abbrev-ref", "HEAD"),
+        "dirty": bool(righe),
+        "file_modificati": [l[3:] for l in righe],
     }
+
+
+K_VALUES = (1, 3, 5, 10)
+
+# Le metriche di retrieval vivono in benchmarks/metrics.py, condivise con
+# l'API. La versione precedente le implementava qui con tre difetti:
+#   - recall non troncato a k (scorreva tutti i 25 candidati)
+#   - matching asimmetrico (hit/mrr su source|title, recall solo su source)
+#   - calcolo sui soli retrieved_docs, cioe' prima del reranking
+# Vedi il docstring di metrics.py per le definizioni corrette.
 
 
 class LLMJudge:
@@ -185,21 +211,34 @@ def save_run(run_data: dict[str, Any], items_rows: list[dict[str, Any]]) -> Path
     summary_path = RESULTS_DIR / "summary.csv"
     summary_fields = [
         "run_date", "run_id", "total_questions", "fallback_rate",
-        "hit_at_3", "hit_at_5", "hit_at_10", "mrr", "recall",
+        # pre-reranking (uscita del retriever denso)
+        "hit_at_3", "hit_at_5", "hit_at_10", "mrr", "recall_at_5", "recall_at_10",
+        # post-reranking (cio' che riceve l'LLM)
+        "ctx_hit_at_3", "ctx_hit_at_5", "ctx_mrr", "ctx_recall_at_5", "ctx_ndcg_at_5",
         "avg_faithfulness", "avg_answer_relevance", "avg_correctness",
-        "pass_rate_correctness_ge4", "avg_latency_s", "duration_s",
+        "pass_rate_correctness_ge4", "must_contain_pass_rate",
+        "judge_validated", "avg_latency_s", "duration_s",
     ]
     s = run_data["aggregate"]
+    ctx_point = (s.get("retrieval_stages", {}).get("context") or {}).get("point", {})
     row = {
         "run_date": run_data["run_date"],
         "run_id": run_data["run_id"],
         "total_questions": s["total_questions"],
         "fallback_rate": s["fallback_rate"],
-        "hit_at_3": s["retrieval"]["hit_at_3"],
-        "hit_at_5": s["retrieval"]["hit_at_5"],
-        "hit_at_10": s["retrieval"]["hit_at_10"],
-        "mrr": s["retrieval"]["mrr"],
-        "recall": s["retrieval"]["recall"],
+        "hit_at_3": s["retrieval"].get("hit_at_3"),
+        "hit_at_5": s["retrieval"].get("hit_at_5"),
+        "hit_at_10": s["retrieval"].get("hit_at_10"),
+        "mrr": s["retrieval"].get("mrr"),
+        "recall_at_5": s["retrieval"].get("recall_at_5"),
+        "recall_at_10": s["retrieval"].get("recall_at_10"),
+        "ctx_hit_at_3": ctx_point.get("hit_at_3"),
+        "ctx_hit_at_5": ctx_point.get("hit_at_5"),
+        "ctx_mrr": ctx_point.get("mrr"),
+        "ctx_recall_at_5": ctx_point.get("recall_at_5"),
+        "ctx_ndcg_at_5": ctx_point.get("ndcg_at_5"),
+        "must_contain_pass_rate": s["generation"].get("must_contain_pass_rate"),
+        "judge_validated": run_data.get("judge_validated", False),
         "avg_faithfulness": s["generation"].get("avg_faithfulness"),
         "avg_answer_relevance": s["generation"].get("avg_answer_relevance"),
         "avg_correctness": s["generation"].get("avg_correctness"),
@@ -268,6 +307,15 @@ def main() -> None:
         items = [i for i in items if i["id"] not in done_ids]
         console.print(f"[yellow]Resume: {len(rows)} domande gia' completate, ne restano {len(items)}[/yellow]")
 
+    stato_git = git_state()
+    if stato_git["dirty"]:
+        console.print(
+            "[yellow]ATTENZIONE: ci sono modifiche non committate.[/yellow] "
+            f"Il run non sara' riproducibile dal solo commit {stato_git['commit_breve']}.\n"
+            f"File modificati: {', '.join(stato_git['file_modificati'][:8])}"
+            + (" …" if len(stato_git["file_modificati"]) > 8 else "") + "\n"
+        )
+
     console.print("[bold cyan]CNI RAG - Valutazione end-to-end[/bold cyan]")
     console.print(f"Domande: {len(items)} | Judge LLM: {'OFF' if args.no_judge else 'ON'} | run_id: {run_id}\n")
 
@@ -299,7 +347,14 @@ def main() -> None:
             out.get("fallback_triggered") or (fallback_msg and response.strip() == fallback_msg.strip())
         )
 
-        ret = retrieval_metrics(out.get("retrieved_docs", []), item.get("expected_sources", []))
+        retrieved_docs = out.get("retrieved_docs") or []
+        context_docs = out.get("context_docs") or []
+        expected = item.get("expected_sources", [])
+
+        stages = M.evaluate_stages(retrieved_docs, context_docs, expected, K_VALUES)
+        gain = M.reranker_gain(stages, k=5)
+        ret = stages["retrieved"]
+        ctx = stages["context"]
 
         judge_res = None
         if judge is not None and not fallback_triggered:
@@ -324,7 +379,8 @@ def main() -> None:
                 f"C={judge_res['correctness']['score']}"
             )
         console.print(
-            f"  rank={ret['first_relevant_rank']} mrr={ret['mrr']:.2f}{scores_txt}"
+            f"  rank pre={ret['first_relevant_rank']} post={ctx['first_relevant_rank']}"
+            f" | H@5 pre={ret['hit_at_5']} post={ctx['hit_at_5']}{scores_txt}"
             f" | lat={latency}s\n  > {preview}"
         )
 
@@ -339,10 +395,12 @@ def main() -> None:
             "must_contain_pass": len(must_hits) == len(must) if must else None,
             "response": response,
             "citations": out.get("citations", []),
-            "retrieved_sources": [d.get("source") for d in out.get("retrieved_docs", [])],
-            "reranked_sources": [d.get("source") for d in out.get("context_docs", [])],
+            "retrieved_sources": [d.get("source") for d in retrieved_docs],
+            "reranked_sources": [d.get("source") for d in context_docs],
             "fallback_triggered": fallback_triggered,
-            "retrieval": ret,
+            "retrieval": ret,          # pre-reranking (compatibilita' con i run precedenti)
+            "retrieval_context": ctx,  # post-reranking: cio' che riceve l'LLM
+            "reranker_gain": gain,
             "judgment": judge_res,
             "latency_s": latency,
             "pipeline": {
@@ -367,12 +425,49 @@ def main() -> None:
               / max(1, sum(1 for r in rows if r["judgment"] and r["judgment"][key]["score"] is not None)), 3)
     )
 
+    # --- metriche di retrieval con intervalli di confidenza, per stadio -----
+    def stage_summary(field: str) -> dict[str, Any]:
+        """Riepilogo di uno stadio: media + IC 95% per ogni metrica."""
+        per_q = [r[field] for r in rows if r.get(field)]
+        if not per_q:
+            return {}
+        out_: dict[str, Any] = {"point": M.aggregate_rankings(per_q, K_VALUES)}
+        keys = ["mrr"] + [f"{m}_at_{k}" for k in K_VALUES for m in ("hit", "recall", "precision", "ndcg")]
+        out_["ci"] = {
+            key: S.summarize_metric(M.column(per_q, key), key, binary=key.startswith("hit"))
+            for key in keys
+        }
+        return out_
+
+    retrieval_stages = {
+        "retrieved": stage_summary("retrieval"),
+        "context": stage_summary("retrieval_context"),
+    }
+
+    # --- effetto del reranker: confronto appaiato pre/post sulle stesse domande
+    pre_q = [r["retrieval"] for r in rows if r.get("retrieval")]
+    post_q = [r["retrieval_context"] for r in rows if r.get("retrieval_context")]
+    reranker_effect: dict[str, Any] = {}
+    if len(pre_q) == len(post_q) and len(pre_q) >= 2:
+        for key, is_binary in [("hit_at_5", True), ("mrr", False),
+                               ("recall_at_5", False), ("ndcg_at_5", False)]:
+            reranker_effect[key] = S.paired_report(
+                M.column(pre_q, key), M.column(post_q, key),
+                name=key, binary=is_binary, label_a="pre_rerank", label_b="post_rerank",
+            )
+
+    fallback_hits = sum(1 for r in rows if r["fallback_triggered"])
+
     aggregate = {
         "total_questions": n,
-        "fallback_rate": round(sum(1 for r in rows if r["fallback_triggered"]) / n, 3) if n else 0.0,
+        "fallback_rate": round(fallback_hits / n, 3) if n else 0.0,
+        "fallback_rate_ci": list(S.wilson_ci(fallback_hits, n)) if n else None,
+        "retrieval_stages": retrieval_stages,
+        "reranker_effect": reranker_effect,
+        # Compatibilita' con i run precedenti: valori puntuali pre-reranking.
         "retrieval": {
-            key: round(sum(r["retrieval"][key] for r in rows) / n, 4) if n else 0.0
-            for key in ["mrr", "recall", "hit_at_3", "hit_at_5", "hit_at_10"]
+            key: round(sum(r["retrieval"].get(key, 0) or 0 for r in rows) / n, 4) if n else 0.0
+            for key in ["mrr", "hit_at_3", "hit_at_5", "hit_at_10", "recall_at_5", "recall_at_10"]
         },
         "generation": {
             "avg_faithfulness": None if args.no_judge else avg("faithfulness"),
@@ -383,8 +478,24 @@ def main() -> None:
                 / max(1, sum(1 for r in rows if r["judgment"])), 3),
             "must_contain_pass_rate": round(
                 sum(1 for r in rows if r["must_contain_pass"]) / max(1, sum(1 for r in rows if r["must_contain_pass"] is not None)), 3),
+            # IC sui punteggi del judge: medie su scala ordinale 0-5, bootstrap.
+            "ci": {} if args.no_judge else {
+                key: S.summarize_metric(
+                    [r["judgment"][key]["score"] for r in rows
+                     if r["judgment"] and r["judgment"][key]["score"] is not None],
+                    key,
+                )
+                for key in ("faithfulness", "answer_relevance", "correctness")
+            },
+            # must_contain e' deterministico: e' l'unica metrica di generazione
+            # utilizzabile finche' il judge non e' validato.
+            "must_contain_ci": list(S.wilson_ci(
+                sum(1 for r in rows if r["must_contain_pass"]),
+                max(1, sum(1 for r in rows if r["must_contain_pass"] is not None)),
+            )),
         },
         "avg_latency_s": round(sum(r["latency_s"] for r in rows) / n, 2) if n else 0.0,
+        "latency_ci": list(S.bootstrap_ci([r["latency_s"] for r in rows])) if n >= 2 else None,
     }
 
     run_data = {
@@ -393,7 +504,15 @@ def main() -> None:
         "dataset": args.dataset,
         "dataset_version": dataset_meta,
         "judge_enabled": not args.no_judge,
+        # I punteggi del judge non sono riportabili finche' non e' dimostrato
+        # l'accordo con giudizio umano (compute_judge_agreement.py). Il flag
+        # resta False finche' quella validazione non e' agli atti.
+        "judge_validated": False,
+        "judge_model": ConfigLoader.get_rag_config().get("llm", {}).get("model"),
         "config_snapshot": ConfigLoader.get_rag_config(),
+        "git": git_state(),
+        "stats_environment": S.describe_environment(),
+        "k_values": list(K_VALUES),
         "aggregate": aggregate,
         "duration_s": duration,
         "results": rows,
@@ -401,22 +520,64 @@ def main() -> None:
 
     run_file = save_run(run_data, rows)
 
-    table = Table(title=f"Valutazione end-to-end — {run_id}", title_style="bold")
+    def ci_of(stage: str, key: str) -> str:
+        node = (aggregate["retrieval_stages"].get(stage) or {}).get("ci", {}).get(key)
+        return S.format_ci(node, pct=key.startswith("hit")) if node else "—"
+
+    table = Table(title=f"Valutazione end-to-end — {run_id}  (n={n}, IC 95%)", title_style="bold")
     table.add_column("Metrica")
-    table.add_column("Valore", justify="right")
-    table.add_row("Domande", str(n))
-    table.add_row("Fallback rate", f"{aggregate['fallback_rate']:.1%}")
-    table.add_row("Hit@3 / Hit@5 / Hit@10", f"{aggregate['retrieval']['hit_at_3']:.2f} / {aggregate['retrieval']['hit_at_5']:.2f} / {aggregate['retrieval']['hit_at_10']:.2f}")
-    table.add_row("MRR", f"{aggregate['retrieval']['mrr']:.3f}")
-    table.add_row("Recall fonti", f"{aggregate['retrieval']['recall']:.3f}")
-    if not args.no_judge:
-        table.add_row("Faithfulness (0-5)", f"{aggregate['generation']['avg_faithfulness']}")
-        table.add_row("Answer relevance (0-5)", f"{aggregate['generation']['avg_answer_relevance']}")
-        table.add_row("Correctness (0-5)", f"{aggregate['generation']['avg_correctness']}")
-        table.add_row("Pass rate (C>=4)", f"{aggregate['generation']['pass_rate_correctness_ge4']:.1%}")
-    table.add_row("Must-contain pass", f"{aggregate['generation']['must_contain_pass_rate']:.1%}")
-    table.add_row("Latenza media (s)", f"{aggregate['avg_latency_s']}")
+    table.add_column("Pre-rerank (candidati)", justify="right")
+    table.add_column("Post-rerank (contesto LLM)", justify="right")
+
+    for key in ("hit_at_3", "hit_at_5", "mrr", "recall_at_5", "ndcg_at_5"):
+        table.add_row(key, ci_of("retrieved", key), ci_of("context", key))
     console.print(table)
+
+    if aggregate.get("reranker_effect"):
+        eff = Table(title="Effetto del reranker (confronto appaiato)", title_style="bold")
+        eff.add_column("Metrica")
+        eff.add_column("Differenza", justify="right")
+        eff.add_column("IC 95% diff.", justify="right")
+        eff.add_column("p", justify="right")
+        eff.add_column("Effetto", justify="right")
+        for key, rep in aggregate["reranker_effect"].items():
+            ci = rep.get("difference_ci")
+            eff.add_row(
+                key,
+                f"{rep['mean_difference']:+.3f}",
+                f"[{ci[0]:+.3f}, {ci[1]:+.3f}]" if ci else "—",
+                f"{rep['significance']['p_value']:.4f}",
+                rep["effect_size"]["magnitude"],
+            )
+        console.print(eff)
+
+    gen = Table(title="Generazione", title_style="bold")
+    gen.add_column("Metrica")
+    gen.add_column("Valore", justify="right")
+    fb_ci = aggregate.get("fallback_rate_ci")
+    gen.add_row("Fallback rate", f"{aggregate['fallback_rate']:.1%}"
+                + (f"  [{fb_ci[0]:.1%}, {fb_ci[1]:.1%}]" if fb_ci else ""))
+    mc_ci = aggregate["generation"].get("must_contain_ci")
+    gen.add_row("Must-contain pass", f"{aggregate['generation']['must_contain_pass_rate']:.1%}"
+                + (f"  [{mc_ci[0]:.1%}, {mc_ci[1]:.1%}]" if mc_ci else ""))
+    if not args.no_judge:
+        for key, label in [("faithfulness", "Faithfulness (0-5)"),
+                           ("answer_relevance", "Answer relevance (0-5)"),
+                           ("correctness", "Correctness (0-5)")]:
+            node = aggregate["generation"].get("ci", {}).get(key)
+            gen.add_row(label, S.format_ci(node) if node else "—")
+    gen.add_row("Latenza media (s)", f"{aggregate['avg_latency_s']}")
+    console.print(gen)
+
+    if not args.no_judge:
+        console.print(
+            "\n[yellow]I punteggi del judge NON sono validati.[/yellow] "
+            f"Il giudice e' [bold]{run_data['judge_model']}[/bold]; se coincide con il modello "
+            "che genera le risposte c'e' bias di autovalutazione.\n"
+            "Prima di riportarli: [cyan]python benchmarks/export_validation_sheet.py[/cyan] -> "
+            "compila i voti umani -> [cyan]python benchmarks/compute_judge_agreement.py --sheet <csv>[/cyan]"
+        )
+
     console.print(f"\n[green]Dettaglio salvato in:[/green] {run_file}")
     console.print("[green]Storico:[/green] results/history.csv, results/summary.csv")
 

@@ -2,7 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, Subject, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus, QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse } from '../models/rag.models';
+import {
+  QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus,
+  QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse,
+  QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun,
+  QueryStatsResponse, QueryMetricsResponse,
+  EvaluationLatest, EvaluationRunSummary, AnnotationQueue, AgreementReport,
+} from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
 export class RagService {
@@ -153,5 +159,52 @@ export class RagService {
   private handleError(error: HttpErrorResponse) {
     const message = error.error?.detail || error.message || 'Errore sconosciuto';
     return throwError(() => new Error(message));
+  }
+
+  // --- Valutazione sul golden dataset ---------------------------------------
+
+  getEvaluationLatest(runId?: string): Observable<EvaluationLatest> {
+    const q = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
+    return this.http.get<EvaluationLatest>(`${this.apiUrl}/evaluation/latest${q}`).pipe(
+      catchError(() => throwError(() => new Error(
+        'Nessun run di valutazione disponibile. Esegui: python benchmarks/run_evaluation.py')))
+    );
+  }
+
+  getEvaluationRuns(): Observable<{ runs: EvaluationRunSummary[]; total: number }> {
+    return this.http.get<{ runs: EvaluationRunSummary[]; total: number }>(
+      `${this.apiUrl}/evaluation/runs`
+    ).pipe(catchError(() => throwError(() => new Error('Elenco run non disponibile'))));
+  }
+
+  getAnnotationQueue(runId?: string, blind = true): Observable<AnnotationQueue> {
+    const p = new URLSearchParams();
+    if (runId) p.set('run_id', runId);
+    p.set('blind', String(blind));
+    return this.http.get<AnnotationQueue>(`${this.apiUrl}/evaluation/annotation-queue?${p}`).pipe(
+      catchError(() => throwError(() => new Error('Coda di annotazione non disponibile')))
+    );
+  }
+
+  saveAnnotation(payload: {
+    run_id: string; question_id: string;
+    faithfulness: number | null; answer_relevance: number | null; correctness: number | null;
+    error_stage: string | null; note: string | null;
+  }): Observable<{ salvata: boolean; annotate: number; file: string }> {
+    return this.http.post<{ salvata: boolean; annotate: number; file: string }>(
+      `${this.apiUrl}/evaluation/annotations`, payload
+    ).pipe(catchError(this.handleError));
+  }
+
+  getAgreement(runId?: string): Observable<AgreementReport> {
+    const q = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
+    return this.http.get<AgreementReport>(`${this.apiUrl}/evaluation/agreement${q}`).pipe(
+      catchError(() => throwError(() => new Error('Accordo non calcolabile')))
+    );
+  }
+
+  annotationsCsvUrl(runId?: string): string {
+    const q = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
+    return `${this.apiUrl}/evaluation/annotations/export.csv${q}`;
   }
 }

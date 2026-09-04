@@ -53,6 +53,7 @@ class CitationBuilder:
                         "content_overlap": 0.0,
                     })
 
+        citations.sort(key=lambda c: c.get("relevance_score", 0), reverse=True)
         return citations
 
     @staticmethod

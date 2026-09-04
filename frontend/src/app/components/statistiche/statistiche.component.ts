@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
 import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
+import { ValutazioneComponent } from './valutazione.component';
 
 @Component({
   selector: 'app-statistiche',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ValutazioneComponent],
   template: `
     <div class="stats-page">
       <div class="stats-header">
@@ -168,19 +169,28 @@ import { Subscription } from 'rxjs';
 
         <div *ngIf="activeTab === 'qualitative'">
 
-          <!-- Real-time queries section -->
-          <div class="qual-section">
+          <!-- Valutazione sul golden dataset: metriche reali, annotazione umana,
+               accordo giudice-umano, decomposizione dell'errore per domanda. -->
+          <app-valutazione></app-valutazione>
+
+          <!-- Telemetria delle query dal vivo. Descrittiva: le query degli utenti
+               non hanno fonti attese note, quindi non ammettono metriche IR. -->
+          <div class="qual-section" style="margin-top:44px">
             <div class="section-header">
-              <h2>Query in Tempo Reale
+              <h2>Telemetria delle query dal vivo
                 <button class="refresh-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳</button>
                 <button class="export-btn" (click)="exportCsv()" title="Scarica CSV">Esporta CSV</button>
-                <button class="export-btn" (click)="runTest()" [disabled]="testRunning" title="Esegui test su {{ queryMetrics?.test_total || 'tutte' }} domande">{{ testRunning ? 'Test in corso...' : 'Run Test' }}</button>
+                <button class="export-btn" (click)="runTest()" [disabled]="testRunning">{{ testRunning ? 'Test in corso...' : 'Test classificatore' }}</button>
               </h2>
             </div>
 
-            <div class="loading" *ngIf="queryStatsLoading">
-              <div class="spinner"></div>
-            </div>
+            <p class="section-note">
+              Grandezze osservabili sulle query reali degli utenti. Non sono metriche di
+              Information Retrieval: senza fonti attese note la rilevanza non e' definibile.
+              Le metriche di retrieval stanno sopra, calcolate sul golden dataset.
+            </p>
+
+            <div class="loading" *ngIf="queryStatsLoading"><div class="spinner"></div></div>
 
             <ng-container *ngIf="queryStats">
               <div class="summary-grid">
@@ -190,11 +200,11 @@ import { Subscription } from 'rxjs';
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ queryStats.avg_docs_retrieved }}</div>
-                  <div class="summary-label">Media documenti recuperati</div>
+                  <div class="summary-label">Documenti recuperati (media)</div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ queryStats.avg_top_score }}</div>
-                  <div class="summary-label">Score medio</div>
+                  <div class="summary-label">Score di similarita' (media)</div>
                 </div>
                 <div class="summary-card">
                   <div class="summary-value">{{ (queryStats.avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
@@ -204,92 +214,22 @@ import { Subscription } from 'rxjs';
 
               <div class="metrics-grid" *ngIf="queryMetrics">
                 <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.mrr | number:'1.4' }}</div>
+                  <div class="metric-value">{{ queryMetrics.system_cls_acc !== null ? (queryMetrics.system_cls_acc | number:'1.4') : 'N/A' }}</div>
                   <div class="metric-label">
-                    MRR
+                    Accuratezza classificatore (test set)
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Mean Reciprocal Rank: media del reciproco della posizione del primo documento rilevante. Indica la capacità del sistema di posizionare il risultato corretto al primo posto. Valori vicini a 1 indicano un recupero quasi sempre preciso.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.recall_at_1 | number:'1.4' }}</div>
-                  <div class="metric-label">
-                    Recall&#64;1
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Recall&#64;1: proporzione di query in cui il primo documento recuperato è rilevante. Misura la capacità del sistema di identificare immediatamente il risultato corretto. Valori elevati indicano un recupero puntuale.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.recall_at_3 | number:'1.4' }}</div>
-                  <div class="metric-label">
-                    Recall&#64;3
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Recall&#64;3: proporzione di documenti rilevanti nei primi 3 risultati. Indica la copertura informativa del sistema. Utile quando l'utente è disposto a esaminare più risultati per trovare ciò che cerca.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.recall_at_5 | number:'1.4' }}</div>
-                  <div class="metric-label">
-                    Recall&#64;5
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Recall&#64;5: proporzione di documenti rilevanti nei primi 5 risultati. Valuta la completezza complessiva del recupero documentale. Un valore alto significa che il sistema non omette informazioni rilevanti.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.precision_at_1 | number:'1.4' }}</div>
-                  <div class="metric-label">
-                    Precision&#64;1
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Precision&#64;1: indica se il primo risultato restituito è effettivamente pertinente alla domanda. Misura l'affidabilità del sistema nel presentare informazioni accurate al primo colpo.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.precision_at_3 | number:'1.4' }}</div>
-                  <div class="metric-label">
-                    Precision&#64;3
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Precision&#64;3: frazione di risultati pertinenti tra i primi 3 documenti restituiti. Indica la qualità complessiva del contesto fornito al modello linguistico per generare la risposta.</span>
+                      <span class="tooltip-text">Percentuale di domande del test set la cui categoria automatica coincide con quella attesa. Ha una verita' nota, quindi e' una metrica valida.</span>
                     </span>
                   </div>
                 </div>
                 <div class="metric-card">
                   <div class="metric-value">{{ queryMetrics.human_cls_acc !== null ? (queryMetrics.human_cls_acc | number:'1.4') : 'N/A' }}</div>
                   <div class="metric-label">
-                    Human Cls Acc
+                    Accuratezza percepita (feedback)
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Accuratezza percepita: percentuale di feedback positivi ricevuti dagli utenti sulla categorizzazione automatica delle domande. Calcolata sui pollice su/giù in chat.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.system_cls_acc !== null ? (queryMetrics.system_cls_acc | number:'1.4') : 'N/A' }}</div>
-                  <div class="metric-label">
-                    System Cls Acc
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Accuratezza oggettiva: percentuale di domande del test set la cui categoria automatica coincide con quella attesa. Misura la qualità intrinseca del classificatore.</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.avg_cls_acc !== null ? (queryMetrics.avg_cls_acc | number:'1.4') : 'N/A' }}</div>
-                  <div class="metric-label">
-                    Media Cls Acc
-                    <span class="tooltip-wrap">
-                      <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Media tra accuratezza oggettiva (System) e percepita (Human). Offre una visione complessiva della qualità della categorizzazione.</span>
+                      <span class="tooltip-text">Percentuale di feedback positivi degli utenti sulla categorizzazione, dai pollici su/giu' in chat. Campione: {{ queryMetrics.human_cls_acc_n || 0 }} giudizi.</span>
                     </span>
                   </div>
                 </div>
@@ -297,7 +237,7 @@ import { Subscription } from 'rxjs';
 
               <div class="charts-grid" *ngIf="queryStats.total_queries > 0">
                 <div class="chart-card" *ngIf="queryCategoryData.length">
-                  <h3 class="chart-title">Categorie</h3>
+                  <h3 class="chart-title">Categorie assegnate</h3>
                   <div class="bar-chart">
                     <div class="bar-row" *ngFor="let item of queryCategoryData">
                       <span class="bar-label">{{ item.label }}</span>
@@ -310,7 +250,7 @@ import { Subscription } from 'rxjs';
                 </div>
 
                 <div class="chart-card" *ngIf="queryStats.recent.length > 0">
-                  <h3 class="chart-title">Ultime Query</h3>
+                  <h3 class="chart-title">Ultime query</h3>
                   <div class="recent-queries">
                     <div class="recent-row" *ngFor="let q of queryStats.recent">
                       <span class="recent-q">{{ q.question }}</span>
@@ -333,6 +273,13 @@ import { Subscription } from 'rxjs';
     </div>
   `,
   styles: [`
+    .section-note {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      max-width: 78ch;
+      margin: 0 0 18px;
+    }
     .stats-page {
       max-width: 1100px;
       margin: 0 auto;

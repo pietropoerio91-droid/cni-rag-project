@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 DENIED_KEYWORDS = [
     "credenziali",
     "non-pubblico",
+    "riservato",
 ]
 
 CATEGORY_PATTERNS: dict[str, list[str]] = {
