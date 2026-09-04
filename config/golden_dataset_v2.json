@@ -1,0 +1,247 @@
+{
+  "description": "Golden dataset v2 (BOZZA IN REVISIONE) per la valutazione end-to-end del sistema RAG CNI. Q01-Q10 identici alla v1.0; Q11-Q30 nuovi, con risposte di riferimento estratte dal corpus indicizzato. Usato da benchmarks/run_evaluation.py",
+  "version": "2.0-draft",
+  "created": "2026-08-24",
+  "items": [
+    {
+      "id": "Q01",
+      "question": "Chi è il presidente del CNI?",
+      "category": "organi",
+      "reference_answer": "Il presidente del Consiglio Nazionale degli Ingegneri è l'ing. Angelo Domenico Perrini, laureato in Ingegneria Elettrotecnica presso l'Università degli Studi di Bari ed ex Presidente dell'Ordine degli Ingegneri della Provincia di Bari.",
+      "expected_sources": ["cni/consiglio"],
+      "must_contain": ["Perrini"]
+    },
+    {
+      "id": "Q02",
+      "question": "Chi sono il vicepresidente e il consigliere segretario del Consiglio Nazionale degli Ingegneri?",
+      "category": "organi",
+      "reference_answer": "La vicepresidente del CNI è l'ing. Carla Cappiello (ai sensi del D.Lgs. n. 382 del 1944), mentre il consigliere segretario è l'ing. Giuseppe Maria Margiotta.",
+      "expected_sources": ["cni/consiglio"],
+      "must_contain": ["Cappiello", "Margiotta"]
+    },
+    {
+      "id": "Q03",
+      "question": "Che cos'è il Consiglio Nazionale degli Ingegneri?",
+      "category": "organi",
+      "reference_answer": "Il CNI è un Ente Pubblico non economico sottoposto alla vigilanza del Ministero della Giustizia che promuove, sviluppa e potenzia l'attività degli ingegneri. È disciplinato dalla Legge 1395/1923, dal Regio Decreto 2537/1925, dal Decreto Luogotenenziale 382/1944 e dal DPR 169/2005.",
+      "expected_sources": ["www.cni.it/cni"],
+      "must_contain": ["Ente", "Ministero della Giustizia"]
+    },
+    {
+      "id": "Q04",
+      "question": "Quali sono i compiti istituzionali del CNI?",
+      "category": "organi",
+      "reference_answer": "Tra i compiti istituzionali del CNI vi sono: il ruolo di magistratura di secondo grado nei ricorsi degli iscritti avversi alle decisioni dei Consigli dell'Ordine; l'espressione di pareri su richiesta del Ministero della Giustizia in merito a proposte di legge e regolamenti riguardanti la professione; la funzione di referente del Governo in materia professionale.",
+      "expected_sources": ["www.cni.it/cni"],
+      "must_contain": ["magistratura", "pareri"]
+    },
+    {
+      "id": "Q05",
+      "question": "Dove si trova la sede del CNI?",
+      "category": "contatti",
+      "reference_answer": "La sede del CNI è in Via XX Settembre 5, 00187 Roma.",
+      "expected_sources": ["contatti", "telefono-e-posta-elettronica"],
+      "must_contain": ["Via XX Settembre"]
+    },
+    {
+      "id": "Q06",
+      "question": "Qual è l'indirizzo email e il numero di telefono del CNI?",
+      "category": "contatti",
+      "reference_answer": "Il telefono del CNI è +39.06.6976701, l'email è segreteria@cni.it e la PEC è segreteria@ingpec.eu.",
+      "expected_sources": ["contatti", "telefono-e-posta-elettronica"],
+      "must_contain": ["segreteria@cni.it"]
+    },
+    {
+      "id": "Q07",
+      "question": "Come funziona la formazione continua per gli ingegneri?",
+      "category": "formazione",
+      "reference_answer": "Il sistema di formazione continua degli ingegneri è gestito dalla Scuola Superiore di formazione per l'Ingegneria, un Dipartimento della Fondazione CNI, che supporta il CNI nel rilascio delle autorizzazioni a Enti pubblici e privati e ai Provider per l'organizzazione di corsi, convegni e seminari formativi e ne monitora la qualità.",
+      "expected_sources": ["scuola-di-formazione"],
+      "must_contain": ["Scuola Superiore"]
+    },
+    {
+      "id": "Q08",
+      "question": "Cos'è il codice deontologico degli ingegneri?",
+      "category": "normativa",
+      "reference_answer": "Il codice deontologico degli Ingegneri italiani disciplina i doveri della professione. L'ultima versione è stata aggiornata al 14 giugno 2023 (Circolare n. 53/XX Sess./2023).",
+      "expected_sources": ["codice-deontologico"],
+      "must_contain": ["deontologico"]
+    },
+    {
+      "id": "Q09",
+      "question": "Chi era stato eletto presidente del CNI nella XX Sessione nel novembre 2022?",
+      "category": "organi",
+      "reference_answer": "L'atto di proclamazione del Consiglio Nazionale degli Ingegneri del 10 novembre 2022 riguarda l'insediamento della XX Sessione e l'elezione delle cariche.",
+      "expected_sources": ["www.cni.it/cni"],
+      "must_contain": ["Sessione"]
+    },
+    {
+      "id": "Q10",
+      "question": "Chi è l'attuale presidente del Consiglio Nazionale degli Ingegneri?",
+      "category": "organi",
+      "reference_answer": "L'attuale presidente del Consiglio Nazionale degli Ingegneri è l'ing. Angelo Domenico Perrini.",
+      "expected_sources": ["cni/consiglio"],
+      "must_contain": ["Perrini"]
+    },
+    {
+      "id": "Q11",
+      "question": "Quali norme disciplinano il Consiglio Nazionale degli Ingegneri nell'ordinamento giuridico italiano?",
+      "category": "normativa",
+      "reference_answer": "Il CNI è disciplinato nell'ordinamento giuridico italiano dalla Legge 1395/1923, dal Regio Decreto 2537/1925, dal Decreto Luogotenenziale 382/1944 e dal DPR 169/2005.",
+      "expected_sources": ["www.cni.it/cni"],
+      "must_contain": ["1395", "382"]
+    },
+    {
+      "id": "Q12",
+      "question": "Qual è il codice fiscale del Consiglio Nazionale degli Ingegneri?",
+      "category": "contatti",
+      "reference_answer": "Il codice fiscale del CNI è 80057570584.",
+      "expected_sources": ["urp"],
+      "must_contain": ["80057570584"]
+    },
+    {
+      "id": "Q13",
+      "question": "Come si chiama l'ufficio del CNI che si occupa delle relazioni internazionali?",
+      "category": "internazionale",
+      "reference_answer": "L'ufficio dedicato alle relazioni internazionali si chiama International Relations Office - Ufficio Esteri, con sede in via XX Settembre 5, 00187 Roma.",
+      "expected_sources": ["contatti-est"],
+      "must_contain": ["Ufficio Esteri"]
+    },
+    {
+      "id": "Q14",
+      "question": "In base a quale normativa il CNI ha attivato il canale di segnalazione whistleblowing?",
+      "category": "servizi",
+      "reference_answer": "Il canale interno di segnalazione del CNI è attivato in conformità al D.Lgs. n. 24/2023 e alle Linee Guida di cui alla Delibera ANAC n. 311/2023.",
+      "expected_sources": ["whistleblowing"],
+      "must_contain": ["24/2023", "ANAC"]
+    },
+    {
+      "id": "Q15",
+      "question": "Chi promuove la piattaforma di whistleblowing utilizzata dal CNI?",
+      "category": "servizi",
+      "reference_answer": "La piattaforma è attivata nell'ambito del progetto WhistleblowingIT (WhistleblowingPA per le Pubbliche Amministrazioni), promosso da Transparency International Italia e Whistleblowing Solutions Impresa Sociale.",
+      "expected_sources": ["whistleblowing"],
+      "must_contain": ["Transparency International"]
+    },
+    {
+      "id": "Q16",
+      "question": "Cosa bisogna superare per diventare un ingegnere professionista in Italia?",
+      "category": "professione",
+      "reference_answer": "Le leggi italiane prescrivono che per diventare un ingegnere professionista è necessario superare un esame professionale, i cui contenuti sono determinati dal Ministero dell'Università e della Ricerca in base alla classe di laurea di ciascun ciclo di studi.",
+      "expected_sources": ["ingegneri-in-italia"],
+      "must_contain": ["esame"]
+    },
+    {
+      "id": "Q17",
+      "question": "Chi determina i contenuti dell'esame professionale per gli ingegneri?",
+      "category": "professione",
+      "reference_answer": "I contenuti dell'esame professionale sono determinati dal Ministero dell'Università e della Ricerca in base alla classe di laurea (Lx) di ciascun ciclo di studi.",
+      "expected_sources": ["ingegneri-in-italia"],
+      "must_contain": ["Ministero dell'Università"]
+    },
+    {
+      "id": "Q18",
+      "question": "Qual è la differenza tra Ingegnere Junior e ingegnere professionista?",
+      "category": "professione",
+      "reference_answer": "Chi ha superato solo il primo ciclo di studi universitari diventa un Ingegnere Junior Professional, mentre chi ha completato un ciclo di studi di secondo livello (5 anni) diventa un ingegnere professionista.",
+      "expected_sources": ["ingegneri-in-italia"],
+      "must_contain": ["Junior"]
+    },
+    {
+      "id": "Q19",
+      "question": "A cosa serve il certificato EUR ING per gli ingegneri?",
+      "category": "internazionale",
+      "reference_answer": "Il certificato EUR ING, rilasciato da ENGINEERS EUROPE, costituisce una garanzia di competenza per gli ingegneri professionali, facilitando la mobilità degli ingegneri dentro e fuori dall'area dei paesi membri e istituendo un quadro di riconoscimento reciproco delle qualifiche.",
+      "expected_sources": ["euring"],
+      "must_contain": ["ENGINEERS EUROPE"]
+    },
+    {
+      "id": "Q20",
+      "question": "Quali cittadini stranieri possono esercitare una professione regolamentata in Italia dopo il riconoscimento del proprio titolo?",
+      "category": "internazionale",
+      "reference_answer": "I cittadini degli Stati Membri dell'Unione Europea, dei Paesi dello Spazio Economico Europeo (Islanda, Liechtenstein e Norvegia) e della Svizzera possono esercitare una professione regolamentata in Italia dopo aver ottenuto il riconoscimento del proprio titolo o qualifica professionale dalle Autorità competenti.",
+      "expected_sources": ["riconoscimento-qualifiche"],
+      "must_contain": ["Spazio Economico Europeo", "Svizzera"]
+    },
+    {
+      "id": "Q21",
+      "question": "Con quale società il CNI ha stipulato una convenzione per la firma digitale?",
+      "category": "servizi",
+      "reference_answer": "Il CNI ha sottoscritto una convenzione con il gruppo Aruba SPA per la firma digitale e altri servizi, successivamente modificata e integrata con l'introduzione della firma digitale remota con certificato di ruolo e agevolazioni su hosting, connettività FTTH e SPID professionale.",
+      "expected_sources": ["convenzioni"],
+      "must_contain": ["Aruba"]
+    },
+    {
+      "id": "Q22",
+      "question": "Esistono Ordini Provinciali degli Ingegneri nelle città di Trento e Bolzano?",
+      "category": "organi",
+      "reference_answer": "Sì, tra gli Ordini Provinciali degli Ingegneri elencati dal CNI figurano sia Trento che Bolzano.",
+      "expected_sources": ["ordini-provinciali"],
+      "must_contain": ["Trento", "Bolzano"]
+    },
+    {
+      "id": "Q23",
+      "question": "Che documenti pubblica il CNI nell'area giurisdizionale a supporto dei CTU?",
+      "category": "temi",
+      "reference_answer": "Nell'area giurisdizionale il CNI pubblica i verbali delle riunioni delle Commissioni Ingegneria Forense degli Ordini, gli elenchi delle specializzazioni, il prontuario test e i documenti sui corsi di formazione CTU elaborati dal Gruppo di Lavoro Giurisdizionale.",
+      "expected_sources": ["area-giurisdizionale"],
+      "must_contain": ["CTU"]
+    },
+    {
+      "id": "Q24",
+      "question": "Quale giornata nazionale dedica il CNI all'ingegneria della sicurezza?",
+      "category": "eventi",
+      "reference_answer": "Il CNI promuove la Giornata Nazionale Ingegneria della Sicurezza, inserita tra i prossimi appuntamenti dell'area tematica Sicurezza.",
+      "expected_sources": ["giornata-nazionale-ingegneria-della-sicurezza"],
+      "must_contain": ["Giornata Nazionale"]
+    },
+    {
+      "id": "Q25",
+      "question": "Cosa chiede la filiera delle costruzioni al Governo riguardo ai bonus edilizi nella legge di bilancio 2022?",
+      "category": "news",
+      "reference_answer": "La Filiera delle Costruzioni chiede al Governo la conferma dello sconto in fattura e della cessione del credito: eliminarli per ecobonus (65%) e bonus ristrutturazioni (50%) rischia di bloccare il processo in corso.",
+      "expected_sources": ["3764-bonus-edilizi"],
+      "must_contain": ["sconto in fattura", "cessione"]
+    },
+    {
+      "id": "Q26",
+      "question": "In collaborazione con quali enti il CNI ha pubblicato i quaderni tecnici sulla progettazione antincendio?",
+      "category": "pubblicazioni",
+      "reference_answer": "Il CNI, in collaborazione con INAIL e il Corpo Nazionale dei Vigili del Fuoco, ha pubblicato due quaderni tecnici sulla progettazione antincendio, nell'ambito del Piano delle attività di ricerca INAIL 2025/2027.",
+      "expected_sources": ["pubblicazioni-cni"],
+      "must_contain": ["INAIL", "Vigili del Fuoco"]
+    },
+    {
+      "id": "Q27",
+      "question": "Secondo quale regola tecnica del Codice di prevenzione incendi viene trattata la progettazione antincendio per gli edifici tutelati come musei e biblioteche?",
+      "category": "pubblicazioni",
+      "reference_answer": "La progettazione antincendio per attività, musei, gallerie, esposizioni, mostre, biblioteche e archivi in edifici tutelati segue le soluzioni previste dalla Regola Tecnica Verticale V.10 del Codice di prevenzione incendi.",
+      "expected_sources": ["pubblicazioni-cni"],
+      "must_contain": ["V.10"]
+    },
+    {
+      "id": "Q28",
+      "question": "Di quale federazione mondiale delle organizzazioni di ingegneria fa parte il CNI?",
+      "category": "internazionale",
+      "reference_answer": "Il CNI fa parte della rete internazionale che comprende la WFEO (World Federation of Engineering Organizations), unico organismo rappresentativo che serve la società ed è riconosciuto come fonte autorevole di consigli sulle politiche relative all'ingegneria e alla tecnologia.",
+      "expected_sources": ["rete-internazionale"],
+      "must_contain": ["WFEO"]
+    },
+    {
+      "id": "Q29",
+      "question": "Esiste nell'albo unico del CNI un elenco speciale riservato ai professori universitari?",
+      "category": "professione",
+      "reference_answer": "Sì, nell'albo unico del CNI è presente un elenco speciale dedicato ai professori universitari.",
+      "expected_sources": ["professori-universitari"],
+      "must_contain": ["professori universitari"]
+    },
+    {
+      "id": "Q30",
+      "question": "Quando si è svolta l'Assemblea dei Delegati di Ingegneria Forense organizzata dal CNI?",
+      "category": "temi",
+      "reference_answer": "L'Assemblea dei Delegati Ingegneria Forense si è svolta il 12 luglio 2019.",
+      "expected_sources": ["area-giurisdizionale"],
+      "must_contain": ["12 luglio 2019"]
+    }
+  ]
+}

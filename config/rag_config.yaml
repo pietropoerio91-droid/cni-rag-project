@@ -1,20 +1,20 @@
 embedding:
-  model_name: all-MiniLM-L6-v2
+  model_name: paraphrase-multilingual-MiniLM-L12-v2
   device: cpu
   normalize_embeddings: true
   batch_size: 32
 
 llm:
-  provider: lm_studio
-  base_url: http://localhost:1234/v1
-  model: llama-3.2-3b-instruct
-  temperature: 0.2
+  provider: ollama
+  base_url: http://localhost:11434/v1
+  model: qwen2.5:3b
+  temperature: 0.1
   max_tokens: 2048
   top_p: 0.95
 
 chunking:
-  chunk_size: 512
-  chunk_overlap: 64
+  chunk_size: 1500
+  chunk_overlap: 200
   separators:
     - "\n\n"
     - "\n"
@@ -23,8 +23,13 @@ chunking:
     - ""
 
 retrieval:
-  top_k: 5
-  score_threshold: 0.5
+  top_k: 25
+  score_threshold: 0.3
+  # Filtro rigido sulla categoria predetta dal classificatore.
+  # Disattivato sulla base dell'ablation del 27/08: le sei categorie che il
+  # classificatore non puo' produrre contengono il 75,8% dei chunk, quindi
+  # ogni query classificata escludeva i tre quarti dell'indice.
+  category_filter: false
   hybrid_search:
     enabled: true
     dense_weight: 0.7
@@ -32,8 +37,12 @@ retrieval:
 
 reranking:
   enabled: true
-  top_k: 3
-  model: cross-encoder/ms-marco-MiniLM-L-6-v2
+  top_k: 5
+  model: BAAI/bge-reranker-base
+
+fallback:
+  score_threshold: 0.5
+  message: "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
 
 vector_store:
   collection_name: cni_documents
@@ -42,24 +51,29 @@ vector_store:
 
 crawler:
   base_url: https://www.cni.it
-  max_depth: 5
-  max_pages: 5000
+  max_depth: 8
+  max_pages: 15000
   focus_priority: true
   respect_robots_txt: true
-  delay: 0.3
-  timeout: 10
+  delay: 0.2
+  timeout: 15
   allowed_domains:
     - www.cni.it
     - cni.it
-  included_paths: []
+  included_paths:
+    - /media-ing
+    - /cni
+    - /temi
+    - /contatti
+    - /servizi
   priority_paths:
-    - /media-ing/news
-    - /media-ing/comunicati-stampa
-    - /media-ing/rassegna-stampa
     - /media-ing/
     - /cni
-  priority_max_depth: 8
-  max_links_per_page: 150
+    - /temi
+    - /contatti
+    - /servizi
+  priority_max_depth: 12
+  max_links_per_page: 300
 
 quality:
   min_content_length: 50

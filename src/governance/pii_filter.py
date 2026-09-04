@@ -7,7 +7,11 @@ logger = logging.getLogger(__name__)
 
 class PIIFilter:
     EMAIL_PATTERN = re.compile(r"\b[\w.%-]+@[\w.-]+\.[a-zA-Z]{2,}\b")
-    PHONE_PATTERN = re.compile(r"\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3}[-.\s]?\d{3,4}\b")
+    PHONE_PATTERN = re.compile(
+        r"\b(?:\+?\d{1,3}[-.\s]?)?"
+        r"(?:\(?\d{2,4}\)?[-./\s]?\d{3}[-.\s]?\d{3,4}"
+        r"|\d{2,4}[-./\s]\d{4}[-.\s]?\d{4})\b"
+    )
     FISCAL_CODE_PATTERN = re.compile(r"\b[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]\b")
     VAT_PATTERN = re.compile(r"\bIT\d{11}\b")
     SSN_PATTERN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class QueryClassifier:
     CATEGORIES = {
-        "normativa": ["normativa", "legge", "decreto", "regolamento", "codice", "articolo"],
+        "normativa": ["normativ", "norma", "norme", "legge", "decreto", "regolament", "codice", "articolo"],
         "organi": ["organo", "consiglio", "presidente", "vicepresidente", "segretario", "tesoriere"],
         "commissioni": ["commissione", "comitato", "gruppo", "tavolo"],
         "albo": ["albo", "elenco", "iscrizione", "registro", "ingegnere", "professione"],

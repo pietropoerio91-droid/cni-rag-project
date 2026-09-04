@@ -10,10 +10,22 @@ class QualityChecker:
     def __init__(self):
         config = ConfigLoader.get_rag_config()
         qc = config.get("quality", {})
-        self.min_len = qc.get("min_content_length", 50)
+        self.min_len = qc.get("min_content_length", 200)
         self.max_len = qc.get("max_content_length", 100000)
         self.max_repetition_ratio = qc.get("max_repetition_ratio", 0.3)
         self.required_languages = qc.get("required_languages", ["it"])
+        self.min_content_ratio = qc.get("min_content_ratio", 0.3)
+
+    NAV_KEYWORDS = {
+        "cerca", "home", "login", "logout", "registrati", "accedi",
+        "menu", "navigazione", "navigation", "footer", "cookie",
+        "pubblicazioni cni", "banca dati cni", "network cni",
+        "ordini provinciali", "amministrazione trasparente",
+        "privacy", "note legali", "urp", "whistleblowing",
+        "news", "rassegna stampa", "comunicati stampa", "newsletter",
+        "multimedia", "evidenza", "servizi convenzioni",
+        "centro studi", "scuola di formazione",
+    }
 
     def check(self, text: str, meta: dict[str, Any] | None = None) -> tuple[bool, list[str]]:
         issues: list[str] = []
@@ -35,7 +47,29 @@ class QualityChecker:
             issues.append(f"High repetition ratio: {repetition_ratio:.2f} (max {self.max_repetition_ratio})")
             return False, issues
 
+        content_ratio = self._compute_content_ratio(text)
+        if content_ratio < self.min_content_ratio:
+            issues.append(f"Low content ratio: {content_ratio:.2f} (min {self.min_content_ratio})")
+            return False, issues
+
         return True, issues
+
+    def _compute_content_ratio(self, text: str) -> float:
+        if not text:
+            return 0.0
+        lines = text.strip().split("\n")
+        meaningful = 0
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            lower = stripped.lower()
+            if any(nav in lower for nav in self.NAV_KEYWORDS):
+                continue
+            if len(stripped.split()) >= 3:
+                meaningful += 1
+        total_non_empty = sum(1 for l in lines if l.strip())
+        return meaningful / max(total_non_empty, 1)
 
     ITALIAN_STOP_WORDS = {
         "il", "lo", "la", "gli", "le", "i", "l'", "un", "uno", "una",

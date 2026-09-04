@@ -14,6 +14,7 @@ import logging
 import sys
 import time
 from dataclasses import dataclass, field, asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -171,7 +172,7 @@ class RAGBenchmark:
 
 
 DEFAULT_CONFIGS = [
-    BenchmarkConfig(name="baseline", chunk_size=512, overlap=64, top_k=5, use_reranker=False),
+    BenchmarkConfig(name="baseline", chunk_size=512, chunk_overlap=64, top_k=5, use_reranker=False),
     BenchmarkConfig(name="with_reranker", chunk_size=512, chunk_overlap=64, top_k=5, use_reranker=True),
     BenchmarkConfig(name="small_chunks", chunk_size=256, chunk_overlap=32, top_k=5, use_reranker=True),
     BenchmarkConfig(name="large_chunks", chunk_size=1024, chunk_overlap=128, top_k=5, use_reranker=True),
@@ -182,7 +183,7 @@ DEFAULT_CONFIGS = [
 
 @click.command()
 @click.option("--configs", default=None, help="JSON file with benchmark configurations")
-@click.option("--output", default="benchmarks/results.json", help="Output file for results")
+@click.option("--output", default="benchmarks/results", help="Output directory for results")
 @click.option("--queries", default=None, help="JSON file with test queries")
 def run_benchmark(configs: str | None, output: str, queries: str | None):
     """Run RAG benchmark across multiple configurations."""
@@ -223,24 +224,55 @@ def run_benchmark(configs: str | None, output: str, queries: str | None):
             progress.update(task, completed=len(test_queries))
 
     # Save results
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(
-            [
-                {
-                    "config_name": r.config_name,
-                    "metrics": r.metrics,
-                    "avg_latency_ms": r.avg_latency_ms,
-                    "total_queries": r.total_queries,
-                    "config": r.config,
-                }
-                for r in results
-            ],
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
+    output_dir = Path(output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_data = {
+        "timestamp": timestamp,
+        "run_date": datetime.now().isoformat(),
+        "total_queries": len(test_queries),
+        "configs": len(bench_configs),
+        "results": [
+            {
+                "config_name": r.config_name,
+                "metrics": r.metrics,
+                "avg_latency_ms": r.avg_latency_ms,
+                "total_queries": r.total_queries,
+                "config": r.config,
+            }
+            for r in results
+        ],
+    }
+
+    # Save timestamped file
+    run_file = output_dir / f"results_{timestamp}.json"
+    with open(run_file, "w", encoding="utf-8") as f:
+        json.dump(run_data, f, ensure_ascii=False, indent=2)
+
+    # Save latest copy
+    with open(output_dir / "latest.json", "w", encoding="utf-8") as f:
+        json.dump(run_data, f, ensure_ascii=False, indent=2)
+
+    # Update index
+    index_path = output_dir / "index.json"
+    index: list[dict[str, Any]] = []
+    if index_path.exists():
+        with open(index_path, encoding="utf-8") as f:
+            index = json.load(f)
+    index.append({
+        "timestamp": timestamp,
+        "run_date": run_data["run_date"],
+        "file": f"results_{timestamp}.json",
+        "total_queries": run_data["total_queries"],
+        "configs": run_data["configs"],
+        "best_config": max(run_data["results"], key=lambda r: r["metrics"]["mrr"])["config_name"],
+        "best_mrr": max(r["metrics"]["mrr"] for r in run_data["results"]),
+    })
+    with open(index_path, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+
+    console.print(f"[green]Results saved to: {run_file}[/green]")
 
     # Print results table
     table = Table(title="Benchmark Results", title_style="bold")
@@ -270,11 +302,9 @@ def run_benchmark(configs: str | None, output: str, queries: str | None):
 
     console.print()
     console.print(table)
-    console.print(f"\n[green]Results saved to: {output}[/green]")
 
-    # Identify best config
     best = max(results, key=lambda r: r.metrics["mrr"])
-    console.print(f"\n[bold green]Best config: {best.config_name}[/bold green] (MRR={best.metrics['mrr']:.3f})")
+    console.print(f"\n[green]Best config: {best.config_name}[/green] (MRR={best.metrics['mrr']:.3f})")
 
 
 if __name__ == "__main__":

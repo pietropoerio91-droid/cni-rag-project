@@ -1,0 +1,256 @@
+{
+  "n_domande_annotate": 30,
+  "n_domande_con_giudizio": 30,
+  "n_domande_confrontabili": 30,
+  "metriche": {
+    "faithfulness": {
+      "disponibile": true,
+      "n": 30,
+      "media_umano": 4.7,
+      "media_giudice": 3.1,
+      "bias_giudice": -1.6,
+      "direzione_bias": "il giudice e' piu' severo dell'umano",
+      "mae": 2.0,
+      "accordo_esatto": 0.367,
+      "accordo_entro_1": 0.433,
+      "kappa_quadratico": -0.019,
+      "kappa_lineare": -0.022,
+      "interpretazione_kappa": "nessun accordo",
+      "krippendorff_alpha": -0.217,
+      "interpretazione_alpha": "inaffidabile",
+      "pearson_r": -0.033,
+      "matrice_confusione": [
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          7,
+          3,
+          2,
+          11
+        ]
+      ],
+      "scala": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "answer_relevance": {
+      "disponibile": true,
+      "n": 30,
+      "media_umano": 2.5,
+      "media_giudice": 2.767,
+      "bias_giudice": 0.267,
+      "direzione_bias": "il giudice e' piu' generoso dell'umano",
+      "mae": 0.933,
+      "accordo_esatto": 0.5,
+      "accordo_entro_1": 0.733,
+      "kappa_quadratico": 0.77,
+      "kappa_lineare": 0.627,
+      "interpretazione_kappa": "sostanziale",
+      "krippendorff_alpha": 0.774,
+      "interpretazione_alpha": "accettabile solo per conclusioni provvisorie",
+      "pearson_r": 0.799,
+      "matrice_confusione": [
+        [
+          7,
+          2,
+          4,
+          1,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          1,
+          5,
+          8
+        ]
+      ],
+      "scala": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "correctness": {
+      "disponibile": true,
+      "n": 29,
+      "media_umano": 2.345,
+      "media_giudice": 1.379,
+      "bias_giudice": -0.966,
+      "direzione_bias": "il giudice e' piu' severo dell'umano",
+      "mae": 1.034,
+      "accordo_esatto": 0.517,
+      "accordo_entro_1": 0.793,
+      "kappa_quadratico": 0.674,
+      "kappa_lineare": 0.571,
+      "interpretazione_kappa": "sostanziale",
+      "krippendorff_alpha": 0.664,
+      "interpretazione_alpha": "inaffidabile",
+      "pearson_r": 0.79,
+      "matrice_confusione": [
+        [
+          14,
+          1,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          4,
+          0,
+          6,
+          1
+        ]
+      ],
+      "scala": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  "kappa_medio": 0.475,
+  "interpretazione_complessiva": "moderato",
+  "giudice_utilizzabile": false,
+  "conclusione": "L'accordo con il giudizio umano NON e' sufficiente: i punteggi automatici non vanno riportati come risultati. L'insufficienza e' essa stessa un risultato, da documentare.",
+  "run_id": "FINAL_V2",
+  "judge_model": "qwen2.5:3b",
+  "giudice_uguale_al_generatore": true,
+  "totale_domande_run": 30,
+  "tassonomia_errori": {
+    "conteggi": {
+      "retrieval_miss": 14,
+      "ok": 13,
+      "generation_miss": 2,
+      "reranker_drop": 1
+    },
+    "etichette": {
+      "corpus_miss": "L'informazione non e' presente nel corpus",
+      "retrieval_miss": "Nel corpus, ma non recuperata fra i candidati",
+      "reranker_drop": "Recuperata, ma scartata dal reranker",
+      "generation_miss": "Nel contesto, ma la risposta non la usa",
+      "hallucination": "Afferma cose non presenti in alcun documento"
+    },
+    "totale_codificati": 30
+  }
+}

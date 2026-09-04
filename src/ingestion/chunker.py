@@ -33,7 +33,10 @@ class DocumentChunker:
         if not content:
             return []
 
-        chunks = self.splitter.split_text(content)
+        if len(content) <= self.chunk_size:
+            chunks = [content]
+        else:
+            chunks = self.splitter.split_text(content)
         chunk_docs: list[dict[str, Any]] = []
 
         for i, chunk_text in enumerate(chunks):

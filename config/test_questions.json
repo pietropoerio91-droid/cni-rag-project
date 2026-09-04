@@ -1,0 +1,47 @@
+[
+  {"question": "Quali sono gli organi del CNI?", "expected_category": "organi"},
+  {"question": "Chi è il presidente del CNI?", "expected_category": "organi"},
+  {"question": "Come sono composti gli organi del Consiglio Nazionale?", "expected_category": "organi"},
+  {"question": "Quali sono gli ordini provinciali degli ingegneri?", "expected_category": "organi"},
+
+  {"question": "Come funziona la formazione continua per gli ingegneri?", "expected_category": "formazione"},
+  {"question": "Quanti crediti formativi sono necessari ogni anno?", "expected_category": "formazione"},
+  {"question": "Quali corsi di aggiornamento professionale offre il CNI?", "expected_category": "formazione"},
+  {"question": "Come si ottengono i CFP?", "expected_category": "formazione"},
+
+  {"question": "Quali servizi offre il CNI agli ingegneri?", "expected_category": "servizi"},
+  {"question": "Come funziona lo sportello del CNI?", "expected_category": "servizi"},
+  {"question": "Quali convenzioni sono attive per gli iscritti?", "expected_category": "servizi"},
+
+  {"question": "Quali sono le ultime notizie dal CNI?", "expected_category": "news"},
+  {"question": "Dove trovo i comunicati stampa del CNI?", "expected_category": "news"},
+
+  {"question": "Quali normativa regola la professione di ingegnere?", "expected_category": "normativa"},
+  {"question": "Cos'è il codice deontologico degli ingegneri?", "expected_category": "normativa"},
+  {"question": "Quali sono i decreti più recenti per la professione?", "expected_category": "normativa"},
+
+  {"question": "Quali sono i temi trattati dal CNI?", "expected_category": "temi"},
+  {"question": "Cosa dice il CNI sulla sicurezza sul lavoro?", "expected_category": "temi"},
+  {"question": "Qual è la posizione del CNI sulle costruzioni sostenibili?", "expected_category": "temi"},
+  {"question": "Cosa si intende per near miss nella sicurezza?", "expected_category": "temi"},
+
+  {"question": "Quali commissioni operano presso il CNI?", "expected_category": "commissioni"},
+  {"question": "Come sono composti i gruppi di lavoro del CNI?", "expected_category": "commissioni"},
+
+  {"question": "Quali eventi organizza il CNI?", "expected_category": "eventi"},
+  {"question": "Quando si terrà il prossimo convegno del CNI?", "expected_category": "eventi"},
+
+  {"question": "Dove trovo i documenti ufficiali del CNI?", "expected_category": "documenti"},
+  {"question": "Come posso consultare i bilanci del CNI?", "expected_category": "documenti"},
+
+  {"question": "Dove si trova la sede del CNI?", "expected_category": "contatti"},
+  {"question": "Qual è l'indirizzo email del CNI?", "expected_category": "contatti"},
+
+  {"question": "Chi siamo e qual è la storia del CNI?", "expected_category": "chi_siamo"},
+  {"question": "Qual è la missione del CNI?", "expected_category": "chi_siamo"},
+
+  {"question": "Come ci si iscrive all'albo degli ingegneri?", "expected_category": "albo"},
+  {"question": "Dove trovo l'albo unico degli ingegneri?", "expected_category": "albo"},
+
+  {"question": "Dove posso leggere il Giornale dell'Ingegnere?", "expected_category": "giornale"}
+]

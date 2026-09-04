@@ -25,6 +25,9 @@ data/processed/
 data/chunks/
 data/qdrant_db/
 
+# Query log runtime
+results/queries/
+
 # Node
 node_modules/
 frontend/node_modules/
@@ -42,13 +45,21 @@ frontend/node_modules/
 .angular/cache/
 frontend/.angular/cache/
 
-# Debug scripts
-check_*.py
-compute_*.py
-extract_*.py
-final_check.py
-inspect_*.py
-query_*.py
-search_*.py
-survey_*.py
+# Angular build output
+frontend/dist/
 
+# Debug scripts (solo root)
+/check_*.py
+/compute_*.py
+/extract_*.py
+/final_check.py
+/inspect_*.py
+/query_*.py
+/search_*.py
+/survey_*.py
+
+
+
+
+# Output derivati dal ricalcolo delle metriche
+*.recomputed.json

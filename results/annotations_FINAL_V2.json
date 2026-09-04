@@ -1,0 +1,246 @@
+{
+  "run_id": "FINAL_V2",
+  "items": {
+    "Q01": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": "I documenti suggeriscono la risposta del sistema, ma nel corpus sono presenti i documenti che contengono la risposta di riferimento ma che non vengono recuperati e passati all'LLM.",
+      "annotated_at": "2026-09-02T10:24:14"
+    },
+    "Q02": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": "Il generatore risponde correttamente in quanto nei documenti recuperati non è presente l'informazione. Dal controllo nel qdrant risultano presenti documenti che contengono informazioni pertinenti per poter rispondere.",
+      "annotated_at": "2026-09-02T10:39:37"
+    },
+    "Q03": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": "documenti recuperati correttamente, risposta pertinente e corretta",
+      "annotated_at": "2026-09-02T10:45:25"
+    },
+    "Q04": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T10:50:48"
+    },
+    "Q05": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T11:04:01"
+    },
+    "Q06": {
+      "faithfulness": 0,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T11:04:45"
+    },
+    "Q07": {
+      "faithfulness": 1,
+      "answer_relevance": 5,
+      "correctness": 3,
+      "error_stage": "retrieval_miss",
+      "note": "risposta da fonte diversa dall'attesa; in FULL1 la stessa domanda era corretta con scuola-di-formazione a rank 19",
+      "annotated_at": "2026-09-03T11:47:20"
+    },
+    "Q08": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T11:37:06"
+    },
+    "Q09": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": null,
+      "error_stage": "reranker_drop",
+      "note": null,
+      "annotated_at": "2026-09-03T11:32:21"
+    },
+    "Q10": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T11:47:02"
+    },
+    "Q11": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": "Nel primo documento, sezione \"CNI \" viene riportata l'informazione",
+      "annotated_at": "2026-09-02T11:48:54"
+    },
+    "Q12": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T13:01:56"
+    },
+    "Q13": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T13:08:22"
+    },
+    "Q14": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T13:10:51"
+    },
+    "Q15": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T13:36:21"
+    },
+    "Q16": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T13:38:58"
+    },
+    "Q17": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T13:41:36"
+    },
+    "Q18": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T13:42:29"
+    },
+    "Q19": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T13:47:54"
+    },
+    "Q20": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T13:48:33"
+    },
+    "Q21": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T13:50:05"
+    },
+    "Q22": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T16:56:01"
+    },
+    "Q23": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T16:57:42"
+    },
+    "Q24": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T15:48:19"
+    },
+    "Q25": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T15:50:20"
+    },
+    "Q26": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T15:52:36"
+    },
+    "Q27": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-02T15:56:00"
+    },
+    "Q28": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-02T15:58:10"
+    },
+    "Q29": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-03T11:49:24"
+    },
+    "Q30": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-03T13:43:24"
+    }
+  },
+  "updated_at": "2026-09-03T13:43:24"
+}

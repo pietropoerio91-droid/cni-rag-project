@@ -1,17 +1,17 @@
 embedding:
-  all-MiniLM-L6-v2:
-    name: all-MiniLM-L6-v2
+  paraphrase-multilingual-MiniLM-L12-v2:
+    name: paraphrase-multilingual-MiniLM-L12-v2
     dimension: 384
-    max_seq_length: 256
+    max_seq_length: 128
     normalize: true
     provider: sentence_transformers
 
 llm:
-  lm_studio:
-    name: llama-3.2-3b-instruct
-    context_length: 8192
-    endpoint: http://localhost:1234/v1
-    api_key_env: LM_STUDIO_API_KEY
+  ollama:
+    name: qwen2.5:3b
+    context_length: 32768
+    endpoint: http://localhost:11434/v1
+    api_key_env: LLM_API_KEY
     parameters:
       temperature: 0.2
       max_tokens: 2048

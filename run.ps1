@@ -113,13 +113,13 @@ if (Test-Path "frontend/node_modules") {
 
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  Sistema avviato!" -ForegroundColor Green
-Write-Host "  API:      http://localhost:8000" -ForegroundColor Green
-Write-Host "  Frontend: http://localhost:4200" -ForegroundColor Green
-Write-Host "  Docs API: http://localhost:8000/docs" -ForegroundColor Green
+Write-Host "  API:         http://localhost:8000" -ForegroundColor Green
+Write-Host "  Frontend:    http://localhost:4200" -ForegroundColor Green
+Write-Host "  Docs API:    http://localhost:8000/docs" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "  Premi Ctrl+C per fermare tutto.`n" -ForegroundColor Yellow
 
-# Avvia frontend e API in parallelo
+# Avvia frontend, Qdrant UI e API in parallelo
 $frontendJob = Start-Job -ScriptBlock {
     param($dir)
     Set-Location "$dir/frontend"

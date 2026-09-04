@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qdrant Browser</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 16px; }
+  .stat-card .label { font-size: 0.75rem; color: #94a3b8; }
+  .stat-card .value { font-size: 1.25rem; font-weight: 600; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar input { flex: 1; min-width: 200px; padding: 8px 12px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #e2e8f0; font-size: 0.9rem; }
+  .toolbar input:focus { outline: none; border-color: #3b82f6; }
+  .toolbar button { padding: 8px 16px; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; background: #3b82f6; color: white; }
+  .toolbar button:hover { background: #2563eb; }
+  .toolbar button:disabled { opacity: 0.5; cursor: default; }
+  .pagination { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .pagination button { padding: 4px 12px; border: 1px solid #334155; border-radius: 4px; background: #1e293b; color: #e2e8f0; cursor: pointer; font-size: 0.8rem; }
+  .pagination button:hover:not(:disabled) { background: #334155; }
+  .pagination button:disabled { opacity: 0.4; cursor: default; }
+  .pagination span { color: #94a3b8; font-size: 0.85rem; }
+  .doc-list { display: flex; flex-direction: column; gap: 8px; }
+  .doc-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+  .doc-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; }
+  .doc-header:hover { background: #253248; }
+  .doc-title { font-weight: 500; font-size: 0.9rem; flex: 1; }
+  .doc-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .doc-meta .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; }
+  .tag-category { background: #1e3a5f; color: #93c5fd; }
+  .tag-score { background: #1a3a2a; color: #86efac; }
+  .tag-source { background: #3a2a1a; color: #fde68a; }
+  .doc-body { padding: 0 14px 14px; border-top: 1px solid #334155; }
+  .doc-body pre { font-family: inherit; font-size: 0.85rem; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap; max-height: 300px; overflow-y: auto; margin-top: 10px; }
+  .doc-body .full-link { display: inline-block; margin-top: 8px; font-size: 0.8rem; color: #60a5fa; text-decoration: none; }
+  .doc-body .full-link:hover { text-decoration: underline; }
+  .empty { text-align: center; padding: 40px; color: #64748b; }
+  .spinner { text-align: center; padding: 20px; }
+  .spinner::after { content: '...'; animation: dots 1.5s infinite; }
+  @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
+</style>
+</head>
+<body>
+  <h1>Qdrant Browser</h1>
+  <p class="subtitle">Documenti indicizzati nel database vettoriale</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Cerca documenti... (enter per cercare)">
+    <button id="searchBtn">Cerca</button>
+    <button id="clearBtn">Annulla ricerca</button>
+  </div>
+
+  <div class="pagination" id="pagination">
+    <button id="prevBtn" disabled>← Precedenti</button>
+    <span id="pageInfo"></span>
+    <button id="nextBtn">Successivi →</button>
+  </div>
+
+  <div class="doc-list" id="docList">
+    <div class="spinner">Caricamento</div>
+  </div>
+
+<script>
+let currentOffset = 0;
+let currentSearch = '';
+const limit = 20;
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/v1/qdrant/stats');
+    const data = await r.json();
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="label">Collezione</div><div class="value">${data.collection}</div></div>
+      <div class="stat-card"><div class="label">Modalità</div><div class="value">${data.mode}</div></div>
+      <div class="stat-card"><div class="label">Punti indicizzati</div><div class="value">${data.points_count}</div></div>
+      <div class="stat-card"><div class="label">Dimensione vettori</div><div class="value">${data.vectors_count}</div></div>
+    `;
+  } catch(e) {
+    document.getElementById('stats').innerHTML = '<div class="stat-card"><div class="label">Errore</div><div class="value">Connessione API fallita</div></div>';
+  }
+}
+
+async function loadDocuments(offset = 0, search = '') {
+  const el = document.getElementById('docList');
+  el.innerHTML = '<div class="spinner">Caricamento</div>';
+
+  let url = `/api/v1/qdrant/documents?offset=${offset}&limit=${limit}`;
+  if (search) url = `/api/v1/qdrant/documents?search=${encodeURIComponent(search)}&limit=${limit}`;
+
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    renderDocuments(data, search);
+  } catch(e) {
+    el.innerHTML = `<div class="empty">Errore caricamento: ${e.message}</div>`;
+  }
+}
+
+function renderDocuments(data, search) {
+  const el = document.getElementById('docList');
+  const docs = data.documents || [];
+
+  if (!docs.length) {
+    el.innerHTML = '<div class="empty">Nessun documento trovato</div>';
+    return;
+  }
+
+  el.innerHTML = docs.map(d => {
+    const content = d.content || '';
+    const title = d.title || d.source || 'Senza titolo';
+    const score = d.score ? d.score.toFixed(4) : '-';
+    const category = d.category || '-';
+    const source = d.source || '-';
+    const id = d.id;
+
+    return `
+      <div class="doc-card">
+        <div class="doc-header" onclick="toggleDoc('${id}')">
+          <div class="doc-title">${title}</div>
+          <div class="doc-meta">
+            <span class="tag tag-category">${category}</span>
+            <span class="tag tag-score">score: ${score}</span>
+          </div>
+        </div>
+        <div class="doc-body" id="body-${id}" style="display:none">
+          <pre>${escapeHtml(content)}</pre>
+          <a class="full-link" href="/api/v1/qdrant/documents/${id}" target="_blank">Vedi documento completo →</a>
+          <span class="tag tag-source" style="display:inline-block;margin-left:8px">${source}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (!search) {
+    document.getElementById('pageInfo').textContent = `Offset: ${data.offset || 'fine'}`;
+    document.getElementById('prevBtn').disabled = currentOffset === 0;
+    document.getElementById('nextBtn').disabled = !data.offset;
+  } else {
+    document.getElementById('pageInfo').textContent = `Ricerca: "${search}" — ${docs.length} risultati`;
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+  }
+}
+
+function toggleDoc(id) {
+  const body = document.getElementById('body-' + id);
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  currentSearch = q;
+  currentOffset = 0;
+  document.getElementById('pagination').style.display = 'none';
+  loadDocuments(0, q);
+});
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('searchBtn').click();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('searchInput').value = '';
+  currentSearch = '';
+  currentOffset = 0;
+  document.getElementById('pagination').style.display = 'flex';
+  loadDocuments(0, '');
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentOffset > 0) {
+    currentOffset = Math.max(0, currentOffset - limit);
+    loadDocuments(currentOffset);
+  }
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  currentOffset += limit;
+  loadDocuments(currentOffset);
+});
+
+loadStats();
+loadDocuments();
+</script>
+</body>
+</html>
