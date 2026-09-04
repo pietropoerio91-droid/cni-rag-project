@@ -15,7 +15,7 @@ import {
  * Tab qualitativa — valutazione sul golden dataset.
  *
  * Sostituisce le metriche che l'API calcolava sulle query degli utenti: quelle
- * definivano la rilevanza come "score > soglia", cioe' dal punteggio del
+ * definivano la rilevanza come "score > soglia", cioè dal punteggio del
  * retriever stesso, e non erano quindi metriche di Information Retrieval.
  * Le query in produzione non hanno fonti attese note; le metriche vere si
  * calcolano solo sul golden dataset.
@@ -56,8 +56,10 @@ import {
 
       <!-- ================= RISULTATI ================= -->
       <ng-container *ngIf="vista === 'risultati' && latest && !caricando">
-        <div class="warn" *ngIf="latest.judge_warning">
-          <b>Punteggi del giudice non validati.</b> {{ latest.judge_warning }}
+        <div class="warn" *ngIf="accordo && accordo.giudice_utilizzabile === false">
+          <b>Giudice automatico: accordo con l'annotazione umana sotto soglia
+             (κ medio {{ accordo.kappa_medio | number:'1.3-3' }}, soglia ≥ 0,61).</b>
+          {{ accordo.conclusione }} Dettaglio per metrica nella tab «Corrispondenza».
         </div>
 
         <div class="meta">
@@ -69,16 +71,31 @@ import {
 
         <h3>Retrieval — prima e dopo il reranking</h3>
         <p class="hint">
-          «candidati» e' cio' che produce il retriever denso; «contesto» e' cio' che l'LLM
-          riceve davvero dopo il reranking. E' il secondo che conta.
+          «candidati» è ciò che produce il retriever denso; «contesto» è ciò che l'LLM
+          riceve davvero dopo il reranking. È il secondo che conta.
         </p>
         <table class="tab">
           <thead>
-            <tr><th>Metrica</th><th>Candidati</th><th>Contesto</th><th>Effetto del reranker</th></tr>
+            <tr>
+              <th>Metrica</th><th>Candidati</th><th>Contesto</th>
+              <th>Effetto del reranker
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Differenza contesto − candidati, con p-value del test a coppie
+                    e magnitudine del delta di Cliff. «sig» solo se p &lt; 0,05.</span>
+                </span>
+              </th>
+            </tr>
           </thead>
           <tbody>
             <tr *ngFor="let k of metricheRetrieval">
-              <td class="mono">{{ k }}</td>
+              <td>
+                {{ etichettaRetrieval(k) }}
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">{{ descrizioneRetrieval(k) }}</span>
+                </span>
+              </td>
               <td>{{ fmtCI(ci('retrieved', k), isPct(k)) }}</td>
               <td class="strong">{{ fmtCI(ci('context', k), isPct(k)) }}</td>
               <td>
@@ -107,10 +124,13 @@ import {
                 </small>
               </td>
             </tr>
-            <tr *ngFor="let m of metricheGiudice" [class.unvalidated]="!latest.judge_validated">
+            <tr *ngFor="let m of metricheGiudice" [class.unvalidated]="metricaAffidabile(m) !== true">
               <td>{{ etichetta(m) }} <small class="dim">(giudice 0-5)</small></td>
               <td>{{ fmtCI(ciGen(m), false) }}
-                <small class="flag" *ngIf="!latest.judge_validated">non validato</small>
+                <small class="flag" *ngIf="metricaAffidabile(m) === false">
+                  sotto soglia — κ={{ acc(m)?.kappa_quadratico | number:'1.3-3' }}
+                </small>
+                <small class="flag" *ngIf="metricaAffidabile(m) === null">accordo non ancora calcolato</small>
               </td>
             </tr>
           </tbody>
@@ -124,7 +144,7 @@ import {
           <div class="stale-h">Le risposte di questo run non sono aggiornate</div>
           <p>{{ coda.avviso_disallineamento }}</p>
           <p class="stale-w">
-            Annotare risposte che il sistema non produce piu' significa misurare
+            Annotare risposte che il sistema non produce più significa misurare
             qualcosa che non esiste. Esegui un nuovo run end-to-end e annota quello.
           </p>
           <button class="btn-ghost" (click)="ignoraDisallineamento = true"
@@ -248,8 +268,48 @@ import {
           <thead>
             <tr>
               <th>Metrica</th><th>n</th><th>media umano</th><th>media giudice</th>
-              <th>bias</th><th>MAE</th><th>entro 1</th>
-              <th>κ pesato</th><th>α Kripp.</th><th>r Pearson</th>
+              <th>bias
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Media giudice − media umano. Positivo: il giudice è più
+                    generoso dell'umano; negativo: più severo.</span>
+                </span>
+              </th>
+              <th>MAE
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Errore assoluto medio fra voto giudice e voto umano,
+                    in punti sulla scala 0-5.</span>
+                </span>
+              </th>
+              <th>entro 1
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Quota di domande in cui giudice e umano si discostano
+                    al massimo di 1 punto.</span>
+                </span>
+              </th>
+              <th>κ pesato
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Kappa di Cohen, pesi quadratici: accordo corretto per il
+                    caso. Sotto 0,61 il giudice non è considerato utilizzabile in questo lavoro.</span>
+                </span>
+              </th>
+              <th>α Kripp.
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Alfa di Krippendorff: misura di affidabilità alternativa
+                    al kappa, meno sensibile alla distribuzione dei voti.</span>
+                </span>
+              </th>
+              <th>r Pearson
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Correlazione lineare fra i due punteggi: resta alta
+                    anche se il giudice sbaglia sempre nella stessa direzione — non implica accordo.</span>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -377,6 +437,26 @@ import {
     h3 { font-size: 15px; font-weight: 600; margin: 26px 0 6px; }
     h4 { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
     .hint { font-size: 12.5px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.5; max-width: 78ch; }
+
+    .tooltip-wrap { position: relative; display: inline-flex; align-items: center;
+                    margin-left: 4px; cursor: help; vertical-align: middle; }
+    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center;
+                    width: 15px; height: 15px; border-radius: 50%; background: var(--border);
+                    color: var(--text-secondary); font-size: 10px; font-weight: 700;
+                    font-style: italic; font-family: serif; text-transform: none;
+                    letter-spacing: normal; transition: background .15s, color .15s; }
+    .tooltip-wrap:hover .tooltip-icon { background: var(--primary); color: #fff; }
+    .tooltip-text { visibility: hidden; opacity: 0; position: absolute; z-index: 100;
+                     background: #1e293b; color: #e2e8f0; font-size: 11px; font-weight: 400;
+                     font-style: normal; text-transform: none; letter-spacing: normal;
+                     padding: 8px 10px; border-radius: 8px; white-space: normal; width: 230px;
+                     line-height: 1.4; box-shadow: 0 4px 12px rgba(0,0,0,.3); pointer-events: none;
+                     transition: opacity .15s, visibility .15s; }
+    .tooltip-wrap:hover .tooltip-text { visibility: visible; opacity: 1; }
+    .table-tip .tooltip-text { top: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+    .table-tip .tooltip-text::after { content: ''; position: absolute; bottom: 100%; left: 50%;
+                                       transform: translateX(-50%); border: 6px solid transparent;
+                                       border-bottom-color: #1e293b; }
 
     .tab { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
     .tab th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
@@ -510,6 +590,17 @@ export class ValutazioneComponent implements OnInit {
     answer_relevance: 'risponde davvero alla domanda?',
     correctness: 'concorda con la risposta di riferimento?',
   };
+  private ETICHETTE_RETRIEVAL: Record<string, string> = {
+    hit_at_3: 'Hit@3', hit_at_5: 'Hit@5', mrr: 'MRR',
+    recall_at_5: 'Recall@5', ndcg_at_5: 'nDCG@5',
+  };
+  private DESCRIZIONI_RETRIEVAL: Record<string, string> = {
+    hit_at_3: 'Percentuale di domande in cui almeno una fonte corretta compare fra i primi 3 risultati.',
+    hit_at_5: 'Percentuale di domande in cui almeno una fonte corretta compare fra i primi 5 risultati.',
+    mrr: 'Mean Reciprocal Rank: media dell\'inverso del rango della prima fonte corretta (1 se al primo posto, 0 se assente).',
+    recall_at_5: 'Quota delle fonti rilevanti attese che compaiono fra i primi 5 risultati.',
+    ndcg_at_5: 'Discounted Cumulative Gain normalizzato: pesa le fonti rilevanti in base alla posizione in classifica.',
+  };
 
   constructor(private rag: RagService) {}
 
@@ -610,8 +701,18 @@ export class ValutazioneComponent implements OnInit {
 
   etichetta(m: string): string { return this.ETICHETTE[m] || m; }
   descrizione(m: string): string { return this.DESCRIZIONI[m] || ''; }
+  etichettaRetrieval(k: string): string { return this.ETICHETTE_RETRIEVAL[k] || k; }
+  descrizioneRetrieval(k: string): string { return this.DESCRIZIONI_RETRIEVAL[k] || ''; }
   isPct(k: string): boolean { return k.startsWith('hit'); }
   abs(v: number | undefined | null): number { return Math.abs(v ?? 0); }
+
+  /** Affidabilità della metrica secondo l'accordo giudice-umano reale (non un flag statico
+   *  di run): null finché l'accordo non è calcolabile, altrimenti kappa >= 0.61. */
+  metricaAffidabile(m: string): boolean | null {
+    const kappa = this.acc(m)?.kappa_quadratico;
+    if (kappa === null || kappa === undefined) return null;
+    return kappa >= 0.61;
+  }
 
   ci(stadio: 'retrieved' | 'context', k: string): MetricCI | null {
     return this.latest?.retrieval_stages?.[stadio]?.ci?.[k] ?? null;

@@ -2,7 +2,7 @@
 
 **Autore:** Pietro Poerio
 **Repository:** `https://github.com/pietropoerio91-droid/cni-rag-project`
-**Ultimo aggiornamento indice:** 26 agosto 2026
+**Ultimo aggiornamento indice:** 4 settembre 2026
 
 ---
 
@@ -96,9 +96,9 @@ Legenda stato: ✅ scritto · 🟡 in corso · ⬜ da scrivere
 
 4.1 **Piattaforma di esecuzione** — MacBook Pro 13" 2017, Intel Core i5 dual-core 3,1 GHz, 8 GB LPDDR3 condivisi con Intel Iris Plus 650. Implicazioni dirette sulle scelte progettuali: modello generativo da 3B, embedding a 384 dimensioni, assenza di accelerazione hardware
 4.2 Configurazione centralizzata (YAML ed environment)
-4.3 Crawling del sito cni.it — 5.890 documenti acquisiti
-4.4 Filtraggio, pulizia e controllo qualità
-4.5 Chunking, embedding e indicizzazione — 17.098 chunk, 384 dimensioni, HNSW, distanza coseno
+4.3 Crawling del sito cni.it — 5.890 documenti acquisiti dal crawler, ridotti a 4.144 dopo il purge delle pagine `/en/` (§4.4)
+4.4 Filtraggio, pulizia e controllo qualità — include il purge dei chunk inglesi del 27/08 (17.145 → 13.784 chunk, §11.6 di `SISTEMA.md`)
+4.5 Chunking, embedding e indicizzazione — 13.784 chunk indicizzati oggi, 384 dimensioni, HNSW, distanza coseno
 4.6 La pipeline RAG in LangGraph — 9 nodi, 3 archi condizionali
 4.7 API REST, streaming SSE e frontend Angular
 4.8 Integrazione con Ollama e gestione degli errori
@@ -170,14 +170,14 @@ risultati venivano presentati senza mai stabilire perché fossero credibili.*
 ### Conclusioni 🟡
 
 Bozza completa in `doc/CONCLUSIONI_TESI.md`: argomentazione e struttura
-definitive. Un primo dato reale è stato recuperato e incorporato: l'ablation
-sul retrieval del 27/08 (n=30, `results/report_ablation_2026-08-27.md`),
-nessuna differenza statisticamente significativa fra configurazioni —
-prova diretta del limite di potenza statistica dichiarato in §5.1/§7.2.
-Restano segnaposto i numeri che richiedono generazione: accuratezza
-end-to-end, test a contesto oracolo (§6.5) e accordo giudice-umano (§5.5)
-— non eseguibili senza la piattaforma locale (Ollama + indice Qdrant
-popolato).
+definitive, dati reali. Tutti e quattro gli esperimenti pianificati sono
+stati eseguiti su n=30 — ablation (27/08), valutazione end-to-end `FINAL_V2`
+(28/08), test a contesto oracolo (28/08), confronto fra modelli di embedding
+(28/08) — e la validazione umana in cieco con accordo giudice-umano (§5.5)
+è stata completata il 02-03/09 su tutte le 30 domande. Nessun segnaposto
+`[X]` residuo nel documento. 🟡 indica solo che il capitolo va ancora
+scritto da Pietro con parole proprie (vedi nota in cima a
+`CONCLUSIONI_TESI.md`), non che manchino dati.
 
 ---
 

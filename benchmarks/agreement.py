@@ -255,12 +255,13 @@ def report_completo(
         out["interpretazione_complessiva"] = interpreta_kappa(medio)
         out["giudice_utilizzabile"] = medio >= 0.61
         out["conclusione"] = (
-            "L'accordo con il giudizio umano e' sufficiente: i punteggi automatici "
-            "possono essere riportati, dichiarando kappa."
+            "Accordo sufficiente per l'uso previsto (soglia ≥ 0.61): i punteggi "
+            "automatici sono riportabili, con il valore di kappa dichiarato."
             if medio >= 0.61 else
-            "L'accordo con il giudizio umano NON e' sufficiente: i punteggi automatici "
-            "non vanno riportati come risultati. L'insufficienza e' essa stessa un "
-            "risultato, da documentare."
+            "Accordo sotto la soglia di utilizzabilità dichiarata (0.61): i punteggi "
+            "automatici non sono riportati come misura affidabile in questo lavoro. "
+            "L'assenza di accordo è documentata come risultato della validazione, "
+            "non omessa."
         )
     else:
         out["kappa_medio"] = None

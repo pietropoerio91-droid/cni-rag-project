@@ -363,9 +363,9 @@ async def evaluation_latest(run_id: str | None = None):
         "judge_validated": data.get("judge_validated", False),
         "judge_model": data.get("judge_model"),
         "judge_warning": None if data.get("judge_validated") else (
-            "I punteggi del judge non sono stati validati contro giudizio umano "
-            "e non vanno riportati come risultati. Esegui export_validation_sheet.py "
-            "e compute_judge_agreement.py."
+            "Questo run non riporta al suo interno l'accordo giudice-umano: "
+            "consulta la tab Corrispondenza (endpoint /evaluation/agreement) per "
+            "l'esito reale, per metrica, della validazione."
         ),
         "stats_environment": data.get("stats_environment"),
     }

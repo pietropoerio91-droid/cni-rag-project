@@ -8,7 +8,7 @@
 > elenco degli endpoint). Restano recuperabili nella cronologia git se serve
 > confrontare cosa è cambiato e quando.
 >
-> **Ultima verifica:** 28 agosto 2026, contro il branch `feature/valutazione-statistica`.
+> **Ultima verifica:** 3 settembre 2026, contro il branch `feature/valutazione-statistica`.
 > Per la tesi vera e propria: `INDICE_TESI.md` (struttura dei capitoli) e
 > `CONCLUSIONI_TESI.md` (capitolo conclusivo, in scrittura).
 
@@ -27,7 +27,7 @@
 9. [Valutazione e benchmarking](#9-valutazione-e-benchmarking)
 10. [Configurazione attuale, con il perché di ogni valore](#10-configurazione-attuale-con-il-perché-di-ogni-valore)
 11. [Problemi noti e limiti tecnici confermati](#11-problemi-noti-e-limiti-tecnici-confermati)
-12. [Stato del progetto al 28/08/2026 e cosa manca](#12-stato-del-progetto-al-28082026-e-cosa-manca)
+12. [Stato del progetto al 03/09/2026 e cosa manca](#12-stato-del-progetto-al-03092026-e-cosa-manca)
 13. [Come avviare tutto](#13-come-avviare-tutto)
 14. [Mappa verso i capitoli della tesi](#14-mappa-verso-i-capitoli-della-tesi)
 
@@ -351,7 +351,7 @@ al crawl, non retroattivamente all'indice già esistente.
 
 ---
 
-## 12. Stato del progetto al 31/08/2026 e cosa manca
+## 12. Stato del progetto al 03/09/2026 e cosa manca
 
 **Fatto e verificato:**
 - Fix del blocco dell'event loop su `/query` (§11.2) — pushato, verificato con `pytest` (24/24 test passano)
