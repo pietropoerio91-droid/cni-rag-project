@@ -77,9 +77,49 @@ Solo mappa concettuale e citazioni verificate con ricerca web — da leggere
 in originale, non riassunti.
 
 **1.1-1.2 IR classico → rappresentazioni neurali**
-TF-IDF, BM25 (Robertson & Sparck Jones), poi il salto a word embeddings
-(word2vec, Mikolov et al. 2013) e Transformer:
+TF-IDF, BM25, poi il salto a word embeddings (word2vec) e Transformer.
+Riferimenti verificati con ricerca web il 09/09:
+
+> Robertson, S.E., Spärck Jones, K. (1976). *Relevance weighting of search
+> terms*. Journal of the American Society for Information Science, 27(3),
+> 129-146. DOI: 10.1002/asi.4630270302 — il fondamento teorico del modello
+> probabilistico di rilevanza, non ancora "BM25"
+> https://doi.org/10.1002/asi.4630270302
+
+> Robertson, S., Zaragoza, H. (2009). *The Probabilistic Relevance
+> Framework: BM25 and Beyond*. Foundations and Trends in Information
+> Retrieval, 3(4), 333-389. — la citazione più usata per "BM25" come
+> formula/algoritmo compiuto
+> https://doi.org/10.1561/1500000019
+
+> Mikolov, T., Chen, K., Corrado, G., Dean, J. (2013). *Efficient Estimation
+> of Word Representations in Vector Space*. arXiv:1301.3781 — word2vec
+> https://arxiv.org/abs/1301.3781
+
+**Candidati trovati il 09/09 per §1.1 — da scegliere e analizzare, non
+citazioni pronte:**
+
+TF-IDF (Salton & Buckley, 1988, *Term-weighting approaches in automatic
+text retrieval*):
+- https://doi.org/10.1016/0306-4573(88)90021-0
+- https://www.sciencedirect.com/science/article/abs/pii/0306457388900210
+- https://www.semanticscholar.org/paper/Term-Weighting-Approaches-in-Automatic-Text-Salton-Buckley/e50a316f97c9a405aa000d883a633bd5707f1a34
+
+Manuale di riferimento del settore (Manning, Raghavan, Schütze, *Introduction
+to Information Retrieval*, Cambridge Univ. Press 2008):
+- https://informationretrieval.org (testo completo gratuito)
+- https://books.google.com/books/about/Introduction_to_Information_Retrieval.html?id=GNvtngEACAAJ
+
+Metriche di valutazione — nDCG (Järvelin & Kekäläinen, 2002, *Cumulated
+Gain-based Evaluation of IR Techniques*, ACM TOIS):
+- https://doi.org/10.1145/582415.582418
+- https://faculty.cc.gatech.edu/~zha/CS8803WST/dcg.pdf
+
+Per Precision/Recall/MAP/MRR: nessun singolo "paper originale" trovato,
+sono concetti consolidati nel manuale sopra (cap. 8).
+
 > Vaswani, A. et al. (2017). *Attention Is All You Need*. NeurIPS 2017.
+> https://arxiv.org/abs/1706.03762
 
 **1.3 Embedding multilingua**
 Da `all-MiniLM-L6-v2` a `paraphrase-multilingual-MiniLM-L12-v2` — scheda
@@ -111,9 +151,12 @@ piccoli ≤3B": letteratura su distillazione e quantizzazione.
 > (System Demonstrations), pp. 150-158.
 > https://arxiv.org/abs/2309.15217
 
-Per LLM-as-judge in generale: Zheng et al., *"Judging LLM-as-a-judge with
-MT-Bench and Chatbot Arena"* (2023) — **non verificato in questa sessione,
-controllare prima di citarlo**.
+Per LLM-as-judge in generale — verificato il 09/09:
+> Zheng, L., Chiang, W.-L., Sheng, Y., Zhuang, S., Wu, Z., Zhuang, Y., Lin,
+> Z., Li, Z., Li, D., Xing, E.P., Zhang, H., Gonzalez, J.E., Stoica, I.
+> (2023). *Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena*. NeurIPS
+> 2023, Datasets and Benchmarks Track.
+> https://arxiv.org/abs/2306.05685
 
 **1.8 RAG sotto vincoli di risorse**
 Letteratura su quantizzazione (GGUF/GGML, usata da Ollama) ed edge
@@ -127,8 +170,9 @@ distingue questo lavoro rispetto alla letteratura trovata.
 
 ## Nota sulle citazioni
 
-Verificate con ricerca web in questa sessione: 1.5 (Lewis et al.), 1.6
-(Yan et al., Asai et al.), 1.7 (Es et al.). Non verificato: Zheng et al.
-(MT-Bench) — controllare anno, venue ed eventuali co-autori prima di
-citarlo in tesi. Tutte le altre indicazioni bibliografiche di questo
+Verificate con ricerca web: 1.5 (Lewis et al.), 1.6 (Yan et al., Asai et
+al.), 1.7 (Es et al., Zheng et al. — aggiunto il 09/09), 1.1-1.2 (Robertson
+& Spärck Jones, Robertson & Zaragoza, Mikolov et al. — aggiunto il 09/09).
+Tutte con URL/DOI per import diretto in Zotero (Aggiungi elemento da
+identificatore). Tutte le altre indicazioni bibliografiche di questo
 documento sono punti di partenza per la ricerca, non citazioni pronte.

@@ -75,7 +75,7 @@ Legenda stato: ✅ scritto · 🟡 in corso · ⬜ da scrivere
 
 ### Capitolo 1 — Fondamenti e stato dell'arte ⬜
 
-1.1 Information Retrieval — modelli classici (TF-IDF, BM25), metriche di valutazione
+1.1 Information Retrieval
 1.2 Rappresentazioni neurali del linguaggio — word embeddings, Transformer, sentence-transformers
 1.3 Modelli di embedding multilingua — da `all-MiniLM-L6-v2` a `paraphrase-multilingual-MiniLM-L12-v2`
 1.4 Large Language Models — architettura, pre-training, limiti; i modelli di piccola taglia (≤3B) e cosa li distingue
