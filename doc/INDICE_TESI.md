@@ -139,7 +139,7 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 
 3.1 Il golden dataset — costruzione, criteri, `reference_answer` ancorate al corpus reale, `expected_sources` verificabili, stratificazione per categoria
 3.2 Metriche di retrieval — definizioni adottate (Hit@k, Recall@k, Precision@k, MRR, nDCG@k) e valutazione su due stadi: candidati del retriever e contesto effettivamente ricevuto dal generatore
-3.3 **Insidie metodologiche e come sono state evitate** — la ground truth circolare, il recall non troncato, l'asimmetria nel criterio di rilevanza, il matching per sottostringa e i criteri lessicali. Casi reali riscontrati e corretti in questo lavoro
+3.3 **Bias e insidie metodologiche della valutazione RAG** — la ground truth circolare, il recall non troncato, l'asimmetria nel criterio di rilevanza, il matching per sottostringa e i criteri lessicali. Casi reali riscontrati e corretti in questo lavoro
 3.4 LLM-as-judge — impianto, prompt, bias di self-preference, criteri di scelta del modello giudice
 3.5 **Validazione dello strumento di misura** — annotazione umana in cieco, accordo giudice-umano (kappa pesato, α di Krippendorff, MAE, within-1). Nessun punteggio del giudice viene riportato senza questa validazione
 3.6 Impianto statistico — intervalli di confidenza (bootstrap, Wilson), test appaiati (Wilcoxon signed-rank, McNemar esatto), dimensione dell'effetto (δ di Cliff)
