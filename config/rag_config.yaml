@@ -31,9 +31,19 @@ retrieval:
   # ogni query classificata escludeva i tre quarti dell'indice.
   category_filter: false
   hybrid_search:
-    enabled: true
-    dense_weight: 0.7
-    sparse_weight: 0.3
+    # Fino al run FINAL_V2 questa sezione era dichiarata ma non implementata:
+    # il recupero era unicamente denso e i pesi non venivano letti da nessuno.
+    # Ora la bandiera ha effetto reale. Resta a false per riprodurre la linea
+    # di base senza cambiare ramo.
+    enabled: false
+    fusion: rrf
+    rrf_k: 60
+    dense_top_k: 50
+    sparse_top_k: 50
+    include_title: true
+    bm25:
+      k1: 1.2
+      b: 0.75
 
 reranking:
   enabled: true
