@@ -33,9 +33,9 @@ retrieval:
   hybrid_search:
     # Fino al run FINAL_V2 questa sezione era dichiarata ma non implementata:
     # il recupero era unicamente denso e i pesi non venivano letti da nessuno.
-    # Ora la bandiera ha effetto reale. Resta a false per riprodurre la linea
-    # di base senza cambiare ramo.
-    enabled: false
+    # Ora la bandiera ha effetto reale: true = denso + BM25 fusi con RRF,
+    # false = solo denso (utile per misurare il contributo del canale lessicale).
+    enabled: true
     fusion: rrf
     rrf_k: 60
     dense_top_k: 50
@@ -55,7 +55,7 @@ fallback:
   message: "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
 
 vector_store:
-  collection_name: cni_documents
+  collection_name: cni_documents_multiling
   distance: cosine
   size: 384
 
