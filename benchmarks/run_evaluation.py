@@ -59,6 +59,7 @@ from rich.table import Table
 from benchmarks import metrics as M
 from benchmarks import stats as S
 from src.core.config_loader import ConfigLoader
+from src.core.model_factory import ModelFactory
 from src.inference.llm_client import LLMClient
 
 console = Console()
@@ -510,6 +511,9 @@ def main() -> None:
         "judge_validated": False,
         "judge_model": ConfigLoader.get_rag_config().get("llm", {}).get("model"),
         "config_snapshot": ConfigLoader.get_rag_config(),
+        # Il YAML dice cosa era dichiarato, non cosa ha girato: la variabile
+        # d'ambiente puo' sovrascrivere il modello di embedding.
+        "embedding_effettivo": dict(zip(("modello", "origine"), ModelFactory.resolve_embedding_model())),
         "git": git_state(),
         "stats_environment": S.describe_environment(),
         "k_values": list(K_VALUES),

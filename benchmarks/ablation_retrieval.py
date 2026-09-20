@@ -52,6 +52,7 @@ from rich.table import Table
 from benchmarks import metrics as M
 from benchmarks import stats as S
 from src.core.config_loader import ConfigLoader
+from src.core.model_factory import ModelFactory
 
 console = Console()
 RESULTS_DIR = Path("results")
@@ -89,7 +90,7 @@ def preset_configs(base: dict[str, Any], preset: str, con_mmarco: bool = False) 
                       rerank_top_k=base["rerank_top_k"], filtro_categoria=False,
                       score_threshold=base["score_threshold"])
         return [
-            Config("solo denso (FINAL_V2)", ibrido=False, note="passo 0: deve riprodurre FINAL_V2", **comuni),
+            Config("solo denso", ibrido=False, note="canale denso, senza BM25", **comuni),
             Config("denso + BM25 (RRF)", ibrido=True, note="passo 1: canale lessicale", **comuni),
         ]
     attuale = Config(
@@ -405,6 +406,8 @@ def main() -> None:
             "dataset_version": data.get("version"),
             "n_domande": len(items),
             "baseline": base["config"]["nome"],
+            "embedding_effettivo": dict(zip(("modello", "origine"), ModelFactory.resolve_embedding_model())),
+            "collection": motore.collection,
             "configurazioni_saltate": falliti,
             "risultati": risultati,
             "confronti_vs_baseline": confronti,
