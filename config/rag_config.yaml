@@ -72,11 +72,56 @@ crawler:
     - www.cni.it
     - cni.it
   included_paths:
+    # --- percorsi originali, invariati ---
     - /media-ing
     - /cni
     - /temi
     - /contatti
     - /servizi
+
+    # --- schede territoriali degli ordini provinciali ---
+    # Non sono nel corpus attuale: la prima ingestione con questa voce produce un
+    # corpus diverso da quello dei risultati gia' riportati.
+    - /area-cni
+
+    # --- percorsi gia' presenti nel corpus ma fuori dalla whitelist di prima ---
+    # Senza queste voci una ingestione completa perderebbe il 36% degli URL
+    # indicizzati (1.491 su 4.144).
+    - /images                                   # PDF
+    - /eventi
+    - /sezioni-amministrazione-trasparente
+    - /il-giornale-dell-ingegnere
+    - /evidenza
+    - /notizie-internazionali
+    - /it/                                      # sezione internazionale in italiano
+    - /faq                                      # non presente nel corpus attuale
+
+    # Pagine istituzionali singole. Elenco esplicito: il crawler usa startswith e
+    # un prefisso largo ammetterebbe pagine non verificate.
+    - /albo-unico
+    - /amministrazione-trasparente
+    - /bonus-110-chiarimenti-commissione-csllpp
+    - /euring
+    - /ingegneri-biomedici-e-clinici
+    - /ingegneri-e-rappresentanza
+    - /ingegneri-in-italia
+    - /network-cni
+    - /note-legali
+    - /nuovo-codice-deontologico-degli-ingegneri-italiani
+    - /opportunita
+    - /privacy-cookies
+    - /pubblicazioni-cni
+    - /regolamento-sugli-accessi
+    - /rete-internazionale
+    - /riconoscimento-qualifiche-in-italia
+    - /urp
+    - /whistleblowing
+
+    # Esclusi di proposito, da non aggiungere:
+    #   /en                              versione inglese (regola del crawler)
+    #   /login-interno                   area riservata, fuori da un corpus di soli dati pubblici
+    #   /gdl-formazione-universitaria    rimanda al login
+    #   domini esterni                   fuori dal perimetro
   priority_paths:
     - /media-ing/
     - /cni
