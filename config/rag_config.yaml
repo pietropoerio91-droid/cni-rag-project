@@ -48,7 +48,7 @@ retrieval:
 reranking:
   enabled: true
   top_k: 5
-  model: BAAI/bge-reranker-base
+  model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
 
 fallback:
   score_threshold: 0.5
