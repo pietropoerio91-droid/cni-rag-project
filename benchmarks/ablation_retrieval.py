@@ -82,6 +82,20 @@ class Config:
 
 def preset_configs(base: dict[str, Any], preset: str, con_mmarco: bool = False) -> list[Config]:
     """La configurazione attuale del progetto e' sempre la prima (baseline)."""
+    if preset == "reranker":
+        # Stessa configurazione di recupero (denso + BM25), cambia solo il
+        # cross-encoder. Regola di adozione fissata PRIMA di vedere i dati:
+        # un candidato sostituisce l'attuale solo se guadagna almeno 2 domande su
+        # 30 in Hit@5 e la latenza per domanda non supera il doppio di quella
+        # dell'attuale.
+        comuni = dict(top_k=base["top_k"], rerank_top_k=base["rerank_top_k"], filtro_categoria=False,
+                      score_threshold=base["score_threshold"], ibrido=True)
+        candidati = [
+            ("BAAI/bge-reranker-base", "attuale"),
+            ("cross-encoder/mmarco-mMiniLMv2-L12-H384-v1", "multilingue compatto, addestrato su mMARCO"),
+            ("BAAI/bge-reranker-v2-m3", "multilingue, il piu' forte e il piu' pesante"),
+        ]
+        return [Config(nome=m.split("/")[-1], reranker=m, note=n, **comuni) for m, n in candidati]
     if preset == "ibrido":
         # Passi 0 e 1 di doc/PIANO_RECUPERO_IBRIDO.md. Entrambe passano da
         # HybridRetriever e col filtro di categoria spento, come nella
@@ -168,6 +182,9 @@ class Motore:
     def reranker(self, nome: str):
         if nome not in self._rerankers:
             from sentence_transformers import CrossEncoder
+            # Un solo cross-encoder in memoria alla volta: su 8 GB di RAM condivisa
+            # tenerne tre caricati insieme e' un rischio inutile.
+            self._rerankers.clear()
             console.print(f"[dim]caricamento reranker {nome}…[/dim]")
             self._rerankers[nome] = CrossEncoder(nome)
         return self._rerankers[nome]
@@ -281,7 +298,7 @@ def confronta(base: dict, alt: dict) -> dict[str, Any]:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Ablation sul retrieval (senza LLM)")
     ap.add_argument("--dataset", default="config/golden_dataset_v2.json")
-    ap.add_argument("--preset", choices=["veloce", "completo", "ibrido"], default="completo")
+    ap.add_argument("--preset", choices=["veloce", "completo", "ibrido", "reranker"], default="completo")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--markdown", action="store_true", help="stampa la tabella in Markdown")
     ap.add_argument("--out", default=None)
