@@ -45,6 +45,14 @@ retrieval:
       b: 0.75
       include_title: true   # il titolo entra nel testo indicizzato
 
+governance:
+  pii_filter:
+    # false: il corpus e' composto solo da pagine pubbliche, quindi mascherare email,
+    # telefoni e codici non protegge nulla e blocca le risposte sui contatti dell'ente.
+    # true: attivalo se il sistema tratta dati non pubblici.
+    enabled: false
+    masked: true
+
 reranking:
   enabled: true
   top_k: 5

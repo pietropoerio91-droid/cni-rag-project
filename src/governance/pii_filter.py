@@ -2,6 +2,8 @@ import logging
 import re
 from typing import Any
 
+from src.core.config_loader import ConfigLoader
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +29,18 @@ class PIIFilter:
     def __init__(self, enabled: bool = True, masked: bool = True):
         self.enabled = enabled
         self.masked = masked
+
+    @classmethod
+    def from_config(cls) -> "PIIFilter":
+        """Legge `governance.pii_filter` da rag_config.yaml; senza indicazioni il filtro e' attivo.
+
+        Con un corpus interamente pubblico il filtro e' disattivato: maschera anche
+        i contatti istituzionali e i codici dell'ente (un codice fiscale di 11 cifre
+        viene letto come telefono), rendendo impossibili le domande su di essi senza
+        proteggere nessun dato riservato. Va attivato se il sistema tratta dati non pubblici.
+        """
+        config = ConfigLoader.get_rag_config().get("governance", {}).get("pii_filter", {})
+        return cls(enabled=config.get("enabled", True), masked=config.get("masked", True))
 
     def filter(self, text: str, meta: dict[str, Any] | None = None) -> str:
         if not self.enabled:

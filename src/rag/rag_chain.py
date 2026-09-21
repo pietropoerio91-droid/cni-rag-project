@@ -50,7 +50,7 @@ class RAGChain:
         self.response_generator = ResponseGenerator(llm)
         self.self_rag = SelfRAG(llm)
         self.citation_builder = CitationBuilder()
-        self.pii_filter = PIIFilter()
+        self.pii_filter = PIIFilter.from_config()
         self.monitor = RAGMonitor()
 
         config = ConfigLoader.get_rag_config()
