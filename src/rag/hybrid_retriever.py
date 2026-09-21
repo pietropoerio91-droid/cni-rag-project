@@ -7,6 +7,7 @@ from src.core.config_loader import ConfigLoader
 from src.rag.fusion import reciprocal_rank_fusion
 from src.rag.query_classifier import QueryClassifier
 from src.rag.sparse_index import BM25Index, carica_da_qdrant
+from src.vectorstore.bm25_sparse import DENSE_VECTOR, SPARSE_VECTOR, query_vector
 from src.vectorstore.retriever import VectorRetriever
 
 logger = logging.getLogger(__name__)
@@ -29,10 +30,22 @@ class HybridRetriever:
     """
 
     def __init__(self, embedding_model: Embeddings):
-        self.vector_retriever = VectorRetriever(embedding_model)
-        self.query_classifier = QueryClassifier()
         config = ConfigLoader.get_rag_config()
         retrieval = config.get("retrieval", {})
+        hybrid = retrieval.get("hybrid_search", {})
+
+        # backend "memoria": indice BM25 costruito in RAM, fusione in Python.
+        # backend "qdrant": vettore sparso BM25 nella collection e fusione RRF
+        # calcolata da Qdrant (serve una collection costruita con
+        # scripts/build_sparse_collection.py).
+        self.backend = hybrid.get("backend", "memoria")
+        if self.backend not in ("memoria", "qdrant"):
+            raise ValueError(f"hybrid_search.backend non valido: {self.backend!r}")
+
+        self.vector_retriever = VectorRetriever(
+            embedding_model, vector_name=DENSE_VECTOR if self.backend == "qdrant" else None
+        )
+        self.query_classifier = QueryClassifier()
 
         self.top_k = retrieval.get("top_k", 25)
         self.hybrid_config = retrieval.get("hybrid_search", {})
@@ -82,6 +95,45 @@ class HybridRetriever:
             must=[rest.FieldCondition(key="category", match=rest.MatchValue(value=categoria))]
         ), categoria
 
+    def _retrieve_native(self, query: str, k: int, filtro, categoria: str) -> list[dict[str, Any]]:
+        """Ibrido calcolato da Qdrant: due `Prefetch` (denso, sparso) e fusione RRF."""
+        from qdrant_client.http import models as rest
+
+        retriever = self.vector_retriever
+        punti = retriever.manager.get_client().query_points(
+            collection_name=retriever.collection_name,
+            prefetch=[
+                rest.Prefetch(
+                    query=retriever.embedding_model.embed_query(query),
+                    using=DENSE_VECTOR,
+                    limit=self.dense_top_k,
+                    score_threshold=retriever.score_threshold,
+                    filter=filtro,
+                ),
+                rest.Prefetch(query=query_vector(query), using=SPARSE_VECTOR, limit=self.sparse_top_k),
+            ],
+            query=rest.RrfQuery(rrf=rest.Rrf(k=self.rrf_k)),
+            limit=k,
+            with_payload=True,
+        ).points
+
+        risultati = [
+            {
+                "content": p.payload.get("content", ""),
+                "source": p.payload.get("source", ""),
+                "title": p.payload.get("title", ""),
+                "score": p.score,
+                "chunk_index": p.payload.get("chunk_index", 0),
+                "category": p.payload.get("category", ""),
+            }
+            for p in punti
+        ]
+        logger.info(
+            f"Recupero ibrido nativo: {len(risultati)} candidati "
+            f"(categoria: {categoria}, filtro: {'attivo' if filtro else 'no'}, RRF k={self.rrf_k})"
+        )
+        return risultati
+
     # ------------------------------------------------------------------ #
 
     def retrieve(self, query: str, top_k: int | None = None) -> list[dict[str, Any]]:
@@ -95,6 +147,9 @@ class HybridRetriever:
                 f"(categoria: {categoria}, filtro: {'attivo' if filtro else 'no'})"
             )
             return risultati
+
+        if self.backend == "qdrant":
+            return self._retrieve_native(query, k, filtro, categoria)
 
         # Pescata larga dai due canali: costa poco e da' alla fusione piu'
         # materiale fra cui scegliere. Il filtro di categoria, quando attivo,

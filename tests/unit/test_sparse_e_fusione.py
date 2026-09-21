@@ -1,3 +1,4 @@
+import pytest
 """Verifiche sull'indice lessicale e sulla fusione dei ranghi.
 
 Non richiedono Qdrant ne' modelli: lavorano su documenti costruiti a mano.
@@ -111,6 +112,7 @@ def _costruisci_ibrido(enabled, densi, lessicali, top_k=25):
     r.top_k = top_k
     r.hybrid_config = {}
     r.hybrid_enabled = enabled
+    r.backend = "memoria"
     r.dense_top_k = 50
     r.sparse_top_k = 50
     r.rrf_k = 60
@@ -137,3 +139,13 @@ def test_con_bandiera_accesa_il_canale_lessicale_porta_dentro_cio_che_il_denso_m
     assert "/urp" in [d["source"] for d in out]
     assert r.vector_retriever.ultimo_top_k == 50      # pescata larga prima della fusione
     assert len(out) == 25                              # budget del riordino invariato
+
+
+def test_un_backend_sconosciuto_viene_rifiutato(monkeypatch):
+    from src.rag import hybrid_retriever as modulo
+    monkeypatch.setattr(
+        modulo.ConfigLoader, "get_rag_config",
+        classmethod(lambda cls: {"retrieval": {"hybrid_search": {"backend": "elasticsearch"}}}),
+    )
+    with pytest.raises(ValueError, match="backend"):
+        modulo.HybridRetriever(embedding_model=None)
