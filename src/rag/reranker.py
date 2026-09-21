@@ -13,6 +13,10 @@ class Reranker:
         self.enabled = rerank_config.get("enabled", True)
         self.top_k = rerank_config.get("top_k", 3)
         self.model_name = rerank_config.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+        # Se il modello non si carica il sistema si ferma, salvo consenso esplicito:
+        # rispondere senza reranking in silenzio abbassa la qualita' senza che
+        # nessun risultato lo mostri.
+        self.allow_fallback = rerank_config.get("allow_fallback", False)
         self._model = None
 
     def _load_model(self):
@@ -22,7 +26,12 @@ class Reranker:
                 self._model = CrossEncoder(self.model_name)
                 logger.info(f"Loaded reranker model: {self.model_name}")
             except Exception as e:
-                logger.warning(f"Failed to load reranker model: {e}. Using score-based reranking.")
+                if not self.allow_fallback:
+                    raise RuntimeError(
+                        f"Impossibile caricare il reranker {self.model_name!r}: {e}. "
+                        "Per proseguire senza reranking imposta reranking.allow_fallback: true."
+                    ) from e
+                logger.error(f"Reranker {self.model_name!r} non caricato ({e}): si prosegue SENZA reranking")
                 self.enabled = False
 
     def rerank(self, query: str, results: list[dict[str, Any]]) -> list[dict[str, Any]]:

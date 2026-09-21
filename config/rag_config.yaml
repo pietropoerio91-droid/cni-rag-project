@@ -49,6 +49,7 @@ reranking:
   enabled: true
   top_k: 5
   model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
+  allow_fallback: false   # true = se il modello non si carica si risponde senza reranking
 
 fallback:
   score_threshold: 0.5
