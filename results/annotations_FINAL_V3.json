@@ -1,0 +1,230 @@
+{
+  "run_id": "FINAL_V3",
+  "items": {
+    "Q01": {
+      "faithfulness": 5,
+      "answer_relevance": 4,
+      "correctness": 4,
+      "error_stage": null,
+      "note": null,
+      "annotated_at": "2026-09-21T21:19:46"
+    },
+    "Q02": {
+      "faithfulness": 2,
+      "answer_relevance": 5,
+      "correctness": 1,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T21:30:40"
+    },
+    "Q03": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:33:52"
+    },
+    "Q04": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:35:28"
+    },
+    "Q05": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:36:28"
+    },
+    "Q07": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:22"
+    },
+    "Q08": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:25"
+    },
+    "Q09": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:29"
+    },
+    "Q10": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:02:06"
+    },
+    "Q11": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:03:37"
+    },
+    "Q13": {
+      "faithfulness": 0,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:13:10"
+    },
+    "Q14": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:13:55"
+    },
+    "Q15": {
+      "faithfulness": 5,
+      "answer_relevance": 2,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:18:34"
+    },
+    "Q16": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:19:15"
+    },
+    "Q17": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:20:32"
+    },
+    "Q18": {
+      "faithfulness": 5,
+      "answer_relevance": 3,
+      "correctness": 3,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:21:54"
+    },
+    "Q19": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:23:05"
+    },
+    "Q20": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:23:57"
+    },
+    "Q21": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 2,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:25:52"
+    },
+    "Q22": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:27:45"
+    },
+    "Q23": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:28:45"
+    },
+    "Q24": {
+      "faithfulness": 5,
+      "answer_relevance": 4,
+      "correctness": 3,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:31:00"
+    },
+    "Q25": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:33:01"
+    },
+    "Q26": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:33:39"
+    },
+    "Q27": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:34:26"
+    },
+    "Q28": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:36:14"
+    },
+    "Q29": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:36:43"
+    },
+    "Q30": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:38:16"
+    }
+  },
+  "updated_at": "2026-09-21T22:38:16"
+}

@@ -1,0 +1,813 @@
+{
+  "run_id": "FINAL_V3_PII_Q12",
+  "run_date": "2026-09-21T22:13:29",
+  "dataset": "/private/tmp/claude-501/-Users-pietropoerio-Desktop-cni-rag-project/09bb62e8-eb56-4922-95ab-3572fb12953a/scratchpad/golden_Q12.json",
+  "dataset_version": "2.0-draft",
+  "judge_enabled": true,
+  "judge_validated": false,
+  "judge_model": "qwen2.5:3b",
+  "config_snapshot": {
+    "embedding": {
+      "model_name": "intfloat/multilingual-e5-small",
+      "device": "cpu",
+      "normalize_embeddings": true,
+      "batch_size": 32
+    },
+    "llm": {
+      "provider": "ollama",
+      "base_url": "http://localhost:11434/v1",
+      "model": "qwen2.5:3b",
+      "temperature": 0.1,
+      "max_tokens": 2048,
+      "top_p": 0.95
+    },
+    "chunking": {
+      "chunk_size": 1500,
+      "chunk_overlap": 200,
+      "separators": [
+        "\n\n",
+        "\n",
+        ".",
+        " ",
+        ""
+      ]
+    },
+    "retrieval": {
+      "top_k": 25,
+      "score_threshold": 0.3,
+      "category_filter": false,
+      "hybrid_search": {
+        "enabled": true,
+        "rrf_k": 60,
+        "dense_top_k": 50,
+        "sparse_top_k": 50,
+        "bm25": {
+          "k1": 1.2,
+          "b": 0.75,
+          "include_title": true
+        }
+      }
+    },
+    "governance": {
+      "pii_filter": {
+        "enabled": false,
+        "masked": true
+      }
+    },
+    "reranking": {
+      "enabled": true,
+      "top_k": 5,
+      "model": "BAAI/bge-reranker-base",
+      "allow_fallback": false
+    },
+    "fallback": {
+      "score_threshold": 0.5,
+      "message": "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
+    },
+    "vector_store": {
+      "collection_name": "cni_documents_e5_bm25",
+      "distance": "cosine",
+      "size": 384
+    },
+    "crawler": {
+      "base_url": "https://www.cni.it",
+      "max_depth": 8,
+      "max_pages": 15000,
+      "focus_priority": true,
+      "respect_robots_txt": true,
+      "delay": 0.2,
+      "timeout": 15,
+      "allowed_domains": [
+        "www.cni.it",
+        "cni.it"
+      ],
+      "included_paths": [
+        "/media-ing",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi",
+        "/area-cni",
+        "/images",
+        "/eventi",
+        "/sezioni-amministrazione-trasparente",
+        "/il-giornale-dell-ingegnere",
+        "/evidenza",
+        "/notizie-internazionali",
+        "/it/",
+        "/faq",
+        "/albo-unico",
+        "/amministrazione-trasparente",
+        "/bonus-110-chiarimenti-commissione-csllpp",
+        "/euring",
+        "/ingegneri-biomedici-e-clinici",
+        "/ingegneri-e-rappresentanza",
+        "/ingegneri-in-italia",
+        "/network-cni",
+        "/note-legali",
+        "/nuovo-codice-deontologico-degli-ingegneri-italiani",
+        "/opportunita",
+        "/privacy-cookies",
+        "/pubblicazioni-cni",
+        "/regolamento-sugli-accessi",
+        "/rete-internazionale",
+        "/riconoscimento-qualifiche-in-italia",
+        "/urp",
+        "/whistleblowing"
+      ],
+      "priority_paths": [
+        "/media-ing/",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi"
+      ],
+      "priority_max_depth": 12,
+      "max_links_per_page": 300
+    },
+    "quality": {
+      "min_content_length": 50,
+      "max_content_length": 100000,
+      "required_languages": [
+        "it"
+      ],
+      "max_repetition_ratio": 0.65
+    }
+  },
+  "embedding_effettivo": {
+    "modello": "intfloat/multilingual-e5-small",
+    "origine": "yaml"
+  },
+  "git": {
+    "commit": "94bdb9609d107bfa1f264e22d90b1e114d227f2b",
+    "commit_breve": "94bdb96",
+    "branch": "release/recupero-ibrido",
+    "dirty": true,
+    "file_modificati": [
+      "data/qdrant_db/meta.json",
+      "results/history.csv",
+      "results/index.json",
+      "results/summary.csv",
+      ".claude/",
+      "data/qdrant_db.backup/",
+      "results/2026-09-21/eval_21-51-15.json",
+      "results/2026-09-21/eval_FINAL_V3.partial.json",
+      "results/2026-09-21/eval_FINAL_V3_PII.partial.json",
+      "results/2026-09-21/eval_FINAL_V3_PII_Q12.partial.json",
+      "results/annotations_FINAL_V3.json",
+      "results/annotations_FINAL_V3_PII.json",
+      "results/archivio/"
+    ]
+  },
+  "stats_environment": {
+    "scipy_available": true,
+    "bootstrap_resamples": 10000,
+    "seed": 20260824,
+    "alpha": 0.05
+  },
+  "k_values": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "aggregate": {
+    "total_questions": 1,
+    "fallback_rate": 0.0,
+    "fallback_rate_ci": [
+      0.0,
+      0.7934506856227626
+    ],
+    "retrieval_stages": {
+      "retrieved": {
+        "point": {
+          "mrr": 0.0,
+          "hit_at_1": 0.0,
+          "precision_at_1": 0.0,
+          "recall_at_1": 0.0,
+          "ndcg_at_1": 0.0,
+          "hit_at_3": 0.0,
+          "precision_at_3": 0.0,
+          "recall_at_3": 0.0,
+          "ndcg_at_3": 0.0,
+          "hit_at_5": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "ndcg_at_5": 0.0,
+          "hit_at_10": 0.0,
+          "precision_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "ndcg_at_10": 0.0
+        },
+        "ci": {
+          "mrr": {
+            "name": "mrr",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_1": {
+            "name": "hit_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_1": {
+            "name": "recall_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_1": {
+            "name": "precision_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_1": {
+            "name": "ndcg_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_3": {
+            "name": "hit_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_3": {
+            "name": "recall_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_3": {
+            "name": "precision_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_3": {
+            "name": "ndcg_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_5": {
+            "name": "hit_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_5": {
+            "name": "recall_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_5": {
+            "name": "precision_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_5": {
+            "name": "ndcg_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_10": {
+            "name": "hit_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_10": {
+            "name": "recall_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_10": {
+            "name": "precision_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_10": {
+            "name": "ndcg_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          }
+        }
+      },
+      "context": {
+        "point": {
+          "mrr": 0.0,
+          "hit_at_1": 0.0,
+          "precision_at_1": 0.0,
+          "recall_at_1": 0.0,
+          "ndcg_at_1": 0.0,
+          "hit_at_3": 0.0,
+          "precision_at_3": 0.0,
+          "recall_at_3": 0.0,
+          "ndcg_at_3": 0.0,
+          "hit_at_5": 0.0,
+          "precision_at_5": 0.0,
+          "recall_at_5": 0.0,
+          "ndcg_at_5": 0.0,
+          "hit_at_10": 0.0,
+          "precision_at_10": 0.0,
+          "recall_at_10": 0.0,
+          "ndcg_at_10": 0.0
+        },
+        "ci": {
+          "mrr": {
+            "name": "mrr",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_1": {
+            "name": "hit_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_1": {
+            "name": "recall_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_1": {
+            "name": "precision_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_1": {
+            "name": "ndcg_at_1",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_3": {
+            "name": "hit_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_3": {
+            "name": "recall_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_3": {
+            "name": "precision_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_3": {
+            "name": "ndcg_at_3",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_5": {
+            "name": "hit_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_5": {
+            "name": "recall_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_5": {
+            "name": "precision_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_5": {
+            "name": "ndcg_at_5",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "hit_at_10": {
+            "name": "hit_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.7935,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "recall_at_10": {
+            "name": "recall_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "precision_at_10": {
+            "name": "precision_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          },
+          "ndcg_at_10": {
+            "name": "ndcg_at_10",
+            "n": 1,
+            "mean": 0.0,
+            "ci_low": 0.0,
+            "ci_high": 0.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.0
+          }
+        }
+      }
+    },
+    "reranker_effect": {},
+    "retrieval": {
+      "mrr": 0.0,
+      "hit_at_3": 0.0,
+      "hit_at_5": 0.0,
+      "hit_at_10": 0.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0
+    },
+    "generation": {
+      "avg_faithfulness": 0.0,
+      "avg_answer_relevance": 1.0,
+      "avg_correctness": 0.0,
+      "pass_rate_correctness_ge4": 0.0,
+      "must_contain_pass_rate": 0.0,
+      "ci": {
+        "faithfulness": {
+          "name": "faithfulness",
+          "n": 1,
+          "mean": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 0.0
+        },
+        "answer_relevance": {
+          "name": "answer_relevance",
+          "n": 1,
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 1.0
+        },
+        "correctness": {
+          "name": "correctness",
+          "n": 1,
+          "mean": 0.0,
+          "ci_low": 0.0,
+          "ci_high": 0.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 0.0
+        }
+      },
+      "must_contain_ci": [
+        0.0,
+        0.7934506856227626
+      ]
+    },
+    "avg_latency_s": 230.78,
+    "latency_ci": null
+  },
+  "duration_s": 342.5,
+  "results": [
+    {
+      "question_id": "Q12",
+      "question": "Qual è il codice fiscale del Consiglio Nazionale degli Ingegneri?",
+      "category": "contatti",
+      "reference_answer": "Il codice fiscale del CNI è 80057570584.",
+      "expected_sources": [
+        "urp"
+      ],
+      "must_contain": [
+        "80057570584"
+      ],
+      "must_contain_hits": [],
+      "must_contain_pass": false,
+      "response": "I documenti disponibili non contengono informazioni sufficienti su questo argomento.",
+      "citations": [
+        {
+          "title": "2016",
+          "source": "https://www.cni.it/media-ing/news/137-2016?start=50",
+          "relevance_score": 0.0283,
+          "excerpt": "20/07/2016\nNorme Tecniche: nuova convenzione CNI-UNI a beneficio degli ingegneri italiani\nIl Consiglio Nazionale degli Ingegneri ha sottoscritto un nuovo accordo con l’Ente Nazionale Italiano di...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "all_A_schema_dichiarazione.pdf",
+          "source": "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/all_A_schema_dichiarazione.pdf",
+          "relevance_score": 0.0164,
+          "excerpt": "1 \nALLEGATO A) – Schema di manifestazione di interesse \n\nal CONSIGLIO NAZIONALE \nDEGLI INGEGNERI \nVia XX Settembre, 5 \n00187 Roma \nPEC: segreteria@ingpec.eu \n\nOGGETTO: manifestazione di interesse a...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+          "source": "https://www.cni.it/images/eventi/2025/01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+          "relevance_score": 0.0161,
+          "excerpt": "Partner:\nA CHI È RIVOLTO IL CONVEGNO ON LINE\nL’evento on line è rivolto a chi sta valutando l’apertura della partita iva e per chi è già in attività come libero \nprofessionista. Il webinar sarà...",
+          "content_overlap": 0.0
+        },
+        {
+          "title": "Regione Lombardia",
+          "source": "https://www.cni.it/media-ing/news/240-2023/4521-regione-lombardia",
+          "relevance_score": 0.0143,
+          "excerpt": "Regione Lombardia\nAvviso trasmessoci ai sensi del Capitolo IV paragrafo 1.2 delle Linee Guida ANAC n.1.\nSi precisa che Il Consiglio Nazionale degli Ingegneri non rilascia alcun tipo di garanzia,...",
+          "content_overlap": 0.0
+        }
+      ],
+      "retrieved_sources": [
+        "https://www.cni.it/nuovo-codice-deontologico-degli-ingegneri-italiani",
+        "https://www.cni.it/media-ing/news/137-2016?start=50",
+        "https://www.cni.it/images/News/2023/CIRC_CNI_53-Prot_CNI_7973U-20.06.23-DEONTOL.pdf",
+        "https://www.cni.it/images/eventi/2025/01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+        "https://www.cni.it/note-legali",
+        "https://www.cni.it/images/News/2023/CIRC_CNI_53-Prot_CNI_7973U-20.06.23-DEONTOL.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/manifestazione_interesse_premio_ingenio.pdf",
+        "https://www.cni.it/media-ing/news/282-2024/4789-equo-compenso-cni-chi-stabilisce-il-limite-della-decenza",
+        "https://www.cni.it/media-ing/news/282-2024/4702-infrastrutture-ingegneri-e-geologi-italiani-a-colloquio-da-salvini-dialogo-costruttivo-su-ponte-stretto-e-codice-contratti",
+        "https://www.cni.it/media-ing/news/290-2025/5123-manovra-2026-eliminato-il-divieto-di-compensazione-tra-crediti-fiscali-e-debiti-previdenziali",
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/all_A_schema_dichiarazione.pdf",
+        "https://www.cni.it/images/eventi/2025/01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+        "https://www.cni.it/sezioni-amministrazione-trasparente/67-pagamenti-dell-amministrazione/85-iban-e-pagamenti-informatici",
+        "https://www.cni.it/images/amministrazione_trasparente/altri_contenuti/Whistleblowing/B_WB_Procedurainterna_CNI.pdf",
+        "https://www.cni.it/images/eventi/2026/2026_GN_Ingegneria_economica_definitivo.pdf_9.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/manifest_inter_facility_management_ott2022.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/consulenze_a_carattere_continuativo/contratti/09_consulenze_continuative_settembre_2022.pdf",
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/AVVISO_PUBBLICO_revisori_CNI.pdf",
+        "https://www.cni.it/images/atti_generali/Codice_deontologico_CNI_14-06-2023_DEF.rev.1.pdf",
+        "https://www.cni.it/media-ing/news/240-2023/4314-ingenio-al-femminile-un-premio-di-tesi-per-le-laureate-in-ingegneria",
+        "https://www.cni.it/images/News/2023/Codice_deontologico_CNI_14-06-2023_DEF.rev.1.pdf",
+        "https://www.cni.it/eventi/dettaglievento/12036/-/amministrazione-trasparente-e-applicazione-dei-nuovi-schemi-di-pubblicazione-di-anac",
+        "https://www.cni.it/media-ing/news/240-2023/4521-regione-lombardia",
+        "https://www.cni.it/media-ing/news/282-2024?start=70",
+        "https://www.cni.it/media-ing/news/282-2024/4805-correttivo-al-codice-dei-contratti-il-cni-deposita-un-documento-con-valutazioni-e-proposte-concrete"
+      ],
+      "reranked_sources": [
+        "https://www.cni.it/images/amministrazione_trasparente/avvisi_bandi_e_inviti/all_A_schema_dichiarazione.pdf",
+        "https://www.cni.it/media-ing/news/137-2016?start=50",
+        "https://www.cni.it/images/eventi/2025/01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+        "https://www.cni.it/images/eventi/2025/01_Adempimenti_fiscaliprevidenziali_27ott2025.pdf",
+        "https://www.cni.it/media-ing/news/240-2023/4521-regione-lombardia"
+      ],
+      "fallback_triggered": false,
+      "retrieval": {
+        "n_docs": 25,
+        "n_expected_sources": 1,
+        "first_relevant_rank": null,
+        "mrr": 0.0,
+        "relevance": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "hit_at_1": 0,
+        "precision_at_1": 0.0,
+        "recall_at_1": 0.0,
+        "ndcg_at_1": 0.0,
+        "hit_at_3": 0,
+        "precision_at_3": 0.0,
+        "recall_at_3": 0.0,
+        "ndcg_at_3": 0.0,
+        "hit_at_5": 0,
+        "precision_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "ndcg_at_5": 0.0,
+        "hit_at_10": 0,
+        "precision_at_10": 0.0,
+        "recall_at_10": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "retrieval_context": {
+        "n_docs": 5,
+        "n_expected_sources": 1,
+        "first_relevant_rank": null,
+        "mrr": 0.0,
+        "relevance": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "hit_at_1": 0,
+        "precision_at_1": 0.0,
+        "recall_at_1": 0.0,
+        "ndcg_at_1": 0.0,
+        "hit_at_3": 0,
+        "precision_at_3": 0.0,
+        "recall_at_3": 0.0,
+        "ndcg_at_3": 0.0,
+        "hit_at_5": 0,
+        "precision_at_5": 0.0,
+        "recall_at_5": 0.0,
+        "ndcg_at_5": 0.0,
+        "hit_at_10": 0,
+        "precision_at_10": 0.0,
+        "recall_at_10": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "reranker_gain": {
+        "d_mrr": 0.0,
+        "d_hit_at_5": 0,
+        "d_recall_at_5": 0.0,
+        "d_ndcg_at_5": 0.0,
+        "rank_pre": null,
+        "rank_post": null
+      },
+      "judgment": {
+        "faithfulness": {
+          "score": 0,
+          "reason": "La risposta generata non è supportata dai documenti e neppure contiene alcuna informazione sul codice fiscale del Consiglio Nazionale degli Ingegneri."
+        },
+        "answer_relevance": {
+          "score": 1,
+          "reason": "La risposta non risponde alla domanda specifica chiedendo il codice fiscale del Consiglio Nazionale degli Ingegneri, ma si limita a dire che i documenti disponibili non contengono informazioni sufficienti su questo argomento. Non fornisce alcuna informazione sul codice fiscale richiesto."
+        },
+        "correctness": {
+          "score": 0,
+          "reason": "La risposta generata non è coerente con la verità nota. Essa dichiara che i documenti disponibili non contengono informazioni sufficienti su questo argomento, mentre la verità nota specifica il codice fiscale del CNI (80057570584)."
+        }
+      },
+      "latency_s": 230.78,
+      "pipeline": {
+        "category": "normativa",
+        "grade_result": null,
+        "self_check_result": null
+      }
+    }
+  ]
+}

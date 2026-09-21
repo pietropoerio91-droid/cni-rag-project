@@ -73,3 +73,5 @@ run_date,run_id,dataset_version,question_id,question,category,fallback_triggered
 ,,,Q28,Di quale federazione mondiale delle organizzazioni di ingegneria fa parte il CNI?,internazionale,False,,,,,,194.73,
 ,,,Q29,Esiste nell'albo unico del CNI un elenco speciale riservato ai professori universitari?,professione,False,,,,,,140.31,
 ,,,Q30,Quando si è svolta l'Assemblea dei Delegati di Ingegneria Forense organizzata dal CNI?,temi,False,,,,,,205.41,
+,,,Q06,Qual è l'indirizzo email e il numero di telefono del CNI?,contatti,False,,,,,,232.68,
+,,,Q12,Qual è il codice fiscale del Consiglio Nazionale degli Ingegneri?,contatti,False,,,,,,230.78,

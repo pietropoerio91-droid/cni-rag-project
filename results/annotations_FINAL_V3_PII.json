@@ -1,0 +1,14 @@
+{
+  "run_id": "FINAL_V3_PII",
+  "items": {
+    "Q06": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:57:10"
+    }
+  },
+  "updated_at": "2026-09-21T21:57:10"
+}

@@ -1,0 +1,815 @@
+{
+  "run_id": "FINAL_V3_PII",
+  "run_date": "2026-09-21T21:51:14",
+  "dataset": "/private/tmp/claude-501/-Users-pietropoerio-Desktop-cni-rag-project/09bb62e8-eb56-4922-95ab-3572fb12953a/scratchpad/golden_Q06.json",
+  "dataset_version": "2.0-draft",
+  "judge_enabled": true,
+  "judge_validated": false,
+  "judge_model": "qwen2.5:3b",
+  "config_snapshot": {
+    "embedding": {
+      "model_name": "intfloat/multilingual-e5-small",
+      "device": "cpu",
+      "normalize_embeddings": true,
+      "batch_size": 32
+    },
+    "llm": {
+      "provider": "ollama",
+      "base_url": "http://localhost:11434/v1",
+      "model": "qwen2.5:3b",
+      "temperature": 0.1,
+      "max_tokens": 2048,
+      "top_p": 0.95
+    },
+    "chunking": {
+      "chunk_size": 1500,
+      "chunk_overlap": 200,
+      "separators": [
+        "\n\n",
+        "\n",
+        ".",
+        " ",
+        ""
+      ]
+    },
+    "retrieval": {
+      "top_k": 25,
+      "score_threshold": 0.3,
+      "category_filter": false,
+      "hybrid_search": {
+        "enabled": true,
+        "rrf_k": 60,
+        "dense_top_k": 50,
+        "sparse_top_k": 50,
+        "bm25": {
+          "k1": 1.2,
+          "b": 0.75,
+          "include_title": true
+        }
+      }
+    },
+    "governance": {
+      "pii_filter": {
+        "enabled": false,
+        "masked": true
+      }
+    },
+    "reranking": {
+      "enabled": true,
+      "top_k": 5,
+      "model": "BAAI/bge-reranker-base",
+      "allow_fallback": false
+    },
+    "fallback": {
+      "score_threshold": 0.5,
+      "message": "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
+    },
+    "vector_store": {
+      "collection_name": "cni_documents_e5_bm25",
+      "distance": "cosine",
+      "size": 384
+    },
+    "crawler": {
+      "base_url": "https://www.cni.it",
+      "max_depth": 8,
+      "max_pages": 15000,
+      "focus_priority": true,
+      "respect_robots_txt": true,
+      "delay": 0.2,
+      "timeout": 15,
+      "allowed_domains": [
+        "www.cni.it",
+        "cni.it"
+      ],
+      "included_paths": [
+        "/media-ing",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi",
+        "/area-cni",
+        "/images",
+        "/eventi",
+        "/sezioni-amministrazione-trasparente",
+        "/il-giornale-dell-ingegnere",
+        "/evidenza",
+        "/notizie-internazionali",
+        "/it/",
+        "/faq",
+        "/albo-unico",
+        "/amministrazione-trasparente",
+        "/bonus-110-chiarimenti-commissione-csllpp",
+        "/euring",
+        "/ingegneri-biomedici-e-clinici",
+        "/ingegneri-e-rappresentanza",
+        "/ingegneri-in-italia",
+        "/network-cni",
+        "/note-legali",
+        "/nuovo-codice-deontologico-degli-ingegneri-italiani",
+        "/opportunita",
+        "/privacy-cookies",
+        "/pubblicazioni-cni",
+        "/regolamento-sugli-accessi",
+        "/rete-internazionale",
+        "/riconoscimento-qualifiche-in-italia",
+        "/urp",
+        "/whistleblowing"
+      ],
+      "priority_paths": [
+        "/media-ing/",
+        "/cni",
+        "/temi",
+        "/contatti",
+        "/servizi"
+      ],
+      "priority_max_depth": 12,
+      "max_links_per_page": 300
+    },
+    "quality": {
+      "min_content_length": 50,
+      "max_content_length": 100000,
+      "required_languages": [
+        "it"
+      ],
+      "max_repetition_ratio": 0.65
+    }
+  },
+  "embedding_effettivo": {
+    "modello": "intfloat/multilingual-e5-small",
+    "origine": "yaml"
+  },
+  "git": {
+    "commit": "94bdb9609d107bfa1f264e22d90b1e114d227f2b",
+    "commit_breve": "94bdb96",
+    "branch": "release/recupero-ibrido",
+    "dirty": true,
+    "file_modificati": [
+      "data/qdrant_db/meta.json",
+      ".claude/",
+      "data/qdrant_db.backup/",
+      "results/2026-09-21/eval_FINAL_V3.partial.json",
+      "results/2026-09-21/eval_FINAL_V3_PII.partial.json",
+      "results/annotations_FINAL_V3.json",
+      "results/archivio/"
+    ]
+  },
+  "stats_environment": {
+    "scipy_available": true,
+    "bootstrap_resamples": 10000,
+    "seed": 20260824,
+    "alpha": 0.05
+  },
+  "k_values": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "aggregate": {
+    "total_questions": 1,
+    "fallback_rate": 0.0,
+    "fallback_rate_ci": [
+      0.0,
+      0.7934506856227626
+    ],
+    "retrieval_stages": {
+      "retrieved": {
+        "point": {
+          "mrr": 1.0,
+          "hit_at_1": 1.0,
+          "precision_at_1": 1.0,
+          "recall_at_1": 0.5,
+          "ndcg_at_1": 1.0,
+          "hit_at_3": 1.0,
+          "precision_at_3": 0.6667,
+          "recall_at_3": 1.0,
+          "ndcg_at_3": 0.9197,
+          "hit_at_5": 1.0,
+          "precision_at_5": 0.4,
+          "recall_at_5": 1.0,
+          "ndcg_at_5": 0.9197,
+          "hit_at_10": 1.0,
+          "precision_at_10": 0.2,
+          "recall_at_10": 1.0,
+          "ndcg_at_10": 0.9197
+        },
+        "ci": {
+          "mrr": {
+            "name": "mrr",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_1": {
+            "name": "hit_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_1": {
+            "name": "recall_at_1",
+            "n": 1,
+            "mean": 0.5,
+            "ci_low": 0.5,
+            "ci_high": 0.5,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.5
+          },
+          "precision_at_1": {
+            "name": "precision_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "ndcg_at_1": {
+            "name": "ndcg_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_3": {
+            "name": "hit_at_3",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_3": {
+            "name": "recall_at_3",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_3": {
+            "name": "precision_at_3",
+            "n": 1,
+            "mean": 0.6667,
+            "ci_low": 0.6667,
+            "ci_high": 0.6667,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.6667
+          },
+          "ndcg_at_3": {
+            "name": "ndcg_at_3",
+            "n": 1,
+            "mean": 0.9197,
+            "ci_low": 0.9197,
+            "ci_high": 0.9197,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.9197
+          },
+          "hit_at_5": {
+            "name": "hit_at_5",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_5": {
+            "name": "recall_at_5",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_5": {
+            "name": "precision_at_5",
+            "n": 1,
+            "mean": 0.4,
+            "ci_low": 0.4,
+            "ci_high": 0.4,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.4
+          },
+          "ndcg_at_5": {
+            "name": "ndcg_at_5",
+            "n": 1,
+            "mean": 0.9197,
+            "ci_low": 0.9197,
+            "ci_high": 0.9197,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.9197
+          },
+          "hit_at_10": {
+            "name": "hit_at_10",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_10": {
+            "name": "recall_at_10",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_10": {
+            "name": "precision_at_10",
+            "n": 1,
+            "mean": 0.2,
+            "ci_low": 0.2,
+            "ci_high": 0.2,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.2
+          },
+          "ndcg_at_10": {
+            "name": "ndcg_at_10",
+            "n": 1,
+            "mean": 0.9197,
+            "ci_low": 0.9197,
+            "ci_high": 0.9197,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.9197
+          }
+        }
+      },
+      "context": {
+        "point": {
+          "mrr": 1.0,
+          "hit_at_1": 1.0,
+          "precision_at_1": 1.0,
+          "recall_at_1": 0.5,
+          "ndcg_at_1": 1.0,
+          "hit_at_3": 1.0,
+          "precision_at_3": 0.6667,
+          "recall_at_3": 1.0,
+          "ndcg_at_3": 1.0,
+          "hit_at_5": 1.0,
+          "precision_at_5": 0.4,
+          "recall_at_5": 1.0,
+          "ndcg_at_5": 1.0,
+          "hit_at_10": 1.0,
+          "precision_at_10": 0.2,
+          "recall_at_10": 1.0,
+          "ndcg_at_10": 1.0
+        },
+        "ci": {
+          "mrr": {
+            "name": "mrr",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_1": {
+            "name": "hit_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_1": {
+            "name": "recall_at_1",
+            "n": 1,
+            "mean": 0.5,
+            "ci_low": 0.5,
+            "ci_high": 0.5,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.5
+          },
+          "precision_at_1": {
+            "name": "precision_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "ndcg_at_1": {
+            "name": "ndcg_at_1",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_3": {
+            "name": "hit_at_3",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_3": {
+            "name": "recall_at_3",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_3": {
+            "name": "precision_at_3",
+            "n": 1,
+            "mean": 0.6667,
+            "ci_low": 0.6667,
+            "ci_high": 0.6667,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.6667
+          },
+          "ndcg_at_3": {
+            "name": "ndcg_at_3",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_5": {
+            "name": "hit_at_5",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_5": {
+            "name": "recall_at_5",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_5": {
+            "name": "precision_at_5",
+            "n": 1,
+            "mean": 0.4,
+            "ci_low": 0.4,
+            "ci_high": 0.4,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.4
+          },
+          "ndcg_at_5": {
+            "name": "ndcg_at_5",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "hit_at_10": {
+            "name": "hit_at_10",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 0.2065,
+            "ci_high": 1.0,
+            "ci_method": "wilson",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "recall_at_10": {
+            "name": "recall_at_10",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          },
+          "precision_at_10": {
+            "name": "precision_at_10",
+            "n": 1,
+            "mean": 0.2,
+            "ci_low": 0.2,
+            "ci_high": 0.2,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 0.2
+          },
+          "ndcg_at_10": {
+            "name": "ndcg_at_10",
+            "n": 1,
+            "mean": 1.0,
+            "ci_low": 1.0,
+            "ci_high": 1.0,
+            "ci_method": "bootstrap_percentile",
+            "sd": 0.0,
+            "median": 1.0
+          }
+        }
+      }
+    },
+    "reranker_effect": {},
+    "retrieval": {
+      "mrr": 1.0,
+      "hit_at_3": 1.0,
+      "hit_at_5": 1.0,
+      "hit_at_10": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0
+    },
+    "generation": {
+      "avg_faithfulness": 4.0,
+      "avg_answer_relevance": 5.0,
+      "avg_correctness": 1.0,
+      "pass_rate_correctness_ge4": 0.0,
+      "must_contain_pass_rate": 0.0,
+      "ci": {
+        "faithfulness": {
+          "name": "faithfulness",
+          "n": 1,
+          "mean": 4.0,
+          "ci_low": 4.0,
+          "ci_high": 4.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 4.0
+        },
+        "answer_relevance": {
+          "name": "answer_relevance",
+          "n": 1,
+          "mean": 5.0,
+          "ci_low": 5.0,
+          "ci_high": 5.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 5.0
+        },
+        "correctness": {
+          "name": "correctness",
+          "n": 1,
+          "mean": 1.0,
+          "ci_low": 1.0,
+          "ci_high": 1.0,
+          "ci_method": "bootstrap_percentile",
+          "sd": 0.0,
+          "median": 1.0
+        }
+      },
+      "must_contain_ci": [
+        0.0,
+        0.7934506856227626
+      ]
+    },
+    "avg_latency_s": 232.68,
+    "latency_ci": null
+  },
+  "duration_s": 326.0,
+  "results": [
+    {
+      "question_id": "Q06",
+      "question": "Qual è l'indirizzo email e il numero di telefono del CNI?",
+      "category": "contatti",
+      "reference_answer": "Il telefono del CNI è +39.06.6976701, l'email è segreteria@cni.it e la PEC è segreteria@ingpec.eu.",
+      "expected_sources": [
+        "contatti",
+        "telefono-e-posta-elettronica"
+      ],
+      "must_contain": [
+        "segreteria@cni.it"
+      ],
+      "must_contain_hits": [],
+      "must_contain_pass": false,
+      "response": "L'indirizzo email e il numero di telefono del CNI sono i seguenti:\n\nIndirizzo email: segreteria@cni-online.it\nNumero di telefono: +39.06.6976701",
+      "citations": [
+        {
+          "title": "Telefono e posta elettronica",
+          "source": "https://www.cni.it/contatti",
+          "relevance_score": 0.0312,
+          "excerpt": "Telefono e posta elettronica\nIn questa sezione vengono pubblicati i dati concernenti l’organizzazione ai sensi dell’art. 13 comma 1 lett. d) del D.lgs. n. 33/2013.\n\nVia XX Settembre, 5, 00187 Roma,...",
+          "content_overlap": 0.097
+        },
+        {
+          "title": "Telefono e posta elettronica",
+          "source": "https://www.cni.it/urp",
+          "relevance_score": 0.0311,
+          "excerpt": "Telefono e posta elettronica\nIn questa sezione vengono pubblicati i dati concernenti l’organizzazione ai sensi dell’art. 13 comma 1 lett. d) del D.lgs. n. 33/2013.\n\nVia XX Settembre, 5, 00187 Roma,...",
+          "content_overlap": 0.097
+        },
+        {
+          "title": "Telefono e posta elettronica",
+          "source": "https://www.cni.it/sezioni-amministrazione-trasparente/55-organizzazione/288-articolazione-degli-uffici/4683-telefono-e-posta-elettronica",
+          "relevance_score": 0.0302,
+          "excerpt": "Telefono e posta elettronica\ndati aggiornati al 20/12/2023\nIn questa sezione vengono pubblicati i dati concernenti l’organizzazione ai sensi dell’art. 13 comma 1 lett. d) del D.lgs. n. 33/2013.\n\nVia...",
+          "content_overlap": 0.091
+        },
+        {
+          "title": "A_Informativa_sulla_protezione_dei_dati_personali_CNI.pdf",
+          "source": "https://www.cni.it/images/amministrazione_trasparente/altri_contenuti/Whistleblowing/A_Informativa_sulla_protezione_dei_dati_personali_CNI.pdf",
+          "relevance_score": 0.0258,
+          "excerpt": "Informativa sulla protezione dei dati personali \n(Ai sensi degli artt. 13 e 14 del Regolamento \nEuropeo 2016/679) \n\nTitolare del trattamento \nIl Titolare del trattamento è il Consiglio Nazionale...",
+          "content_overlap": 0.088
+        },
+        {
+          "title": "CNI_Sistema_gestione_protezione_dati_personali_2021.pdf",
+          "source": "https://www.cni.it/images/atti_generali/CNI_Sistema_gestione_protezione_dati_personali_2021.pdf",
+          "relevance_score": 0.0154,
+          "excerpt": "Estratto del D. Lgs. 101/2018: \nCapo IV (Disposizioni relative al titolare del trattamento e al responsabile del trattamento) \nArt. 2-quaterdecies (Attribuzione di funzioni e compiti a soggetti...",
+          "content_overlap": 0.06
+        }
+      ],
+      "retrieved_sources": [
+        "https://www.cni.it/contatti",
+        "https://www.cni.it/urp",
+        "https://www.cni.it/sezioni-amministrazione-trasparente/55-organizzazione/288-articolazione-degli-uffici/4683-telefono-e-posta-elettronica",
+        "https://www.cni.it/sezioni-amministrazione-trasparente/61-attivita-e-procedimenti/56-tipologie-di-procedimento",
+        "https://www.cni.it/images/amministrazione_trasparente/altri_contenuti/Whistleblowing/A_Informativa_sulla_protezione_dei_dati_personali_CNI.pdf",
+        "https://www.cni.it/login-interno?view=remind",
+        "https://www.cni.it/images/PIONIERI_Network_.pdf",
+        "https://www.cni.it/media-ing/news/220-2020/3336-consiglio-nazionale-ingegneri-va-a-pieno-regime-la-nuova-piattaforma-sulla-formazione-riservata-agli-ingegneri-iscritti-all-albo",
+        "https://www.cni.it/temi/sicurezza/166-gruppo-di-lavoro-sicurezza-cni",
+        "https://www.cni.it/login-interno?view=reset",
+        "https://www.cni.it/media-ing/news/220-2020/2880-rinnovata-la-convenzione-tra-cei-e-cni",
+        "https://www.cni.it/evidenza/5200-salone-del-restauro",
+        "https://www.cni.it/media-ing/news/137-2016/1640-fissate-al-14-novembre-le-elezioni-per-il-rinnovo-del-cni",
+        "https://www.cni.it/images/atti_generali/CNI_Sistema_gestione_protezione_dati_personali_2021.pdf",
+        "https://www.cni.it/media-ing/news/133-2015?start=80",
+        "https://www.cni.it/eventi/dettaglievento/12036/-/amministrazione-trasparente-e-applicazione-dei-nuovi-schemi-di-pubblicazione-di-anac",
+        "https://www.cni.it/media-ing/news/220-2020/3322-parma-infrastrutture-s-p-a",
+        "https://www.cni.it/media-ing/news/202-2018/2542-il-cni-lancia-un-contest-per-tesi-di-laurea-sul-rapporto-tra-ingegneria-e-food",
+        "https://www.cni.it/ingegneri-e-rappresentanza",
+        "https://www.cni.it/eventi/dettaglievento/12106/-/salone-del-restauro",
+        "https://www.cni.it/media-ing/news/134-2014?start=80",
+        "https://www.cni.it/images/06_Newsletter_6_-_novembre_2013.pdf",
+        "https://www.cni.it/images/Bando_logo_definitivo.pdf",
+        "https://www.cni.it/images/10_Newsletter_4_-_maggio_2014.pdf",
+        "https://www.cni.it/media-ing/news/134-2014/282-08-08-2014-bim-writing-contest"
+      ],
+      "reranked_sources": [
+        "https://www.cni.it/sezioni-amministrazione-trasparente/55-organizzazione/288-articolazione-degli-uffici/4683-telefono-e-posta-elettronica",
+        "https://www.cni.it/contatti",
+        "https://www.cni.it/urp",
+        "https://www.cni.it/images/amministrazione_trasparente/altri_contenuti/Whistleblowing/A_Informativa_sulla_protezione_dei_dati_personali_CNI.pdf",
+        "https://www.cni.it/images/atti_generali/CNI_Sistema_gestione_protezione_dati_personali_2021.pdf"
+      ],
+      "fallback_triggered": false,
+      "retrieval": {
+        "n_docs": 25,
+        "n_expected_sources": 2,
+        "first_relevant_rank": 1,
+        "mrr": 1.0,
+        "relevance": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "hit_at_1": 1,
+        "precision_at_1": 1.0,
+        "recall_at_1": 0.5,
+        "ndcg_at_1": 1.0,
+        "hit_at_3": 1,
+        "precision_at_3": 0.6667,
+        "recall_at_3": 1.0,
+        "ndcg_at_3": 0.9197,
+        "hit_at_5": 1,
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "ndcg_at_5": 0.9197,
+        "hit_at_10": 1,
+        "precision_at_10": 0.2,
+        "recall_at_10": 1.0,
+        "ndcg_at_10": 0.9197
+      },
+      "retrieval_context": {
+        "n_docs": 5,
+        "n_expected_sources": 2,
+        "first_relevant_rank": 1,
+        "mrr": 1.0,
+        "relevance": [
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        "hit_at_1": 1,
+        "precision_at_1": 1.0,
+        "recall_at_1": 0.5,
+        "ndcg_at_1": 1.0,
+        "hit_at_3": 1,
+        "precision_at_3": 0.6667,
+        "recall_at_3": 1.0,
+        "ndcg_at_3": 1.0,
+        "hit_at_5": 1,
+        "precision_at_5": 0.4,
+        "recall_at_5": 1.0,
+        "ndcg_at_5": 1.0,
+        "hit_at_10": 1,
+        "precision_at_10": 0.2,
+        "recall_at_10": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "reranker_gain": {
+        "d_mrr": 0.0,
+        "d_hit_at_5": 0,
+        "d_recall_at_5": 0.0,
+        "d_ndcg_at_5": 0.0803,
+        "rank_pre": 1,
+        "rank_post": 1
+      },
+      "judgment": {
+        "faithfulness": {
+          "score": 4,
+          "reason": "Le informazioni sull'indirizzo email e il numero di telefono del CNI sono presenti nel contesto, ma mancano le informazioni sul nome completo e altri dati personali."
+        },
+        "answer_relevance": {
+          "score": 5,
+          "reason": "La risposta è diretta, completa e specifica l'indirizzo email e il numero di telefono del CNI. Non contiene informazioni inutili o superflue."
+        },
+        "correctness": {
+          "score": 1,
+          "reason": "L'email fornita (segreteria@cni-online.it) non corrisponde alla verità nota (segretaria@cni.it). Il numero di telefono è corretto."
+        }
+      },
+      "latency_s": 232.68,
+      "pipeline": {
+        "category": "contatti",
+        "grade_result": null,
+        "self_check_result": null
+      }
+    }
+  ]
+}
