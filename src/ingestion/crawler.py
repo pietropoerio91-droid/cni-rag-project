@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import httpx
 from bs4 import BeautifulSoup
@@ -13,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class CNICrawler:
+    USER_AGENT_TOKEN = "CNI-RAG-Bot"
+
     def __init__(self):
         config = ConfigLoader.get_rag_config()
         crawler_config = config.get("crawler", {})
@@ -27,6 +30,8 @@ class CNICrawler:
         self.priority_max_depth = crawler_config.get("priority_max_depth", 8)
         self.focus_priority = crawler_config.get("focus_priority", True)
         self.max_links_per_page = crawler_config.get("max_links_per_page", 100)
+        self.respect_robots = crawler_config.get("respect_robots_txt", True)
+        self._robots: RobotFileParser | None = None
         self.visited: set[str] = set()
         self.results: list[dict[str, Any]] = []
         self._queue: asyncio.Queue = None
@@ -34,6 +39,7 @@ class CNICrawler:
 
     async def crawl(self) -> list[dict[str, Any]]:
         logger.info(f"Starting crawl of {self.base_url} (max depth: {self.max_depth}, max pages: {self.max_pages})")
+        await self._load_robots()
         self._queue = asyncio.Queue()
         await self._queue.put((self.base_url, 0, False))
 
@@ -50,6 +56,27 @@ class CNICrawler:
 
         logger.info(f"Crawl complete. Visited {len(self.visited)} pages, collected {len(self.results)} documents.")
         return self.results
+
+    async def _load_robots(self) -> None:
+        """Legge robots.txt una volta sola; con `respect_robots_txt: false` non lo consulta."""
+        if not self.respect_robots:
+            return
+        robots_url = urljoin(self.base_url, "/robots.txt")
+        parser = RobotFileParser()
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+                response = await client.get(robots_url, headers=self._headers())
+        except httpx.HTTPError as exc:
+            logger.warning(f"robots.txt non raggiungibile ({exc}): si procede senza")
+            return
+        if response.status_code == 200:
+            parser.parse(response.text.splitlines())
+        elif response.status_code in (401, 403):
+            parser.disallow_all = True
+        else:
+            parser.allow_all = True
+        self._robots = parser
+        logger.info(f"robots.txt letto da {robots_url} (HTTP {response.status_code})")
 
     async def _worker(self) -> None:
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
@@ -130,6 +157,9 @@ class CNICrawler:
         parsed = urlparse(url)
         domain = parsed.netloc
         if domain not in self.allowed_domains and not any(domain.endswith(f".{d}") for d in self.allowed_domains):
+            return False
+
+        if self._robots is not None and not self._robots.can_fetch(self.USER_AGENT_TOKEN, url):
             return False
 
         path = parsed.path.rstrip("/").lower()
