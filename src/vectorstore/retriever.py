@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class VectorRetriever:
-    def __init__(self, embedding_model: Embeddings):
+    def __init__(self, embedding_model: Embeddings, vector_name: str | None = None):
+        # `vector_name` serve solo per le collection con vettori con nome
+        # (denso + sparso); None indica il vettore anonimo delle collection classiche.
+        self.vector_name = vector_name
         self.manager = QdrantClientManager()
         self.collection_name = self.manager.collection_name
         self.embedding_model = embedding_model
@@ -28,6 +31,7 @@ class VectorRetriever:
         search_result = client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
+            using=self.vector_name,
             limit=k,
             score_threshold=self.score_threshold,
             query_filter=filter_condition,

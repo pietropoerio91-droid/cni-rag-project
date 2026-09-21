@@ -31,21 +31,31 @@ retrieval:
   # ogni query classificata escludeva i tre quarti dell'indice.
   category_filter: false
   hybrid_search:
+    # Recupero ibrido: ricerca densa e BM25 nella stessa collection Qdrant, fuse
+    # con Reciprocal Rank Fusion. false = solo ricerca densa (misura il contributo
+    # del canale lessicale).
     enabled: true
-    dense_weight: 0.7
-    sparse_weight: 0.3
+    rrf_k: 60
+    dense_top_k: 50      # candidati per canale prima della fusione
+    sparse_top_k: 50
+    # Parametri BM25: si applicano alla COSTRUZIONE della collection
+    # (scripts/build_sparse_collection.py). Cambiarli richiede di ricostruirla.
+    bm25:
+      k1: 1.2
+      b: 0.75
+      include_title: true   # il titolo entra nel testo indicizzato
 
 reranking:
   enabled: true
   top_k: 5
-  model: BAAI/bge-reranker-base
+  model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
 
 fallback:
   score_threshold: 0.5
   message: "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
 
 vector_store:
-  collection_name: cni_documents
+  collection_name: cni_documents_multiling_bm25
   distance: cosine
   size: 384
 

@@ -68,13 +68,39 @@ class PrefixedEmbeddings(Embeddings):
         return self.inner.embed_documents([f"{self.document_prefix}{t}" for t in texts])
 
 
+DEFAULT_EMBEDDING_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
+
+
 class ModelFactory:
+    @staticmethod
+    def resolve_embedding_model() -> tuple[str, str]:
+        """Restituisce (nome del modello, origine) effettivamente in uso.
+
+        La variabile d'ambiente `EMBEDDING_MODEL` ha la precedenza sul YAML, ed
+        e' cosi' che un `.env` dimenticato puo' sostituire in silenzio il modello
+        dichiarato: e' successo, e il config_snapshot dei run registrava il valore
+        del YAML mentre l'indice e le domande usavano un altro modello. Ogni run
+        deve registrare questa coppia, non il YAML.
+        """
+        emb_config = ConfigLoader.get_rag_config().get("embedding", {})
+        da_yaml = emb_config.get("model_name", DEFAULT_EMBEDDING_MODEL)
+        da_ambiente = os.getenv("EMBEDDING_MODEL")
+        if da_ambiente:
+            if da_ambiente != da_yaml:
+                logger.warning(
+                    f"EMBEDDING_MODEL={da_ambiente!r} (ambiente) sovrascrive "
+                    f"embedding.model_name={da_yaml!r} (rag_config.yaml)"
+                )
+            return da_ambiente, "ambiente"
+        return da_yaml, "yaml"
+
     @staticmethod
     def create_embeddings() -> Embeddings:
         config = ConfigLoader.get_rag_config()
         emb_config = config.get("embedding", {})
 
-        model_name = os.getenv("EMBEDDING_MODEL") or emb_config.get("model_name", "paraphrase-multilingual-MiniLM-L12-v2")
+        model_name, origine = ModelFactory.resolve_embedding_model()
+        logger.info(f"Embedding model: {model_name} (da {origine})")
         device = os.getenv("EMBEDDING_DEVICE") or emb_config.get("device", "cpu")
 
         logger.info(f"Loading embedding model: {model_name} on {device}")
