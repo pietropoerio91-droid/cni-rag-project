@@ -69,6 +69,24 @@ def indexed_text(payload: dict[str, Any], include_title: bool = True) -> str:
     return text
 
 
+def average_length(token_lists: Iterable[list[str]]) -> float:
+    lengths = [len(t) for t in token_lists]
+    return sum(lengths) / len(lengths) if lengths else 0.0
+
+
+def collection_schema(dense_size: int, distance: models.Distance = models.Distance.COSINE, on_disk: bool = False) -> dict:
+    """Argomenti di `create_collection` per una collection con vettore denso e sparso.
+
+    E' l'unica definizione dello schema: la usano sia il gestore Qdrant sia lo
+    script di costruzione, cosi' la collection ha lo stesso formato ovunque venga
+    creata. Il modificatore IDF fa calcolare a Qdrant l'IDF sull'intera collection.
+    """
+    return {
+        "vectors_config": {DENSE_VECTOR: models.VectorParams(size=dense_size, distance=distance, on_disk=on_disk)},
+        "sparse_vectors_config": {SPARSE_VECTOR: models.SparseVectorParams(modifier=models.Modifier.IDF)},
+    }
+
+
 def _sparse(weights: dict[int, float]) -> models.SparseVector:
     """Un indice puo' comparire una volta sola: in caso di collisione i pesi si sommano."""
     indices = sorted(weights)

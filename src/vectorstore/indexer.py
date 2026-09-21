@@ -4,6 +4,15 @@ from typing import Any
 
 from qdrant_client.http.models import PointStruct
 
+from src.core.config_loader import ConfigLoader
+from src.vectorstore.bm25_sparse import (
+    DENSE_VECTOR,
+    SPARSE_VECTOR,
+    average_length,
+    document_vector,
+    indexed_text,
+    tokenize,
+)
 from src.vectorstore.qdrant_client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
@@ -18,38 +27,57 @@ class VectorIndexer:
         return self.manager.get_client()
 
     def index_chunks(self, chunks: list[dict[str, Any]]) -> int:
+        """Indicizza i chunk con vettore denso e vettore sparso BM25.
+
+        La lunghezza media dei documenti (`avgdl`) entra nei pesi BM25 ed e'
+        calcolata sui chunk ricevuti: l'indicizzazione va quindi fatta in una sola
+        chiamata sull'intero corpus (come fanno gli script di ingestione). Chi
+        aggiunge chunk a una collection esistente usa la lunghezza media del
+        proprio lotto: per averne una coerente si ricostruisce la collection.
+        """
         client = self._get_client()
-        points = []
+        bm25 = ConfigLoader.get_rag_config().get("retrieval", {}).get("hybrid_search", {}).get("bm25", {})
+        k1, b, include_title = bm25.get("k1", 1.2), bm25.get("b", 0.75), bm25.get("include_title", True)
+
+        valid = []
         for chunk in chunks:
-            embedding = chunk.get("embedding")
-            if not embedding:
+            if not chunk.get("embedding"):
                 logger.warning("Skipping chunk without embedding")
                 continue
+            valid.append(chunk)
 
-            point_id = str(uuid.uuid4())
+        payloads = []
+        for chunk in valid:
+            metadata = chunk.get("metadata", {})
             payload = {
                 "content": chunk.get("content", ""),
-                "source": chunk.get("metadata", {}).get("source", ""),
-                "title": chunk.get("metadata", {}).get("title", ""),
-                "chunk_index": chunk.get("metadata", {}).get("chunk_index", 0),
-                "total_chunks": chunk.get("metadata", {}).get("total_chunks", 0),
+                "source": metadata.get("source", ""),
+                "title": metadata.get("title", ""),
+                "chunk_index": metadata.get("chunk_index", 0),
+                "total_chunks": metadata.get("total_chunks", 0),
             }
-            category = chunk.get("metadata", {}).get("category", "")
-            if category:
-                payload["category"] = category
+            if metadata.get("category", ""):
+                payload["category"] = metadata["category"]
+            payloads.append(payload)
 
-            points.append(PointStruct(
-                id=point_id,
-                vector=embedding,
+        tokens = [tokenize(indexed_text(p, include_title)) for p in payloads]
+        avgdl = average_length(tokens)
+
+        points = [
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector={
+                    DENSE_VECTOR: chunk["embedding"],
+                    SPARSE_VECTOR: document_vector(tk, avgdl, k1, b),
+                },
                 payload=payload,
-            ))
+            )
+            for chunk, payload, tk in zip(valid, payloads, tokens)
+        ]
 
         if points:
-            client.upsert(
-                collection_name=self.collection_name,
-                points=points,
-            )
-            logger.info(f"Indexed {len(points)} points into '{self.collection_name}'")
+            client.upsert(collection_name=self.collection_name, points=points)
+            logger.info(f"Indexed {len(points)} points into '{self.collection_name}' (avgdl={avgdl:.1f})")
         else:
             logger.warning("No points to index")
 

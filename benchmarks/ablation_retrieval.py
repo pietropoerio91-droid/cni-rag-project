@@ -53,6 +53,7 @@ from benchmarks import metrics as M
 from benchmarks import stats as S
 from src.core.config_loader import ConfigLoader
 from src.core.model_factory import ModelFactory
+from src.vectorstore.bm25_sparse import DENSE_VECTOR
 
 console = Console()
 RESULTS_DIR = Path("results")
@@ -211,6 +212,7 @@ class Motore:
         punti = self.manager.get_client().query_points(
             collection_name=self.collection,
             query=vettore,
+            using=DENSE_VECTOR,
             limit=cfg.top_k,
             score_threshold=cfg.score_threshold,
             query_filter=filtro,

@@ -194,3 +194,64 @@ def test_il_risultato_ha_la_forma_attesa_dal_resto_della_pipeline(client):
 
 def test_top_k_limita_i_candidati(client):
     assert len(_retriever(client, True).retrieve("ingegneri consiglio", top_k=2)) <= 2
+
+
+# --- indicizzazione --------------------------------------------------------
+
+def _chunks():
+    return [
+        {"content": d["content"], "embedding": DENSE[d["source"]],
+         "metadata": {"source": d["source"], "title": d["title"], "chunk_index": 0, "total_chunks": 1}}
+        for d in DOCS
+    ] + [{"content": "senza embedding", "metadata": {"source": "x"}}]
+
+
+def test_lo_schema_condiviso_ha_denso_e_sparso_con_idf():
+    from src.vectorstore.bm25_sparse import collection_schema
+    schema = collection_schema(dense_size=4)
+    assert schema["vectors_config"][DENSE_VECTOR].size == 4
+    assert schema["sparse_vectors_config"][SPARSE_VECTOR].modifier == models.Modifier.IDF
+
+
+def test_l_indicizzatore_scrive_denso_e_sparso_e_salta_i_chunk_senza_embedding(monkeypatch):
+    from src.vectorstore import indexer as modulo
+    from src.vectorstore.bm25_sparse import collection_schema
+
+    path = tempfile.mkdtemp()
+    c = QdrantClient(path=path)
+    c.create_collection("idx", **collection_schema(dense_size=2))
+
+    indexer = modulo.VectorIndexer.__new__(modulo.VectorIndexer)
+    indexer.collection_name = "idx"
+    monkeypatch.setattr(indexer, "_get_client", lambda: c, raising=False)
+
+    assert indexer.index_chunks(_chunks()) == len(DOCS)
+    assert c.count("idx").count == len(DOCS)
+
+    # il vettore sparso scritto dall'indicizzatore trova il codice fiscale
+    top = c.query_points("idx", query=query_vector("80057570584"), using=SPARSE_VECTOR, limit=1, with_payload=True).points[0]
+    assert top.payload["source"] == "s1"
+    # e il denso e' interrogabile per nome
+    assert c.query_points("idx", query=[1.0, 0.0], using=DENSE_VECTOR, limit=1).points
+    c.close()
+    shutil.rmtree(path, ignore_errors=True)
+
+
+def test_il_gestore_qdrant_crea_la_collection_nel_formato_ibrido(monkeypatch):
+    from src.vectorstore import qdrant_client as modulo
+
+    path = tempfile.mkdtemp()
+    c = QdrantClient(path=path)
+    manager = modulo.QdrantClientManager.__new__(modulo.QdrantClientManager)
+    manager.client, manager.collection_name = c, "nuova"
+    monkeypatch.setattr(
+        modulo.ConfigLoader, "get_qdrant_config",
+        classmethod(lambda cls: {"qdrant": {"vectors": {"size": 8, "distance": "Cosine"}}}),
+    )
+    manager._ensure_collection()
+
+    info = c.get_collection("nuova").config.params
+    assert info.vectors[DENSE_VECTOR].size == 8
+    assert info.sparse_vectors[SPARSE_VECTOR].modifier == models.Modifier.IDF
+    c.close()
+    shutil.rmtree(path, ignore_errors=True)

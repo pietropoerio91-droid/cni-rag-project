@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 from qdrant_client import QdrantClient
 
+from src.vectorstore.bm25_sparse import DENSE_VECTOR
 from src.vectorstore.qdrant_client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ async def qdrant_documents(
         results = client.query_points(
             collection_name=mgr.collection_name,
             query=vector,
+            using=DENSE_VECTOR,
             limit=limit,
             with_payload=True,
         )

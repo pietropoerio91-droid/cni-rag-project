@@ -12,6 +12,7 @@ from qdrant_client.http.models import (
 )
 
 from src.core.config_loader import ConfigLoader
+from src.vectorstore.bm25_sparse import collection_schema
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +64,8 @@ class QdrantClientManager:
 
             self.client.create_collection(
                 collection_name=self.collection_name,
-                vectors_config=VectorParams(
-                    size=vectors_config.get("size", 384),
+                **collection_schema(
+                    dense_size=vectors_config.get("size", 384),
                     distance=Distance[vectors_config.get("distance", "Cosine").upper()],
                     on_disk=qdrant_config.get("on_disk", False),
                 ),

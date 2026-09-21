@@ -28,6 +28,8 @@ from src.core.config_loader import ConfigLoader
 from src.vectorstore.bm25_sparse import (
     DENSE_VECTOR,
     SPARSE_VECTOR,
+    average_length,
+    collection_schema,
     document_vector,
     indexed_text,
     term_index,
@@ -71,7 +73,7 @@ def main() -> None:
 
     include_title = bm25.get("include_title", True) and not args.no_title
     tokens = [tokenize(indexed_text(p.payload or {}, include_title)) for p in points]
-    avgdl = sum(len(t) for t in tokens) / len(tokens)
+    avgdl = average_length(tokens)
 
     vocabulary = {t for tk in tokens for t in tk}
     collisions = len(vocabulary) - len({term_index(t) for t in vocabulary})
@@ -81,8 +83,7 @@ def main() -> None:
     dim = len(points[0].vector)
     client.create_collection(
         collection_name=args.target,
-        vectors_config={DENSE_VECTOR: models.VectorParams(size=dim, distance=models.Distance.COSINE)},
-        sparse_vectors_config={SPARSE_VECTOR: models.SparseVectorParams(modifier=models.Modifier.IDF)},
+        **collection_schema(dim),
         metadata={"bm25": {"k1": args.k1, "b": args.b, "avgdl": avgdl,
                            "include_title": include_title, "source": args.source}},
     )
