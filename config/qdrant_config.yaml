@@ -1,7 +1,7 @@
 qdrant:
   mode: local
   path: ./data/qdrant_db
-  collection_name: cni_documents_multiling
+  collection_name: cni_documents_multiling_bm25
   vectors:
     size: 384
     distance: Cosine

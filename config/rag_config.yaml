@@ -36,6 +36,7 @@ retrieval:
     # Ora la bandiera ha effetto reale: true = denso + BM25 fusi con RRF,
     # false = solo denso (utile per misurare il contributo del canale lessicale).
     enabled: true
+    backend: qdrant        # memoria | qdrant
     fusion: rrf
     rrf_k: 60
     dense_top_k: 50
@@ -55,7 +56,7 @@ fallback:
   message: "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
 
 vector_store:
-  collection_name: cni_documents_multiling
+  collection_name: cni_documents_multiling_bm25
   distance: cosine
   size: 384
 
