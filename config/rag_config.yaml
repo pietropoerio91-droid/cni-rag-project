@@ -1,5 +1,5 @@
 embedding:
-  model_name: paraphrase-multilingual-MiniLM-L12-v2
+  model_name: intfloat/multilingual-e5-small
   device: cpu
   normalize_embeddings: true
   batch_size: 32
@@ -56,7 +56,7 @@ fallback:
   message: "Non ho trovato informazioni sufficienti nei documenti disponibili per rispondere a questa domanda. Prova a riformulare la domanda o chiedi un argomento diverso."
 
 vector_store:
-  collection_name: cni_documents_multiling_bm25
+  collection_name: cni_documents_e5_bm25
   distance: cosine
   size: 384
 
