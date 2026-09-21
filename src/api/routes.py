@@ -819,6 +819,7 @@ async def health():
             llm_connected=llm_connected,
         )
     except Exception as e:
+        logger.warning(f"Health check fallito: {e}")
         return HealthResponse(
             status="error",
             version="0.1.0",
@@ -903,7 +904,6 @@ async def ingest():
         from src.ingestion.crawler import CNICrawler
         from src.ingestion.downloader import Downloader
         from src.ingestion.embedder import EmbeddingGenerator
-        from src.ingestion.parser import DocumentParser
         from src.governance.public_data_filter import PublicDataFilter
         from src.governance.quality_check import QualityChecker
 
@@ -912,7 +912,6 @@ async def ingest():
 
             crawler = CNICrawler()
             cleaner = TextCleaner()
-            parser = DocumentParser()
             chunker = DocumentChunker()
             embedder = EmbeddingGenerator()
             downloader = Downloader()

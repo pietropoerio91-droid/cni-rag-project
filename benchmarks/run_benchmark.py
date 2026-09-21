@@ -13,7 +13,7 @@ import json
 import logging
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -21,21 +21,14 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import click
-import yaml
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
 from src.core.config_loader import ConfigLoader
 from src.core.model_factory import ModelFactory
-from src.ingestion.chunker import DocumentChunker
-from src.ingestion.cleaner import TextCleaner
-from src.ingestion.downloader import Downloader
-from src.ingestion.embedder import EmbeddingGenerator
 from src.rag.hybrid_retriever import HybridRetriever
-from src.rag.prompt_builder import PromptBuilder
 from src.rag.reranker import Reranker
-from src.vectorstore.indexer import VectorIndexer
 
 console = Console()
 logger = logging.getLogger(__name__)

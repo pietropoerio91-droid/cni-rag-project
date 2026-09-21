@@ -1,15 +1,8 @@
 import logging
 from pathlib import Path
-from typing import Any
 
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import (
-    CollectionStatus,
-    Distance,
-    HnswConfigDiff,
-    OptimizersConfigDiff,
-    VectorParams,
-)
+from qdrant_client.http.models import Distance, HnswConfigDiff, OptimizersConfigDiff
 
 from src.core.config_loader import ConfigLoader
 from src.vectorstore.bm25_sparse import collection_schema

@@ -1,8 +1,6 @@
 import logging
 import re
-from typing import Any
 
-import trafilatura
 from trafilatura import extract as trafilatura_extract
 
 logger = logging.getLogger(__name__)

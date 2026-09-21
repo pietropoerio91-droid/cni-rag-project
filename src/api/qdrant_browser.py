@@ -5,7 +5,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
-from qdrant_client import QdrantClient
 
 from src.vectorstore.bm25_sparse import DENSE_VECTOR
 from src.vectorstore.qdrant_client import QdrantClientManager
