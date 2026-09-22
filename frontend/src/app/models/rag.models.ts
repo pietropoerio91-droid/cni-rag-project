@@ -369,3 +369,28 @@ export interface AgreementReport {
     totale_codificati: number;
   };
 }
+
+export interface AblationPoint {
+  hit_at_5: number;
+  mrr: number;
+  s_per_domanda: number;
+}
+
+export interface AblationMatrix {
+  matrice_embedding: {
+    embedding: string;
+    nota: string;
+    denso: AblationPoint | null;
+    ibrido: AblationPoint | null;
+    produzione?: boolean;
+  }[];
+  confronto_reranker: {
+    nota: string;
+    embedding_usato: { modello: string; origine: string } | null;
+    righe: { reranker: string; hit_at_5: number; mrr: number; s_per_domanda: number }[];
+  } | null;
+  verifica_bm25_nativo: {
+    nota: string;
+    righe: { config: string; hit_at_5: number; mrr: number }[];
+  } | null;
+}

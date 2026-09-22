@@ -7,7 +7,7 @@ import {
   QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse,
   QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun,
   QueryStatsResponse, QueryMetricsResponse,
-  EvaluationLatest, EvaluationRunSummary, AnnotationQueue, AgreementReport,
+  EvaluationLatest, EvaluationRunSummary, AnnotationQueue, AgreementReport, AblationMatrix,
 } from '../models/rag.models';
 
 @Injectable({ providedIn: 'root' })
@@ -206,5 +206,11 @@ export class RagService {
   annotationsCsvUrl(runId?: string): string {
     const q = runId ? `?run_id=${encodeURIComponent(runId)}` : '';
     return `${this.apiUrl}/evaluation/annotations/export.csv${q}`;
+  }
+
+  getAblationMatrix(): Observable<AblationMatrix> {
+    return this.http.get<AblationMatrix>(`${this.apiUrl}/evaluation/ablation-matrix`).pipe(
+      catchError(() => throwError(() => new Error('Matrice di ablation non disponibile')))
+    );
   }
 }

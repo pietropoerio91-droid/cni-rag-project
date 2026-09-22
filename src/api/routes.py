@@ -653,6 +653,98 @@ async def save_annotation(body: AnnotationRequest):
     }
 
 
+def _ablation_point(path: Path, nome_config: str) -> dict[str, Any] | None:
+    """Hit@5 e MRR sul contesto per una configurazione di un file di ablation."""
+    if not path.exists():
+        return None
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for r in data.get("risultati", []):
+        if r.get("config", {}).get("nome") == nome_config:
+            p = r["punto_context"]
+            return {"hit_at_5": p.get("hit_at_5"), "mrr": p.get("mrr"), "s_per_domanda": r.get("s_per_domanda")}
+    return None
+
+
+@router.get("/evaluation/ablation-matrix")
+async def evaluation_ablation_matrix():
+    """Riepilogo degli esperimenti di ablation: matrice embedding x BM25, confronto
+    reranker, verifica BM25 nativo vs in memoria. File fissi e noti (non una scansione
+    generica di risultati/ablation_*.json, che includerebbe anche le verifiche di
+    riproducibilita' e i tentativi scartati): la lista e' la stessa usata per scrivere
+    doc/PIANO_RECUPERO_IBRIDO.md e results/2026-09-22/RIEPILOGO_FINAL_V3.md.
+    """
+    r = _RESULTS_DIR
+
+    matrice = [
+        {
+            "embedding": "all-MiniLM-L6-v2",
+            "nota": "Modello realmente usato da FINAL_V2 (mai dichiarato: il YAML indicava paraphrase-multilingual). Inglese, non adatto a un corpus italiano.",
+            "denso": _ablation_point(r / "ablation_ibrido_passi_0_1.json", "solo denso (FINAL_V2)"),
+            "ibrido": _ablation_point(r / "ablation_ibrido_passi_0_1.json", "denso + BM25 (RRF)"),
+        },
+        {
+            "embedding": "paraphrase-multilingual-MiniLM-L12-v2",
+            "nota": "Il modello dichiarato nel YAML e nella tesi. Finestra di 128 token: tronca l'81,9% dei chunk del corpus.",
+            "denso": _ablation_point(r / "ablation_multiling_passi_2_3.json", "solo denso"),
+            "ibrido": _ablation_point(r / "ablation_multiling_passi_2_3.json", "denso + BM25 (RRF)"),
+        },
+        {
+            "embedding": "intfloat/multilingual-e5-small",
+            "nota": "Adottato in produzione: finestra di 512 token (tronca solo lo 0,13% dei chunk). Con BM25 nativo i numeri sono identici a quelli con BM25 in memoria, verificato.",
+            "denso": _ablation_point(r / "ablation_e5_bm25_bge_nativo.json", "solo denso"),
+            "ibrido": _ablation_point(r / "ablation_e5_bm25_bge_nativo.json", "denso + BM25 (RRF)"),
+            "produzione": True,
+        },
+    ]
+
+    reranker_file = r / "ablation_reranker.json"
+    confronto_reranker = None
+    if reranker_file.exists():
+        rd = json.loads(reranker_file.read_text(encoding="utf-8"))
+        confronto_reranker = {
+            "nota": (
+                "Misurato su denso+BM25 con paraphrase-multilingual, prima di riconsiderare "
+                "l'embedding per il troncamento. La produzione finale usa e5 con "
+                "bge-reranker-base (il reranker di partenza, non mmarco): la scelta del "
+                "reranker non e' stata ripetuta con e5. Nessuno dei tre supera la regola "
+                "di adozione fissata a priori (guadagno >= 2 domande su 30 e latenza entro "
+                "il doppio), quindi il reranker resta quello di partenza."
+            ),
+            "embedding_usato": rd.get("embedding_effettivo"),
+            "righe": [
+                {
+                    "reranker": rr["config"]["reranker"].split("/")[-1],
+                    "hit_at_5": rr["punto_context"]["hit_at_5"],
+                    "mrr": rr["punto_context"]["mrr"],
+                    "s_per_domanda": rr["s_per_domanda"],
+                }
+                for rr in rd.get("risultati", [])
+            ],
+        }
+
+    bm25_file = r / "ablation_bm25_nativo.json"
+    verifica_nativo = None
+    if bm25_file.exists():
+        bd = json.loads(bm25_file.read_text(encoding="utf-8"))
+        verifica_nativo = {
+            "nota": "BM25 nativo in Qdrant confrontato con l'implementazione in memoria, stessa configurazione (paraphrase-multilingual + mmarco): stesso Hit@5 e MRR, nessuna domanda diversa.",
+            "righe": [
+                {
+                    "config": rr["config"]["nome"],
+                    "hit_at_5": rr["punto_context"]["hit_at_5"],
+                    "mrr": rr["punto_context"]["mrr"],
+                }
+                for rr in bd.get("risultati", [])
+            ],
+        }
+
+    return {
+        "matrice_embedding": matrice,
+        "confronto_reranker": confronto_reranker,
+        "verifica_bm25_nativo": verifica_nativo,
+    }
+
+
 @router.get("/evaluation/agreement")
 async def evaluation_agreement(run_id: str | None = None):
     """Accordo fra annotazione umana e giudice automatico.

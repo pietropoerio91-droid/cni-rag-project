@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse, EvaluationLatest } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse, EvaluationLatest, AblationMatrix } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 import { ValutazioneComponent } from './valutazione.component';
 
@@ -292,6 +292,85 @@ import { ValutazioneComponent } from './valutazione.component';
                 </tbody>
               </table>
             </div>
+          </div>
+        </ng-container>
+
+        <!-- Ablation: esperimenti che hanno portato alla configurazione finale.
+             Indipendente da evalLatest: sono dati storici degli esperimenti, non
+             del run corrente. File fissi noti, non una scansione di ablation_*.json
+             (che includerebbe anche le verifiche di riproducibilita'). -->
+        <ng-container *ngIf="ablation as ab">
+          <div class="chart-card" style="margin-top:28px" *ngIf="ab.matrice_embedding?.length">
+            <h3 class="chart-title">
+              Ablation — modello di embedding × BM25
+              <span class="tooltip-wrap chart-tooltip">
+                <span class="tooltip-icon">i</span>
+                <span class="tooltip-text">Hit&#64;5 e MRR sul contesto, stesse 30 domande, stesso reranker per riga di confronto. La riga evidenziata e' la configurazione in produzione.</span>
+              </span>
+            </h3>
+            <div class="cmp-table-wrap">
+              <table class="cmp-table">
+                <thead>
+                  <tr><th>Embedding</th><th>Solo denso</th><th>+ BM25</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let m of ab.matrice_embedding" [class.prod-row]="m.produzione">
+                    <td class="cmp-label">
+                      {{ m.embedding }}
+                      <span class="prod-tag" *ngIf="m.produzione">PRODUZIONE</span>
+                    </td>
+                    <td class="stacked-cell" *ngIf="m.denso as d">{{ fmtPoint(d.hit_at_5, true) }}<small>MRR {{ d.mrr | number:'1.3-3' }}</small></td>
+                    <td *ngIf="!m.denso">—</td>
+                    <td class="stacked-cell" *ngIf="m.ibrido as ib">{{ fmtPoint(ib.hit_at_5, true) }}<small>MRR {{ ib.mrr | number:'1.3-3' }}</small></td>
+                    <td *ngIf="!m.ibrido">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="ablation-notes">
+              <p class="section-note" *ngFor="let m of ab.matrice_embedding">
+                <strong>{{ m.embedding }}</strong> — {{ m.nota }}
+              </p>
+            </div>
+          </div>
+
+          <div class="chart-card" style="margin-top:20px" *ngIf="ab.confronto_reranker as cr">
+            <h3 class="chart-title">Ablation — confronto reranker</h3>
+            <div class="cmp-table-wrap">
+              <table class="cmp-table">
+                <thead>
+                  <tr><th>Reranker</th><th>Hit&#64;5</th><th>MRR</th><th>s/domanda</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let rr of cr.righe">
+                    <td class="cmp-label">{{ rr.reranker }}</td>
+                    <td>{{ fmtPoint(rr.hit_at_5, true) }}</td>
+                    <td>{{ rr.mrr | number:'1.3-3' }}</td>
+                    <td>{{ rr.s_per_domanda | number:'1.1-1' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="section-note">{{ cr.nota }}</p>
+          </div>
+
+          <div class="chart-card" style="margin-top:20px" *ngIf="ab.verifica_bm25_nativo as vn">
+            <h3 class="chart-title">Verifica — BM25 nativo vs in memoria</h3>
+            <div class="cmp-table-wrap">
+              <table class="cmp-table">
+                <thead>
+                  <tr><th>Configurazione</th><th>Hit&#64;5</th><th>MRR</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let rr of vn.righe">
+                    <td class="cmp-label">{{ rr.config }}</td>
+                    <td>{{ fmtPoint(rr.hit_at_5, true) }}</td>
+                    <td>{{ rr.mrr | number:'1.3-3' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="section-note">{{ vn.nota }}</p>
           </div>
         </ng-container>
         </div>
@@ -896,6 +975,41 @@ import { ValutazioneComponent } from './valutazione.component';
       color: var(--text-secondary);
       font-size: 11px;
     }
+    .cmp-table tr.prod-row td {
+      background: #f0fdf4;
+      font-weight: 600;
+    }
+    .prod-tag {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #16a34a;
+      background: #dcfce7;
+      border-radius: 4px;
+      padding: 2px 6px;
+      vertical-align: middle;
+    }
+    .ablation-notes {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ablation-notes .section-note {
+      margin: 0;
+    }
+    .cmp-table td.stacked-cell {
+      display: table-cell;
+      line-height: 1.3;
+    }
+    .cmp-table td.stacked-cell small {
+      display: block;
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
 
     .benchmark-section {
       margin-top: 40px;
@@ -1099,6 +1213,7 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   // gia' esistente invece di duplicarne i numeri qui.
   evalLatest: EvaluationLatest | null = null;
   private evalV2Stadi: Record<string, number> | null = null;
+  ablation: AblationMatrix | null = null;
 
   readonly retrievalMetricRows: { key: string; label: string; pct: boolean }[] = [
     { key: 'hit_at_3', label: 'Hit@3', pct: true },
@@ -1172,6 +1287,12 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     this.sub.add(
       this.ragService.getAgreement('FINAL_V2').subscribe({
         next: (a) => { this.evalV2Stadi = a.tassonomia_errori?.conteggi ?? null; },
+        error: () => {},
+      })
+    );
+    this.sub.add(
+      this.ragService.getAblationMatrix().subscribe({
+        next: (ab) => { this.ablation = ab; },
         error: () => {},
       })
     );
