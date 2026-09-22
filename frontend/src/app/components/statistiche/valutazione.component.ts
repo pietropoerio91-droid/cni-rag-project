@@ -393,6 +393,53 @@ import {
           </tbody>
         </table>
       </ng-container>
+
+      <ng-container *ngIf="vista === 'confronto' && !caricando">
+        <ng-container *ngIf="runIdSelezionato === RUN_BASELINE">
+          <p class="hint">FINAL_V2 e' il termine di paragone: seleziona un altro run per vedere il confronto.</p>
+        </ng-container>
+        <ng-container *ngIf="runIdSelezionato !== RUN_BASELINE">
+          <p class="hint" *ngIf="!codaBaseline">Annotazioni di {{ RUN_BASELINE }} non disponibili: confronto non calcolabile.</p>
+          <ng-container *ngIf="codaBaseline">
+            <p class="hint">
+              Correttezza ≥ 4 = risposta corretta, per ciascuna domanda. Confronto fra {{ RUN_BASELINE }}
+              e {{ coda?.run_id }}, solo sulle domande annotate su entrambi.
+            </p>
+            <div class="meta">
+              <span><b class="sig">{{ confrontoConteggi['migliorata'] }}</b> migliorate</span>
+              <span><b class="bad">{{ confrontoConteggi['peggiorata'] }}</b> peggiorate</span>
+              <span>{{ confrontoConteggi['invariata'] }} invariate</span>
+              <span class="dim" *ngIf="confrontoConteggi['non confrontabile']">{{ confrontoConteggi['non confrontabile'] }} non annotate su entrambi</span>
+            </div>
+            <table class="tab compact">
+              <thead>
+                <tr><th>ID</th><th>Domanda</th><th>Cat.</th>
+                    <th>{{ RUN_BASELINE }}</th><th>{{ coda?.run_id }}</th><th>Esito</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of confrontoRighe">
+                  <td class="mono">{{ r.id }}</td>
+                  <td class="qq">{{ r.question }}</td>
+                  <td><span class="chip sm">{{ r.category }}</span></td>
+                  <td>
+                    {{ r.cV2 === null ? '—' : r.cV2 }}
+                    <span class="stage" [attr.data-s]="r.stadioV2" *ngIf="r.stadioV2">{{ etichettaStadio(r.stadioV2) }}</span>
+                  </td>
+                  <td>
+                    {{ r.cAttuale === null ? '—' : r.cAttuale }}
+                    <span class="stage" [attr.data-s]="r.stadioAttuale" *ngIf="r.stadioAttuale">{{ etichettaStadio(r.stadioAttuale) }}</span>
+                  </td>
+                  <td>
+                    <span class="esito" [class.up]="r.esito === 'migliorata'" [class.down]="r.esito === 'peggiorata'">
+                      {{ r.esito }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+        </ng-container>
+      </ng-container>
     </div>
   `,
   styles: [`
@@ -549,6 +596,11 @@ import {
     .stage[data-s="retrieval_miss"], .stage[data-s="corpus_miss"] { background: rgba(220,38,38,.12); color: #b91c1c; }
     .stage[data-s="reranker_drop"] { background: rgba(217,119,6,.15); color: #b45309; }
     .stage[data-s="generation_miss"], .stage[data-s="hallucination"] { background: rgba(124,58,237,.13); color: #6d28d9; }
+
+    .esito { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+             background: var(--border); color: var(--text-secondary); text-transform: capitalize; }
+    .esito.up { background: rgba(22,163,74,.15); color: #15803d; }
+    .esito.down { background: rgba(220,38,38,.12); color: #b91c1c; }
   `],
 })
 export class ValutazioneComponent implements OnInit {
@@ -557,6 +609,7 @@ export class ValutazioneComponent implements OnInit {
     { id: 'annota', label: 'Annotazione' },
     { id: 'accordo', label: 'Corrispondenza' },
     { id: 'domande', label: 'Per domanda' },
+    { id: 'confronto', label: 'Confronto' },
   ];
   vista = 'risultati';
 
@@ -565,6 +618,10 @@ export class ValutazioneComponent implements OnInit {
   latest: EvaluationLatest | null = null;
   coda: AnnotationQueue | null = null;
   accordo: AgreementReport | null = null;
+  /** FINAL_V2, caricato sempre in parallelo al run selezionato: e' il termine
+   *  di paragone fisso della vista Confronto. */
+  readonly RUN_BASELINE = 'FINAL_V2';
+  codaBaseline: AnnotationQueue | null = null;
 
   caricando = false;
   salvando = false;
@@ -632,6 +689,53 @@ export class ValutazioneComponent implements OnInit {
       next: (d) => (this.accordo = d),
       error: () => {},
     });
+    this.rag.getAnnotationQueue(this.RUN_BASELINE, true).subscribe({
+      next: (d) => { this.codaBaseline = d; },
+      error: () => { this.codaBaseline = null; },
+    });
+  }
+
+  /** Righe della vista Confronto: unisce il run selezionato con FINAL_V2 per
+   *  question_id. Solo le domande annotate su entrambi i lati sono confrontabili
+   *  (correttezza null altrimenti). L'ordine mette prima i cambiamenti. */
+  get confrontoRighe(): {
+    id: string; question: string; category: string;
+    cV2: number | null; cAttuale: number | null;
+    stadioV2: string | null; stadioAttuale: string | null;
+    esito: 'migliorata' | 'peggiorata' | 'invariata' | 'non confrontabile';
+  }[] {
+    if (!this.coda || !this.codaBaseline) return [];
+    const base = new Map(this.codaBaseline.items.map((it) => [it.question_id, it]));
+    const righe = this.coda.items.map((it) => {
+      const b = base.get(it.question_id);
+      const cV2 = b?.annotazione?.correctness ?? null;
+      const cAttuale = it.annotazione?.correctness ?? null;
+      let esito: 'migliorata' | 'peggiorata' | 'invariata' | 'non confrontabile' = 'non confrontabile';
+      // "non confrontabile" solo se la domanda non e' proprio annotata da un lato.
+      // Un'annotazione con correttezza non compilata (successo in FINAL_V2 su Q09,
+      // dove pertinenza=0 indicava comunque un fallimento) conta come 0, coerente
+      // con l'accuratezza aggregata mostrata sopra (43,3%->63,3%): altrimenti le due
+      // viste si contraddirebbero.
+      if (b?.annotazione != null && it.annotazione != null) {
+        const okV2 = (cV2 ?? 0) >= 4, okAttuale = (cAttuale ?? 0) >= 4;
+        esito = okV2 === okAttuale ? 'invariata' : (okAttuale ? 'migliorata' : 'peggiorata');
+      }
+      return {
+        id: it.question_id, question: it.question, category: it.category,
+        cV2, cAttuale,
+        stadioV2: b?.annotazione?.error_stage ?? null,
+        stadioAttuale: it.annotazione?.error_stage ?? null,
+        esito,
+      };
+    });
+    const peso = { peggiorata: 0, migliorata: 1, invariata: 2, 'non confrontabile': 3 };
+    return righe.sort((a, b2) => peso[a.esito] - peso[b2.esito]);
+  }
+
+  get confrontoConteggi(): Record<string, number> {
+    const out: Record<string, number> = { migliorata: 0, peggiorata: 0, invariata: 0, 'non confrontabile': 0 };
+    for (const r of this.confrontoRighe) out[r.esito]++;
+    return out;
   }
 
   get corrente(): AnnotationItem | null {
