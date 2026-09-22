@@ -1,0 +1,246 @@
+{
+  "run_id": "FINAL_V3_DEFINITIVO",
+  "items": {
+    "Q01": {
+      "faithfulness": 5,
+      "answer_relevance": 3,
+      "correctness": 3,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:48:38"
+    },
+    "Q02": {
+      "faithfulness": 2,
+      "answer_relevance": 5,
+      "correctness": 1,
+      "error_stage": "reranker_drop",
+      "note": "La fonte attesa (cni/consiglio) e' fra i 25 candidati al rango 22, quindi recuperata; il reranker non l'ha scelta fra i 5 passati al modello (preferiti articoli su Zambrano 2016/2021, 'nuovi vertici' 2022, CdA Fondazione 2024). Pertinenza 5/correttezza 1 perche' fra i documenti passati ce n'e' uno pertinente ma con l'informazione sbagliata/superata.",
+      "annotated_at": "2026-09-22T07:25:36"
+    },
+    "Q03": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:33:52"
+    },
+    "Q04": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:35:28"
+    },
+    "Q05": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:36:28"
+    },
+    "Q07": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:22"
+    },
+    "Q08": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:25"
+    },
+    "Q09": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:01:29"
+    },
+    "Q10": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:02:06"
+    },
+    "Q11": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:03:37"
+    },
+    "Q13": {
+      "faithfulness": 0,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:13:10"
+    },
+    "Q14": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:13:55"
+    },
+    "Q15": {
+      "faithfulness": 5,
+      "answer_relevance": 2,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:18:34"
+    },
+    "Q16": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:19:15"
+    },
+    "Q17": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:20:32"
+    },
+    "Q18": {
+      "faithfulness": 5,
+      "answer_relevance": 3,
+      "correctness": 3,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:21:54"
+    },
+    "Q19": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:23:05"
+    },
+    "Q20": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:23:57"
+    },
+    "Q21": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 2,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:25:52"
+    },
+    "Q22": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "retrieval_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:27:45"
+    },
+    "Q23": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:28:45"
+    },
+    "Q24": {
+      "faithfulness": 5,
+      "answer_relevance": 4,
+      "correctness": 3,
+      "error_stage": "generation_miss",
+      "note": "La pagina attesa (giornata-nazionale-ingegneria-della-sicurezza) non e' mai fra i candidati per mancato match esatto di sottostringa (falso negativo della metrica): fra i 5 documenti passati al modello c'e' pero' .../2504-al-via-la-6-giornata-nazionale-della-sicurezza (6a edizione, 2018), topicamente pertinente. La risposta usa informazioni disponibili nel contesto ma con imprecisione (12a edizione/data non riscontrabile nei documenti passati): correttezza 3, non ok.",
+      "annotated_at": "2026-09-22T07:40:00"
+    },
+    "Q25": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:33:01"
+    },
+    "Q26": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:33:39"
+    },
+    "Q27": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:34:26"
+    },
+    "Q28": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T22:36:14"
+    },
+    "Q29": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-21T22:36:43"
+    },
+    "Q30": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": null,
+      "annotated_at": "2026-09-22T07:35:14"
+    },
+    "Q06": {
+      "faithfulness": 5,
+      "answer_relevance": 5,
+      "correctness": 5,
+      "error_stage": "ok",
+      "note": null,
+      "annotated_at": "2026-09-21T21:57:10"
+    },
+    "Q12": {
+      "faithfulness": 5,
+      "answer_relevance": 0,
+      "correctness": 0,
+      "error_stage": "generation_miss",
+      "note": "Verificato il 22/09 interrogando l'API con context_docs completo: il CF 80057570584 e' presente nel 2° documento passato al modello (media-ing/news/137-2016?start=50), in un blocco di intestazione ('Via XX Settembre, 5 - 00187 Roma, Italia - CF: 80057570584') dentro una notizia del 2016 su tutt'altro argomento (convenzione CNI-UNI). Non e' corpus_miss: l'informazione era nel contesto ma il modello non l'ha estratta.",
+      "annotated_at": "2026-09-22T07:20:00"
+    }
+  },
+  "updated_at": "2026-09-22T07:40:00"
+}
