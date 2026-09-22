@@ -19,16 +19,9 @@ USO:
   .\run.ps1 -ApiOnly           # Solo avvia API server
 
 PREREQUISITI:
-  - Docker con Qdrant in esecuzione (oppure QDRANT_MODE=local)
-  - LM Studio con Llama 3.2 su http://localhost:1234
+  - Ollama in esecuzione con il modello scaricato: ollama pull qwen2.5:3b
+    (Qdrant gira in modalita' locale, QDRANT_MODE=local: nessun Docker richiesto)
   - Node.js 20+ (per frontend)
-
-PULSANTI VS CODE (F5):
-  - "Avvia API Server"
-  - "Crawl + Ingest (completo)"
-  - "Solo indicizzazione (no crawl)"
-  - "Solo crawler"
-  - "Ricostruisci indice"
 "@
     exit 0
 }
