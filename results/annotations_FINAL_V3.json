@@ -3,19 +3,19 @@
   "items": {
     "Q01": {
       "faithfulness": 5,
-      "answer_relevance": 4,
-      "correctness": 4,
-      "error_stage": null,
+      "answer_relevance": 3,
+      "correctness": 3,
+      "error_stage": "generation_miss",
       "note": null,
-      "annotated_at": "2026-09-21T21:19:46"
+      "annotated_at": "2026-09-21T22:48:38"
     },
     "Q02": {
       "faithfulness": 2,
       "answer_relevance": 5,
       "correctness": 1,
-      "error_stage": "retrieval_miss",
-      "note": null,
-      "annotated_at": "2026-09-21T21:30:40"
+      "error_stage": "reranker_drop",
+      "note": "La fonte attesa (cni/consiglio) e' fra i 25 candidati al rango 22, quindi recuperata; il reranker non l'ha scelta fra i 5 passati al modello (preferiti articoli su Zambrano 2016/2021, 'nuovi vertici' 2022, CdA Fondazione 2024). Pertinenza 5/correttezza 1 perche' fra i documenti passati ce n'e' uno pertinente ma con l'informazione sbagliata/superata.",
+      "annotated_at": "2026-09-22T07:25:36"
     },
     "Q03": {
       "faithfulness": 5,
@@ -173,9 +173,9 @@
       "faithfulness": 5,
       "answer_relevance": 4,
       "correctness": 3,
-      "error_stage": "ok",
-      "note": null,
-      "annotated_at": "2026-09-21T22:31:00"
+      "error_stage": "generation_miss",
+      "note": "La pagina attesa (giornata-nazionale-ingegneria-della-sicurezza) non e' mai fra i candidati per mancato match esatto di sottostringa (falso negativo della metrica): fra i 5 documenti passati al modello c'e' pero' .../2504-al-via-la-6-giornata-nazionale-della-sicurezza (6a edizione, 2018), topicamente pertinente. La risposta usa informazioni disponibili nel contesto ma con imprecisione (12a edizione/data non riscontrabile nei documenti passati): correttezza 3, non ok.",
+      "annotated_at": "2026-09-22T07:40:00"
     },
     "Q25": {
       "faithfulness": 5,
@@ -223,8 +223,8 @@
       "correctness": 0,
       "error_stage": "generation_miss",
       "note": null,
-      "annotated_at": "2026-09-21T22:38:16"
+      "annotated_at": "2026-09-22T07:35:14"
     }
   },
-  "updated_at": "2026-09-21T22:38:16"
+  "updated_at": "2026-09-22T07:40:00"
 }

@@ -70,5 +70,14 @@
     "hit_at_5": 0.0,
     "mrr": 0.0,
     "avg_correctness": 0.0
+  },
+  {
+    "run_date": "2026-09-22T07:40:01",
+    "run_id": "FINAL_V3_DEFINITIVO",
+    "file": "results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json",
+    "total_questions": 30,
+    "hit_at_5": 0.6,
+    "mrr": 0.5096,
+    "avg_correctness": 1.9
   }
 ]

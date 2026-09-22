@@ -6,9 +6,9 @@
       "answer_relevance": 0,
       "correctness": 0,
       "error_stage": "generation_miss",
-      "note": null,
-      "annotated_at": "2026-09-21T22:40:47"
+      "note": "Verificato il 22/09 interrogando l'API con context_docs completo: il CF 80057570584 e' presente nel 2° documento passato al modello (media-ing/news/137-2016?start=50), in un blocco di intestazione ('Via XX Settembre, 5 - 00187 Roma, Italia - CF: 80057570584') dentro una notizia del 2016 su tutt'altro argomento (convenzione CNI-UNI). Non e' corpus_miss: l'informazione era nel contesto ma il modello non l'ha estratta.",
+      "annotated_at": "2026-09-22T07:20:00"
     }
   },
-  "updated_at": "2026-09-21T22:40:47"
+  "updated_at": "2026-09-22T07:20:00"
 }
