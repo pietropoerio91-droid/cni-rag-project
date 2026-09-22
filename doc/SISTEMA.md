@@ -8,9 +8,11 @@
 > elenco degli endpoint). Restano recuperabili nella cronologia git se serve
 > confrontare cosa è cambiato e quando.
 >
-> **Ultima verifica:** 3 settembre 2026, contro il branch `feature/valutazione-statistica`.
-> Per la tesi vera e propria: `INDICE_TESI.md` (struttura dei capitoli) e
-> `CONCLUSIONI_TESI.md` (capitolo conclusivo, in scrittura).
+> **Ultima verifica:** 22 settembre 2026, contro il branch `release/recupero-ibrido`
+> (configurazione congelata, tag `congelato-2026-09-21-e5`). Aggiorna la versione
+> del 3 settembre dopo il lavoro sul recupero ibrido: le sezioni toccate sono
+> segnalate esplicitamente. Per la tesi vera e propria: `INDICE_TESI.md`
+> (struttura a 6 capitoli, su `origin/main`) e `CONCLUSIONI_TESI.md`.
 
 ---
 
@@ -27,7 +29,7 @@
 9. [Valutazione e benchmarking](#9-valutazione-e-benchmarking)
 10. [Configurazione attuale, con il perché di ogni valore](#10-configurazione-attuale-con-il-perché-di-ogni-valore)
 11. [Problemi noti e limiti tecnici confermati](#11-problemi-noti-e-limiti-tecnici-confermati)
-12. [Stato del progetto al 03/09/2026 e cosa manca](#12-stato-del-progetto-al-03092026-e-cosa-manca)
+12. [Stato del progetto al 22/09/2026 e cosa manca](#12-stato-del-progetto-al-22092026-e-cosa-manca)
 13. [Come avviare tutto](#13-come-avviare-tutto)
 14. [Mappa verso i capitoli della tesi](#14-mappa-verso-i-capitoli-della-tesi)
 
@@ -51,9 +53,9 @@ RAM e nessuna GPU.
 | Backend | Python + FastAPI | server API |
 | Frontend | Angular 18 | interfaccia utente |
 | LLM | Qwen 2.5 3B via Ollama (`localhost:11434`) | generazione, grade docs, query rewrite, self-check |
-| Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) | vettorizzazione (50+ lingue) |
+| Embeddings | `intfloat/multilingual-e5-small` (384-dim, finestra 512 token) | vettorizzazione, prefissi `query:`/`passage:` automatici — **cambiato dal 21/09**, vedi §11.1 |
 | Reranker | `BAAI/bge-reranker-base` (cross-encoder multilingue) | riordino dei candidati |
-| Vector store | Qdrant, modalità locale su SQLite (`data/qdrant_db`) | database vettoriale |
+| Vector store | Qdrant, modalità locale su SQLite (`data/qdrant_db`), collection `cni_documents_e5_bm25` | database vettoriale — **ibrido dal 21/09**: ogni chunk ha un vettore denso e uno sparso BM25, fusi con Reciprocal Rank Fusion (vedi §5) |
 | Orchestratore | LangGraph | pipeline RAG a 9 nodi + 1 nodo di fallback |
 | Framework RAG | LangChain | chunking, wrapper LLM |
 | Documenti | httpx + BeautifulSoup + trafilatura + PyMuPDF | crawling e parsing (HTML/PDF) |
@@ -115,6 +117,13 @@ Due funzioni distinte, spesso confuse fra loro nella documentazione precedente:
 > Questa è una categorizzazione diversa e più ricca di quella usata per
 > classificare le *domande* dell'utente (§5, nodo `classify`) — è la
 > radice del problema di copertura descritto in §11.
+>
+> **Limite aperto dal 21/09**: `CATEGORY_PATTERNS` non ha voci per i nuovi
+> percorsi aggiunti alla whitelist del crawler (`/area-cni`, `/faq`,
+> `/sezioni-amministrazione-trasparente` e altri, vedi §10) — cadrebbero su
+> `"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto
+> oggi (nessuna ingestion è stata rilanciata), ma va corretto prima della
+> prossima. Vedi §11.7.
 
 ### 4.4 Quality check — `src/governance/quality_check.py`
 
@@ -132,23 +141,29 @@ Rimuove boilerplate (cookie/privacy banner, "seguici su", ecc.), normalizza whit
 
 ### 4.7 Embedder — `src/ingestion/embedder.py`
 
-`paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensioni, normalizzato, batch 32. **Vedi §11 per il limite di troncamento a 128 token — riguarda proprio questo passaggio.**
+`intfloat/multilingual-e5-small`, 384 dimensioni, finestra 512 token, normalizzato, batch 32. **Cambiato dal `paraphrase-multilingual-MiniLM-L12-v2` (finestra 128 token) il 21/09** proprio per risolvere il troncamento descritto in §11.1 — l'ex-limite più grave del sistema.
+
+`ModelFactory.resolve_embedding_model()` (`src/core/model_factory.py`) risolve il modello effettivo e segnala se una variabile d'ambiente (`EMBEDDING_MODEL`) sovrascrive il YAML — vedi §11.5 per perché questo controllo esiste.
+
+I prefissi `query: `/`passage: ` richiesti da e5 sono applicati in modo trasparente da `PrefixedEmbeddings`, dedotti dal nome del modello (`PREFISSI_PER_FAMIGLIA`): nessun punto di chiamata deve saperne nulla.
 
 ### 4.8 Indexer — `src/vectorstore/indexer.py` + `qdrant_client.py`
 
-Qdrant locale su SQLite (`data/qdrant_db`), collezione `cni_documents`, distanza coseno, indice HNSW, dimensione vettori 384. Ogni chunk diventa un `PointStruct` (UUID, vettore, payload con `content/source/title/chunk_index/category`).
+Qdrant locale su SQLite (`data/qdrant_db`), collection `cni_documents_e5_bm25`, dimensione vettori 384. **Dal 21/09 ogni chunk ha due vettori**, non uno: `dense` (denso, distanza coseno, HNSW) e `bm25` (sparso, con modificatore `IDF` calcolato da Qdrant sull'intera collection) — lo schema è definito una sola volta in `src/vectorstore/bm25_sparse.py::collection_schema()` e riusato sia dal gestore Qdrant sia dallo script di costruzione, per evitare che punti diversi del codice creino formati diversi (è successo, vedi §11.6).
 
-**Stato corpus (diagnostica del 27/08):** 17.145 chunk indicizzati, 0% senza categoria, così distribuiti:
+Il peso BM25 di ogni chunk dipende dalla lunghezza media dell'intero corpus (`avgdl`): va calcolato in un'unica passata su tutti i chunk, non aggiunto in modo incrementale — vedi il limite noto in §11.8.
+
+**Stato corpus (22/09, collection `cni_documents_e5_bm25`):** 13.784 chunk, 14 categorie:
 
 | Categoria | Chunk | | Categoria | Chunk |
 |---|---:|---|---|---:|
-| news | 9.414 | | eventi | 2.876 |
-| normativa | 1.813 | | documenti | 870 |
-| organi | 536 | | formazione | 505 |
-| temi | 258 | | contatti | 175 |
-| giornale | 181 | | albo | 166 |
-| chi_siamo | 156 | | generico | 106 |
-| commissioni | 27 | | servizi | 62 |
+| news | 6.688 | | eventi | 2.711 |
+| normativa | 1.749 | | documenti | 828 |
+| organi | 480 | | formazione | 391 |
+| temi | 221 | | giornale | 157 |
+| albo | 156 | | contatti | 153 |
+| chi_siamo | 128 | | generico | 57 |
+| servizi | 51 | | commissioni | 14 |
 
 ---
 
@@ -178,7 +193,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 | `build_citations` | `CitationBuilder` — fonti deduplicate con excerpt e score |
 | `fallback` | messaggio "Non ho trovato informazioni sufficienti…" |
 
-**`HybridRetriever.retrieve()` (`src/rag/hybrid_retriever.py`)** — nonostante il nome, oggi fa **solo ricerca densa**: classifica la query, e se `category_filter` fosse attivo (oggi **non lo è**, vedi §10) filtrerebbe per categoria. Non c'è fusione BM25+densa reale: `hybrid_search.enabled: true` in config è un residuo, il codice che leggerebbe `dense_weight`/`sparse_weight` non esiste.
+**`HybridRetriever.retrieve()` (`src/rag/hybrid_retriever.py`)** — **dal 21/09 il nome è finalmente vero**: con `hybrid_search.enabled: true` (valore attuale) esegue una sola chiamata a Qdrant con due `Prefetch` (denso e sparso BM25) fusi lato server con Reciprocal Rank Fusion (`RrfQuery`, `rrf_k=60`) — non una somma pesata: i punteggi coseno e BM25 vivono su scale incomparabili, sui ranghi non serve normalizzare né tarare pesi. Classifica comunque la query per l'eventuale filtro di categoria (oggi **non attivo**, vedi §10), che riguarda solo il canale denso. Con `hybrid_search.enabled: false` il comportamento torna quello di prima (solo denso), utile per misurare il contributo del canale lessicale — è così che sono stati prodotti i confronti in §9.
 
 **Metodi pubblici:** `query(question)` (esecuzione sincrona del grafo — usata da `/query`), `astream(question)` (generator manuale, non passa dal grafo LangGraph, per controllo fine sullo streaming SSE).
 
@@ -188,7 +203,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 
 | Modulo | File | Funzione |
 |---|---|---|
-| PII filter | `src/governance/pii_filter.py` | Regex su email, telefono, codice fiscale, P.IVA, SSN. Applicato al prompt prima del LLM e a ogni chunk in streaming |
+| PII filter | `src/governance/pii_filter.py` | Regex su email, telefono, codice fiscale, P.IVA, SSN. Applicato a **tutto** il prompt prima del LLM (contesto incluso) e a ogni chunk in streaming. **Configurabile dal 21/09** (`governance.pii_filter.enabled`, oggi **false**): il corpus è interamente pubblico, mascherare i contatti istituzionali del CNI non protegge nessun dato riservato e rendeva impossibili due domande del golden dataset (vedi §11.9) |
 | Monitoring | `src/governance/monitoring.py` | `RAGMonitor` — traccia ogni query (`trace_id`, eventi per nodo, durata) |
 | Filtro dati pubblici | `src/governance/public_data_filter.py` | Vedi §4.3 |
 | Quality check | `src/governance/quality_check.py` | Vedi §4.4 |
@@ -211,11 +226,12 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 **Valutazione e annotazione** (a supporto di §5.5/§6 della tesi)
 | Metodo | Path |
 |---|---|
-| GET | `/evaluation/runs`, `/evaluation/latest`, `/evaluation/questions` | consultazione dei run di `run_evaluation.py` |
+| GET | `/evaluation/runs`, `/evaluation/latest`, `/evaluation/questions` | consultazione dei run di `run_evaluation.py`. `/evaluation/latest` espone anche `embedding_effettivo`, e per un run costruito unendo più esecuzioni (vedi `provenienza` nel JSON) anche `confronto_vs_final_v2` e `valutazione_umana` — **dal 22/09** |
 | GET | `/evaluation/annotation-queue` | coda di domande da validare manualmente |
 | POST | `/evaluation/annotations` | salva un voto umano |
 | GET | `/evaluation/agreement` | accordo giudice-umano calcolato al volo |
 | GET | `/evaluation/annotations/export.csv` | esporta le annotazioni |
+| GET | `/evaluation/ablation-matrix` | **nuovo dal 22/09** — riepilogo degli esperimenti di ablation (matrice embedding × BM25, confronto reranker, verifica BM25 nativo vs in memoria), da file fissi e noti in `results/` |
 
 **Sistema**
 | Metodo | Path |
@@ -233,8 +249,8 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 
 - **`app.routes.ts`** — due rotte: `/` (chat) e `/statistiche`
 - **`components/chat/chat.component.ts`** — chat interattiva: storico, suggerimenti, health check, citazioni cliccabili, streaming
-- **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, **due tab**: *quantitativa* (grafici su documenti/categorie/lunghezze dall'indice Qdrant) e *qualitativa* (dati dei run di valutazione)
-- **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — **non documentato nelle versioni precedenti**: è l'interfaccia di annotazione umana, montata dentro la tab qualitativa. Consuma gli endpoint `/evaluation/*` sopra: mostra la coda di domande da validare in cieco, salva i voti, calcola l'accordo giudice-umano. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
+- **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, **due tab**: *quantitativa* (composizione del corpus dall'indice Qdrant, **più, dal 22/09**, la configurazione del run corrente, il confronto appaiato con FINAL_V2 su recupero e accuratezza umana, la decomposizione dell'errore per stadio e la matrice di ablation — tutto visibile solo per un run costruito unendo più esecuzioni, vedi `provenienza`) e *qualitativa* (dati dei run di valutazione, telemetria delle query dal vivo)
+- **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — l'interfaccia di annotazione umana, montata dentro la tab qualitativa. Consuma gli endpoint `/evaluation/*` sopra: mostra la coda di domande da validare in cieco, salva i voti, calcola l'accordo giudice-umano. Cinque viste: Risultati, Annotazione, Corrispondenza, Per domanda, **Confronto (nuovo dal 22/09)** — quest'ultima classifica ogni domanda come migliorata/peggiorata/invariata rispetto a FINAL_V2, sulla soglia di correttezza ≥ 4. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
 - **`services/rag.service.ts`** — client HTTP verso tutti gli endpoint sopra, streaming via XHR (`onprogress`)
 - **`models/rag.models.ts`** — interfacce TypeScript corrispondenti
 
@@ -247,8 +263,8 @@ Tre strumenti distinti, non intercambiabili — usare quello giusto per la doman
 | Script | Cosa misura | Richiede LLM? | Stato dati raccolti |
 |---|---|---|---|
 | `benchmarks/run_benchmark.py` | retrieval con keyword matching | no | **limite noto**: dà punteggi alti anche quando il sistema non sa rispondere (vedi caso "presidente del CNI" in §11). Da non usare per risultati di tesi |
-| `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | **fatto**: `FINAL_V2`, n=30, 28/08 — `results/report_FINAL_V2.md` |
-| `benchmarks/ablation_retrieval.py` | solo retrieval/reranking, nessuna generazione — isola l'effetto di `top_k`, reranker, filtro categoria | no | **fatto**: n=30, 27/08, due run — `results/report_ablation_2026-08-27.md` |
+| `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | **fatto due volte**: `FINAL_V2` (n=30, 28/08, modello di embedding reale `all-MiniLM-L6-v2` — mai dichiarato, vedi §11.5) e `FINAL_V3` (n=30, 21/09, configurazione congelata e5+BM25 nativo+bge-reranker-base). Il run "definitivo" per la tesi è `results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json`, costruito unendo `FINAL_V3` con due domande rilanciate a filtro PII spento (vedi §11.9) — riepilogo leggibile in `results/2026-09-22/RIEPILOGO_FINAL_V3.md` |
+| `benchmarks/ablation_retrieval.py` | solo retrieval/reranking, nessuna generazione — isola l'effetto di `top_k`, reranker, filtro categoria, embedding, BM25 | no | **fatto molte volte**: preset `ibrido` (denso vs denso+BM25, per 3 modelli di embedding) e `reranker` (3 cross-encoder a confronto), tutti in `results/ablation_*.json`, riassunti dall'endpoint `/evaluation/ablation-matrix` (§7) |
 | `benchmarks/oracle_context.py` | quota d'errore imputabile al generatore (contesto perfetto per costruzione) | sì | **fatto**: n=30, 28/08 — `results/report_oracle_context.md` |
 | `benchmarks/compute_judge_agreement.py` | accordo giudice-umano da un CSV compilato a mano | no | **script obsoleto**, formato CSV superato dal flusso reale (annotazione via frontend → JSON). Il calcolo effettivo passa dall'endpoint `/evaluation/agreement` (`src/api/routes.py`), che usa `benchmarks/agreement.py::report_completo` sul JSON di `results/annotations_*.json` |
 | `benchmarks/agreement.py` | libreria: kappa pesato, α di Krippendorff, MAE, matrice di confusione — usata da `/evaluation/agreement` | no | **fatto**: eseguito su `FINAL_V2`, 03/09 — `results/report_judge_agreement.md` |
@@ -262,6 +278,8 @@ Golden dataset: `config/golden_dataset.json` (v1, 10 domande) e `config/golden_d
 
 `config/holdout_v1.json` è un **scaffold vuoto** (10 id, tutti i campi da compilare): l'idea è un insieme di controllo scritto senza guardare l'indice, per stimare se la configurazione scelta con l'ablation generalizza fuori dal golden dataset v2. Non è mai stato compilato né eseguito — trattato come lavoro futuro (vedi §12 e i limiti in `CONCLUSIONI_TESI.md`).
 
+**Aggiornamento 22/09 — esito del recupero ibrido.** Sulle stesse 30 domande, `all-MiniLM-L6-v2 + BM25` porta Hit@5 dal 40,0% al 66,7%; la configurazione adottata (`e5-small + BM25 nativo + bge-reranker-base`) porta il **contesto passato al generatore** dal 40,0% al 60,0% (MRR 0,294→0,434) e **l'accuratezza umana** dal 43,3% al 63,3% (13→19 su 30, Wilcoxon su correttezza continua p=0,0085). La decomposizione per stadio si sposta: `retrieval_miss` 14→2, `generation_miss` 2→8 — il collo di bottiglia passa dal recupero al generatore. L'accordo giudice-umano resta sotto soglia (kappa medio 0,540, come in `FINAL_V2`): l'accuratezza da citare è quella umana. Scripts e file usati per ogni esperimento: vedi `doc/PIANO_RECUPERO_IBRIDO.md` (diagnosi e piano originale) e `results/2026-09-22/RIEPILOGO_FINAL_V3.md` (numeri finali con IC 95%).
+
 ---
 
 ## 10. Configurazione attuale, con il perché di ogni valore
@@ -270,16 +288,22 @@ Da `config/rag_config.yaml`, con la ragione **reale** dietro ogni scelta (non qu
 
 | Parametro | Valore | Perché |
 |---|---|---|
-| `embedding.model_name` | `paraphrase-multilingual-MiniLM-L12-v2` | multilingua, sostituisce un modello solo-inglese |
-| `llm.temperature` | **0.1** | non 0.2 come riportato nelle versioni precedenti della documentazione — risposte quanto più deterministiche possibile |
-| `retrieval.top_k` | 25 | prima era 10: con 10 il chunk corretto per "chi è il presidente del CNI" non entrava mai fra i candidati (si classificava al rango 20-21) |
-| `retrieval.category_filter` | **false** | disattivato il 27/08: le 6 categorie non producibili dal classificatore delle query (`chi_siamo`, `eventi`, `generico`, `giornale`, `news`, `temi`) coprono il **75,8%** dei chunk indicizzati — con il filtro attivo, tre domande su quattro perdevano accesso alla maggior parte del corpus |
-| `retrieval.hybrid_search.enabled` | true | **valore non funzionale** — nessun codice implementa la fusione dense+sparse, vedi §5 |
-| `reranking.model` | `BAAI/bge-reranker-base` | prima era `cross-encoder/ms-marco-MiniLM-L-6-v2` (solo inglese): su testo italiano ordinava male e scartava i chunk utili |
+| `embedding.model_name` | `intfloat/multilingual-e5-small` | **cambiato il 21/09** da `paraphrase-multilingual-MiniLM-L12-v2`: finestra di 512 token invece di 128, elimina il troncamento (§11.1). Scelta di progetto, non su soglia numerica: nominalmente `paraphrase-multilingual + mmarco` aveva 2 domande in più su 30, differenza non significativa |
+| `llm.temperature` | **0.1** | risposte quanto più deterministiche possibile |
+| `retrieval.top_k` | 25 | con 10 alcuni chunk corretti non entravano mai fra i candidati |
+| `retrieval.category_filter` | **false** | le 6 categorie non producibili dal classificatore delle query coprono il **75,8%** dei chunk indicizzati |
+| `retrieval.hybrid_search.enabled` | **true** | **dal 21/09 ha effetto reale** (prima era dichiarato e non implementato, vedi §5): denso + BM25 nativo fusi con RRF. `false` per riprodurre il solo canale denso |
+| `retrieval.hybrid_search.rrf_k` | 60 | costante di attenuazione della Reciprocal Rank Fusion, valore convenzionale |
+| `retrieval.hybrid_search.dense_top_k` / `sparse_top_k` | 50 / 50 | candidati pescati da ciascun canale prima della fusione; il taglio a `top_k=25` avviene dopo, quindi la latenza del reranker non cambia |
+| `retrieval.hybrid_search.bm25.k1` / `b` | 1.2 / 0.75 | valori convenzionali di Robertson e Zaragoza |
+| `reranking.model` | `BAAI/bge-reranker-base` | confrontato con `mmarco-mMiniLMv2-L12-H384-v1` e `bge-reranker-v2-m3` su 30 domande (§9): nessuno supera la regola di adozione fissata a priori (guadagno ≥ 2 domande e latenza entro il doppio), quindi resta quello di partenza |
+| `reranking.allow_fallback` | **false** | **nuovo dal 21/09**: se il modello non si carica il sistema si ferma invece di proseguire in silenzio senza reranking (era un degrado non visibile) |
 | `reranking.top_k` | 5 | numero di documenti finali passati al LLM |
-| `chunking.chunk_size` / `overlap` | 1500 / 200 | pensato per dare contesto sufficiente al LLM — **ma vedi §11, l'embedding ne vede molto meno** |
-| `crawler.included_paths` | 5 path | limita il crawl alle sezioni pubbliche rilevanti del sito |
+| `governance.pii_filter.enabled` | **false** | **nuovo dal 21/09**: il corpus è interamente pubblico, il filtro mascherava anche i contatti istituzionali del CNI senza proteggere nulla (vedi §11.9) |
+| `chunking.chunk_size` / `overlap` | 1500 / 200 | pensato per dare contesto sufficiente al LLM |
+| `crawler.included_paths` | 32 path | **ampliata il 21/09** da 5 a 32: i 5 originali restano invariati, aggiunti i percorsi già presenti nel corpus ma fuori dalla whitelist precedente (senza i quali una ingestion completa perderebbe il 36% degli URL) più `/area-cni` (schede provinciali, non ancora nel corpus: la prima ingestion con questa voce cambia la base di tutti i numeri) |
 | `crawler` blocca `/en/` | — | 27% dei dati crawlati era in inglese, inutile per utenti italiani |
+| `crawler.respect_robots_txt` | **true, ora applicato** | **corretto il 21/09**: era dichiarato ma il crawler non leggeva mai `robots.txt` |
 
 ---
 
@@ -287,22 +311,16 @@ Da `config/rag_config.yaml`, con la ragione **reale** dietro ogni scelta (non qu
 
 Verificati in questa sessione contro il codice reale, non riportati per sentito dire.
 
-### 11.1 Troncamento dell'embedding — **non documentato prima d'ora**
+### 11.1 Troncamento dell'embedding — **risolto il 21/09**
 
-Il modello di embedding ha `max_seq_length = 128` token. I chunk indicizzati hanno una mediana di **266 token** (1.170 caratteri). Conseguenza misurata (`results/diagnostics_2026-08-27_12-25.json`):
-
-- **82,2%** dei chunk viene troncato in fase di embedding
-- in media si perde il **41,3%** del contenuto di ogni chunk troncato
-- il modello "vede" in media solo il **53,6%** del testo di un chunk
-
-Questo è probabilmente un fattore che spiega perché gli Hit@5 misurati
-nell'ablation (§9) restano nella fascia 33-40%: `chunk_size=1500` è stato
-scelto per dare contesto al *generatore*, ma il *retriever* lavora
-sistematicamente su una versione tagliata del chunk. È un disallineamento
-diretto fra due parametri della pipeline — non ancora affrontato nel codice
-né discusso nella tesi. Possibili correzioni: ridurre `chunk_size` a una
-misura compatibile con 128 token (~500-550 caratteri), oppure passare a un
-modello di embedding con finestra più ampia.
+Il modello di embedding precedente aveva `max_seq_length = 128` token, contro
+una mediana di **266 token** per chunk: l'**82,2%** dei chunk veniva troncato,
+perdendo in media il 41,3% del contenuto. Risolto passando a
+`intfloat/multilingual-e5-small` (finestra 512 token, §10): sul corpus attuale
+solo **18 chunk su 13.784 (0,13%)** superano 512 token. La correzione da sola
+(senza BM25) porta Hit@5 dal 40,0% al 46,7% — un miglioramento reale ma non
+statisticamente significativo su n=30 (p=0,375); il grosso del guadagno viene
+dal canale lessicale (§5, §9).
 
 ### 11.2 Endpoint `/query` bloccava l'event loop — **corretto il 28/08**
 
@@ -349,9 +367,111 @@ confronto embedding). Motivo dichiarato nel log: allineamento dell'indice a
 `CNICrawler.DENIED_PATTERNS`, introdotto il 2 luglio 2026 ma applicato solo
 al crawl, non retroattivamente all'indice già esistente.
 
+### 11.7 Pattern di categoria mancanti per la whitelist ampliata — **aperto**
+
+Vedi §4.3. `CATEGORY_PATTERNS` non copre i nuovi percorsi aggiunti alla
+whitelist del crawler il 21/09 (`/area-cni`, `/faq`, ecc.): finirebbero su
+`"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto sui
+risultati attuali (nessuna ingestion rilanciata), ma andrebbe corretto prima
+della prossima.
+
+### 11.8 Indicizzazione senza suddivisione a lotti — **aperto**
+
+`VectorIndexer.index_chunks()` (§4.8) costruisce tutti i `PointStruct` in
+memoria e li invia a Qdrant in un'unica chiamata `client.upsert()`, senza
+lotti — a differenza di `scripts/build_sparse_collection.py`, che spedisce a
+gruppi di 256. Su un corpus di 13.784+ chunk (destinato a crescere con
+`/area-cni`) questo può essere lento o pesante in memoria su una macchina con
+8 GB condivisi. Non causa errori noti, ma andrebbe messo a lotti per
+robustezza.
+
+### 11.9 Filtro PII mascherava i contatti dell'ente — **risolto il 21/09**
+
+Scoperto durante le 90 valutazioni umane su `FINAL_V3`: `PIIFilter` (§6)
+mascherava email e telefono su **tutto** il prompt passato al generatore,
+contesto incluso — non solo l'input dell'utente. Rendeva impossibili due
+domande del golden dataset: Q06 (contatti del CNI: telefono/email/PEC nel
+contesto, ma oscurati) e Q12 (il codice fiscale, un numero di 11 cifre, letto
+come telefono dalla stessa regex). Risolto rendendo il filtro configurabile e
+disattivandolo (`governance.pii_filter.enabled: false`, §10): il corpus è
+interamente pubblico, non c'è nulla da proteggere. Le due domande sono state
+rilanciate con il filtro spento e le risposte riannotate; il run `FINAL_V2`
+resta con il filtro attivo (Q06 lì era classificata `generation_miss`, causa
+in realtà il filtro, non il generatore).
+
+### 11.10 Pulsante "Indicizza Dati" senza conferma sufficiente — **parzialmente aperto**
+
+Il pulsante nel menu impostazioni del frontend (`POST /api/v1/ingest`) cancella
+**incondizionatamente** la collection in produzione e rilancia un crawl
+completo da zero, senza backup automatico. Dal 21/09 c'è una conferma
+esplicita nel browser prima di procedere (verificato: se rifiutata, nessuna
+richiesta parte), ma restano due limiti non ancora corretti, deliberatamente
+rimandati su richiesta esplicita:
+1. nessun pattern di categoria per i nuovi percorsi (§11.7);
+2. scrive ancora sulla collection di produzione invece che su una nuova — un
+   clic confermato distruggerebbe l'indice su cui sono validati `FINAL_V3` e
+   le 90 valutazioni umane, recuperabile solo dal backup manuale in
+   `data/qdrant_db.backup_2026-09-22/` (non tracciato da git, solo locale).
+
 ---
 
-## 12. Stato del progetto al 03/09/2026 e cosa manca
+## 12. Stato del progetto al 22/09/2026 e cosa manca
+
+**Aggiornamento 21-22/09 — recupero ibrido, dalla diagnosi alla tesi:**
+- Diagnosticato che in 13 domande fallite su 14 la fonte non entrava fra i
+  candidati densi, e il termine richiesto era quasi sempre lessicale (nomi,
+  codici, date) — un embedding non ha un intorno semantico per `80057570584`.
+- Implementato e adottato il recupero ibrido: BM25 nativo in Qdrant (vettore
+  sparso con modificatore IDF) fuso col canale denso via Reciprocal Rank
+  Fusion, in un'unica chiamata (§5, §10).
+- Scoperta e corretta una configurazione di produzione mai dichiarata: il
+  modello di embedding reale era `all-MiniLM-L6-v2` (inglese), non quello nel
+  YAML — una variabile d'ambiente lo sovrascriveva in silenzio (§11.5,
+  `ModelFactory.resolve_embedding_model()`).
+- Confrontati 3 modelli di embedding × con/senza BM25 (6 configurazioni) e 3
+  reranker, tutti sulle stesse 30 domande — matrice completa in
+  `/evaluation/ablation-matrix` e nella dashboard (§7, §8).
+- Congelata la configurazione finale (tag `congelato-2026-09-21-e5`), eseguito
+  il run end-to-end `FINAL_V3`, completate le 90 valutazioni umane (30
+  domande × 3 assi), corrette 4 annotazioni dopo verifica sui dati grezzi.
+- Scoperto e corretto il filtro PII che mascherava i contatti dell'ente
+  (§11.9); due domande rilanciate col filtro spento.
+- Costruito il run definitivo `eval_FINAL_V3_DEFINITIVO.json` unendo le due
+  esecuzioni, con confronto appaiato completo contro `FINAL_V2` (§9).
+- Dashboard aggiornata: configurazione del run, confronto con FINAL_V2,
+  matrice di ablation, confronto per domanda (§8).
+- README aggiornato con setup Windows testato via lettura del codice (nessun
+  percorso Unix hardcoded); `run.ps1` corretto (citava LM Studio invece di
+  Ollama, e pulsanti VS Code mai creati).
+- Trovati e corretti 6 difetti non legati direttamente al recupero: la
+  pipeline di indicizzazione produceva un formato di collection non
+  interrogabile dal nuovo retriever; il reranker degradava in silenzio se il
+  modello non si caricava; il crawler non applicava `robots.txt` pur
+  dichiarandolo; uno script CLI non partiva per un nome non importato;
+  un'eccezione nel controllo di salute veniva inghiottita; `.env.example`
+  elencava dieci variabili mai lette dal codice.
+
+**Da fare, in ordine di priorità** (vedi §11.7, §11.8, §11.10 per il dettaglio):
+1. Pattern di categoria per i nuovi percorsi della whitelist.
+2. Indicizzazione a lotti invece di un unico upsert.
+3. Pulsante "Indicizza Dati": scrivere su una collection nuova invece che sovrascrivere quella in produzione.
+4. Pulizia finale: rimuovere l'implementazione BM25 in memoria (rimasta sul branch di sviluppo `feature/recupero-ibrido` e nel tag `sperimentazione-recupero-ibrido`, non sul branch di rilascio) — solo con conferma esplicita.
+5. Unione di `release/recupero-ibrido` su `main`, **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
+
+**Cosa manca per la tesi:** aggiornare abstract, introduzione e i capitoli con
+i nuovi numeri — la tabella completa è in `results/2026-09-22/RIEPILOGO_FINAL_V3.md`.
+Dichiarare esplicitamente in tesi: (a) `FINAL_V2` girava con un modello di
+embedding diverso da quello dichiarato; (b) la matrice a 6 configurazioni è
+stata misurata con un'implementazione in memoria del BM25, verificata
+equivalente a quella nativa adottata in produzione (punteggi entro 6·10⁻⁸,
+stessi risultati sulle 30 domande); (c) `/area-cni` resta fuori dal corpus,
+configurata solo per la prossima ingestion.
+
+---
+
+## 12-bis. Stato del progetto al 03/09/2026 (archiviato)
+
+Sezione precedente, lasciata per riferimento storico — superata dal §12 sopra.
 
 **Fatto e verificato:**
 - Fix del blocco dell'event loop su `/query` (§11.2) — pushato, verificato con `pytest` (24/24 test passano)
@@ -413,11 +533,17 @@ curl -X POST http://localhost:8000/api/v1/query -H "Content-Type: application/js
 
 ## 14. Mappa verso i capitoli della tesi
 
+**La tesi è a 6 capitoli** (`doc/INDICE_TESI.md` su `origin/main`, non gli 8
+di versioni precedenti di questo indice): capitoli 1-2 descrivono il sistema,
+3-5 lo misurano e discutono i limiti, 6 conclude.
+
 | Sezione di questo documento | Capitolo tesi |
 |---|---|
-| §2 Stack tecnologico | Cap. 2 |
-| §3-§8 Architettura, ingestion, RAG, governance, API, frontend | Cap. 3 (architettura) e Cap. 4 (implementazione) |
-| §9 Valutazione e benchmarking | Cap. 5 (metodologia) |
-| Risultati prodotti da §9 | Cap. 6 (risultati) |
-| §11 Problemi noti | Cap. 7 (discussione, minacce alla validità, limiti) |
-| §11.1 (troncamento embedding), hybrid search non reale (§5) | Cap. 8 (sviluppi futuri) |
+| §2 Stack tecnologico | Cap. 2 (§2.2 lo stack) |
+| §3-§8 Architettura, ingestion, RAG, governance, API, frontend | Cap. 2 (§2.4-§2.9 architettura e implementazione) |
+| §5 recupero ibrido, §10 configurazione | Cap. 2 §2.6 (pipeline RAG) e Cap. 4 §4.2 (ablation) |
+| §9 Valutazione e benchmarking | Cap. 3 (metodologia della valutazione) |
+| Risultati prodotti da §9, matrice di ablation | Cap. 4 (risultati) |
+| §11 Problemi noti | Cap. 5 (discussione, minacce alla validità, limiti dichiarati) |
+| §11.7, §11.8, §11.10 (limiti ancora aperti) | Cap. 6 (conclusioni e sviluppi futuri) |
+| §12 (l'intervento sul recupero, da diagnosi a numeri) | Cap. 6 §6.2 — non più "non implementata": va riscritta come intervento applicato e misurato |
