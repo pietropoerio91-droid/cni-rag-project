@@ -235,6 +235,25 @@ export interface EvaluationLatest {
   dataset_version: string;
   total_questions: number;
   config_snapshot: Record<string, unknown>;
+  // Il modello di embedding realmente in uso (.env puo' sovrascrivere il YAML).
+  // Assente nei run precedenti al 21/09/2026.
+  embedding_effettivo: { modello: string; origine: 'yaml' | 'ambiente' } | null;
+  // Presenti solo nel run costruito unendo piu' esecuzioni (vedi provenienza.descrizione).
+  confronto_vs_final_v2: {
+    retrieval: Record<string, PairedComparison>;
+    umano: Record<string, PairedComparison>;
+  } | null;
+  valutazione_umana: {
+    n: number;
+    accuratezza: number;
+    accuratezza_ci: [number, number];
+    corrette_su_30: number;
+    media_fedelta: number;
+    media_pertinenza: number;
+    media_correttezza: number;
+    tassonomia_errori: { conteggi: Record<string, number>; totale_codificati: number };
+  } | null;
+  provenienza: { descrizione: string; [key: string]: unknown } | null;
   retrieval_stages: { retrieved?: StageMetrics; context?: StageMetrics };
   reranker_effect: Record<string, PairedComparison>;
   generation: Record<string, unknown>;

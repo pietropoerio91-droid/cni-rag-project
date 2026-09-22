@@ -382,6 +382,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ingestData() {
     this.menuOpen = true;
+    const conferma = window.confirm(
+      "Questa operazione CANCELLA l'indice attuale e lo ricostruisce da zero con un " +
+      "nuovo crawl del sito. Non è annullabile e sovrascrive la collection in uso. Continuare?"
+    );
+    if (!conferma) {
+      return;
+    }
     this.ragService.ingest().subscribe({
       next: () => {
         this.isIngesting = false;
