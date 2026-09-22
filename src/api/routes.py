@@ -350,6 +350,15 @@ async def evaluation_latest(run_id: str | None = None):
         "dataset_version": data.get("dataset_version"),
         "total_questions": agg.get("total_questions"),
         "config_snapshot": data.get("config_snapshot"),
+        # Il modello davvero usato: .env puo' sovrascrivere il YAML (vedi
+        # ModelFactory.resolve_embedding_model). Assente nei run precedenti al 21/09.
+        "embedding_effettivo": data.get("embedding_effettivo"),
+        # Presenti solo nel run costruito unendo piu' esecuzioni (vedi provenienza):
+        # confronto appaiato con FINAL_V2, accuratezza e tassonomia dall'annotazione
+        # umana. None per un run "semplice", il frontend deve gestire l'assenza.
+        "confronto_vs_final_v2": data.get("confronto_vs_FINAL_V2"),
+        "valutazione_umana": data.get("valutazione_umana"),
+        "provenienza": data.get("provenienza"),
         # Lo stadio "context" e' quello che conta: e' cio' che riceve l'LLM.
         "retrieval_stages": agg.get("retrieval_stages", {}),
         "reranker_effect": agg.get("reranker_effect", {}),
