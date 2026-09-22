@@ -33,6 +33,25 @@ vincolo specifico e documentabile, non un generico "hardware consumer".
 > generatore 3B) da ciò che è limite di configurazione (copertura del crawling,
 > filtro di categoria), che hardware non è.
 
+> **⚠ Aggiornamento 22 settembre — intervento sul recupero applicato, non più
+> solo diagnosticato.** Il paragrafo sopra descrive il sistema *congelato*
+> (`FINAL_V2`), che resta il punto di partenza della tesi. Dopo la diagnosi è
+> stato implementato e misurato il recupero ibrido (denso + BM25, §6.2):
+> **accuratezza umana 63,3%** su 30 domande (19/30, +20 punti, Wilcoxon su
+> correttezza continua p=0,0085). Lo stadio dell'errore si sposta di
+> conseguenza: `retrieval_miss` 47%→7%, `generation_miss` 7%→27% — **il collo
+> di bottiglia passa dal recupero al generatore**. Questo cambia la risposta
+> alla seconda metà della domanda di ricerca: una parte maggiore dell'errore
+> residuo attuale è ora imputabile al generatore da 3B (vincolo hardware
+> diretto) piuttosto che alla configurazione del recupero. Run di riferimento:
+> `FINAL_V3_DEFINITIVO`, `results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json`;
+> tabelle pronte in `results/2026-09-22/RIEPILOGO_FINAL_V3.md`. **Da
+> dichiarare**: la combinazione (embedding e5 + BM25 nativo + reranker
+> invariato) è stata scelta per un motivo di progetto — eliminare il
+> troncamento del testo in fase di embedding, §5.2 — non su una soglia
+> numerica; il giudice automatico resta non validato (kappa medio 0,540,
+> come per `FINAL_V2`), l'accuratezza da citare è quella umana.
+
 ---
 
 ## Numeri di riferimento del corpus
@@ -45,7 +64,12 @@ dei documenti pre-purge a quello dei chunk post-purge.**
 | Documenti | 5.890 acquisiti dal crawler | **4.144** (dopo purge `/en/`) |
 | Chunk | 17.145 | **13.784** (dopo purge dei duplicati inglesi, 27/08) |
 
-Run di riferimento: `FINAL_V2`, `results/2026-08-28/eval_14-12-22.json`.
+Run di riferimento: `FINAL_V2`, `results/2026-08-28/eval_14-12-22.json`
+(sistema congelato) e `FINAL_V3_DEFINITIVO`,
+`results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json` (dopo il recupero ibrido,
+§6.2) — **stesso corpus, stessi 4.144 documenti e 13.784 chunk**: nessuna
+ingestion è stata rilanciata fra i due run, cambia solo il sistema di
+recupero.
 
 ---
 
@@ -256,6 +280,38 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > nel contesto sta in posizione media 1,4 — il reranker ordina bene, il
 > problema è farglielo arrivare.
 
+> **⚠ Dati aggiornati per 4.1 e 4.4 dopo il recupero ibrido** (30 domande,
+> run `FINAL_V3_DEFINITIVO`, annotazione umana chiusa il 22 settembre — stessa
+> procedura e stessa persona che ha annotato `FINAL_V2`, criteri invariati):
+>
+> | Metodo | Corrette su 30 | | Δ vs FINAL_V2 |
+> |---|---:|---:|---:|
+> | Annotazione umana | 19 | **63,3%** | +20,0 punti (p=0,0085 su correttezza continua, Wilcoxon; McNemar sul binario p=0,146, non significativo) |
+>
+> | Stadio | n | % | Δ vs FINAL_V2 |
+> |---|---:|---:|---:|
+> | `ok` | 19 | 63% | +20 punti |
+> | `retrieval_miss` | 2 | **7%** | −40 punti |
+> | `reranker_drop` | 1 | 3% | invariato |
+> | `generation_miss` | 8 | **27%** | +20 punti |
+>
+> **Il rapporto si inverte**: da 7 a 1 a favore dell'errore a monte
+> (`FINAL_V2`) a circa 1 a 3 a favore dell'errore di generazione
+> (`retrieval_miss`+`reranker_drop` = 10% contro `generation_miss` = 27%).
+> Con un recupero migliore, **il generatore da 3B diventa il fattore
+> dominante dell'errore residuo** — risposta diretta alla seconda metà della
+> domanda di ricerca. Le 9 domande migliorate, le 3 peggiorate e le 18
+> invariate rispetto a `FINAL_V2`, con lo stadio di ciascuna, sono nella
+> dashboard (`/statistiche` → Qualitative → Confronto) e in
+> `results/annotations_FINAL_V3_DEFINITIVO.json`.
+>
+> **Da dichiarare**: l'intervento (BM25 ibrido, embedding e5, tutto §6.2) è
+> stato scelto guardando gli errori di queste stesse 30 domande — non è una
+> generalizzazione provata, è descrittivo. La significatività statistica del
+> confronto binario (43,3%→63,3%) non è raggiunta (p=0,146); lo è quella del
+> confronto sulla correttezza continua (p=0,0085), una misura più sensibile
+> ma meno immediata da presentare. Riportare entrambe, non solo la seconda.
+
 ---
 
 ### Capitolo 5 — Discussione ⬜
@@ -281,6 +337,15 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > trasforma tre difetti isolati in un risultato unico. Da quantificare prima
 > di scriverlo: quanti chunk del corpus sono pagine di elenco (URL con
 > `?start=` o pagine indice).
+
+> **⚠ Confermato il 22/09 — la previsione si è avverata.** Il BM25, aggiunto
+> proprio per il contenuto schematico appena descritto, porta l'accuratezza
+> umana dal 43,3% al 63,3% (§4.1). Non prova che il meccanismo descritto sia
+> l'unica causa — l'intervento cambia insieme embedding e reranker, non un
+> parametro alla volta (vedi §5.3, selezione sul set di valutazione) — ma è
+> coerente con la diagnosi: BM25 recupera per corrispondenza esatta di
+> termini (nomi, codici, sigle), esattamente ciò che il contenuto schematico
+> non offre a un embedding di frasi.
 
 > **Da aggiungere in 5.3 — la regressione da filtro di categoria.** Q01 e Q07
 > erano **corrette** in FULL1 (24/08, filtro attivo, fonte a rank 8 e rank 19)
@@ -316,7 +381,7 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 ### Capitolo 6 — Conclusioni e sviluppi futuri 🟡
 
 6.1 **Conclusioni** — risposta alla domanda di ricerca e contributi del lavoro
-6.2 **Interventi sul recupero** — hybrid search con fusione di ricerca sparsa (BM25) e densa mediante Reciprocal Rank Fusion, *attualmente non implementata: il sistema impiega ricerca densa con filtro di categoria*; boost morbido di categoria in luogo del filtro rigido (§5.3)
+6.2 **Interventi sul recupero** — hybrid search con fusione di ricerca sparsa (BM25) e densa mediante Reciprocal Rank Fusion: **implementata e misurata il 21-22/09** (vedi nota sotto), non più uno sviluppo futuro; boost morbido di categoria in luogo del filtro rigido (§5.3, resta da fare)
 6.3 **Estensione della valutazione** — golden dataset portato a circa 500 domande per raggiungere una potenza dell'80%; insieme di controllo indipendente scritto dopo il congelamento della configurazione
 6.4 **Estensioni funzionali** — supporto avanzato ai documenti PDF (delibere, circolari), query multi-hop e domande composte, feedback degli utenti per il miglioramento continuo
 6.5 **Superamento del vincolo hardware** — esecuzione su GPU e quantizzazione, modelli oltre i 3B
@@ -330,6 +395,28 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > identificati non sono stati applicati prima della consegna: adottarli senza
 > riannotare avrebbe prodotto numeri nuovi e non validati, cioè peggiori di
 > quelli riportati.
+
+> **⚠ 6.2 non è più «da fare»: il costo è stato pagato e i numeri sono validi.**
+> Fra il 20 e il 22/09, dopo il congelamento di `FINAL_V2`, sono stati
+> eseguiti: (1) BM25 nativo in Qdrant con Reciprocal Rank Fusion lato server
+> (vettore sparso, modificatore IDF, un'unica chiamata al database — non una
+> somma pesata: le scale coseno/BM25 sono incomparabili); (2) un confronto a
+> 6 configurazioni (3 modelli di embedding × con/senza BM25) e a 3 reranker,
+> tutti sulle stesse 30 domande; (3) il run end-to-end completo e le 90
+> valutazioni umane rifatte da zero, con revisione di 4 annotazioni dopo
+> verifica sui dati grezzi. Risultato: accuratezza umana 43,3%→63,3% (§4.1).
+> Il boost morbido di categoria (l'altra voce di questo paragrafo) **resta
+> da fare** — non è stato toccato.
+>
+> **Cosa scrivere in 6.2 ora**: non più «ecco cosa si potrebbe provare», ma
+> «ecco cosa è stato provato, con quale esito, e quali domande restano
+> aperte» — la selezione sul set di valutazione (§5.3), l'assunzione non
+> verificata che il reranker scelto su un embedding poi cambiato regga anche
+> con quello nuovo (`doc/TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8), e i
+> limiti tecnici ancora aperti (`doc/SISTEMA.md` §11.7-§11.10: pattern di
+> categoria mancanti per la whitelist ampliata, indicizzazione senza lotti,
+> pulsante di re-indicizzazione che sovrascrive la produzione). Documentazione
+> completa, un esperimento per sezione: `doc/TEST_RECUPERO_IBRIDO.md`.
 
 > **Sul 6.1.** Bozza completa in `doc/CONCLUSIONI_TESI.md`: argomentazione e
 > struttura definitive, dati reali. Tutti e quattro gli esperimenti pianificati
@@ -440,6 +527,27 @@ il paragrafo finale dell'introduzione.
 | Aggiunta la richiesta di esplicitare il mascheramento in 3.5 | «In cieco» senza dire rispetto a che cosa è la prima obiezione che un revisore solleva |
 | Dichiarata in 3.6 la potenza statistica | Con n=30 nessun confronto è significativo: va detto nella metodologia, non nascosto nei limiti |
 | Aggiunta la sezione «Q01 — il caso guida» | La diagnosi è stata corretta tre volte; il percorso è materiale di tesi, non un imbarazzo da nascondere |
+
+### Modifiche di contenuto del 22 settembre 2026
+
+Proposte da revisionare — nessuna riscrittura del testo esistente, solo
+blocchi `>` aggiunti in coda alle sezioni già presenti e una correzione di
+fatto in 6.2 (l'unica riga di testo esistente toccata: dichiarava «hybrid
+search... non implementata», ora falso).
+
+| Modifica | Motivo |
+|---|---|
+| Blocco «Aggiornamento 22 settembre» dopo la risposta alla domanda di ricerca | L'accuratezza è salita dal 43% al 63,3% dopo il recupero ibrido: la risposta raggiunta il 3/09 resta valida per `FINAL_V2` ma non è più l'ultimo dato disponibile |
+| 6.2 corretta da «non implementata» a «implementata e misurata» | Affermazione di fatto, non di giudizio: lasciarla avrebbe reso l'indice esplicitamente falso rispetto al codice |
+| Dati aggiornati in 4.1/4.4 (nuova tabella, non sostituita quella vecchia) | Il rapporto errore-a-monte/errore-di-generazione si inverte (7:1 → circa 1:3): cambia la lettura della domanda di ricerca, non solo un numero |
+| Conferma in 5.2 | La sezione prevedeva esplicitamente il BM25 come rimedio al contenuto schematico; l'esito lo conferma — va detto, non lasciato implicito |
+| `doc/TEST_RECUPERO_IBRIDO.md` citato come fonte | Un esperimento per sezione (comando, branch, file dei risultati, limiti): dove trovare la prova di ogni numero citato qui |
+
+**Non ancora rivisto in questo passaggio**: 5.3 (selezione sul set di
+valutazione — vale ancora, ma ora sono 9+ configurazioni provate, non
+9), 5.4, l'abstract, l'introduzione, `CONCLUSIONI_TESI.md`. Il paragrafo
+finale dell'introduzione (struttura dei capitoli) non è toccato da questo
+lavoro: resta valido.
 
 ### Modifiche precedenti (versioni di agosto e 4 settembre)
 
