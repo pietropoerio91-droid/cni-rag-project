@@ -493,7 +493,7 @@ di `POST /ingest` con crawler ed embedding simulati.
 1. ~~Pattern di categoria per i nuovi percorsi della whitelist~~ — fatto il 23/09 (§11.7).
 2. ~~Indicizzazione a lotti invece di un unico upsert~~ — fatto il 23/09 (§11.8).
 3. ~~Pulsante "Indicizza Dati": scrivere su una collection nuova~~ — fatto il 23/09 (§11.10).
-4. Pulizia finale: rimuovere l'implementazione BM25 in memoria (rimasta sul branch di sviluppo `feature/recupero-ibrido` e nel tag `sperimentazione-recupero-ibrido`, non sul branch di rilascio) — solo con conferma esplicita.
+4. ~~Pulizia finale: rimuovere l'implementazione BM25 in memoria~~ — confermata il 23/09. Verificato che il codice attivo non la contiene più: `src/rag/sparse_index.py`, `src/rag/fusion.py` e `tests/unit/test_sparse_e_fusione.py` esistono solo sul branch `feature/recupero-ibrido`, che va cancellato. Si conserva il tag `sperimentazione-recupero-ibrido` (stesso commit `fa6d0aa`): la matrice a 6 configurazioni riportata in tesi è stata misurata con quell'implementazione e il tag la rende riproducibile. I riferimenti rimasti nel codice attivo sono solo commenti che documentano l'equivalenza nativo/in memoria.
 5. ~~Unione di `release/recupero-ibrido` su `main`~~ — risulta fatta: al 23/09 `main` contiene tutti i commit di `release/recupero-ibrido`. Testo originale: unione **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
 
 **Cosa manca per la tesi:** aggiornare abstract, introduzione e i capitoli con
