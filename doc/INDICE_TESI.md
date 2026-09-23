@@ -432,10 +432,14 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > il 02–03/09 su tutte le 30 domande. 🟡 indica solo che il capitolo va ancora
 > scritto da Pietro con parole proprie, non che manchino dati.
 >
-> ⚠️ **Da riverificare in `CONCLUSIONI_TESI.md`** alla luce degli aggiornamenti
-> del 9 settembre: i conteggi del corpus (4.144 documenti, non 5.890), la
-> diagnosi di Q01 (ranking, non `corpus_miss`), la quota attribuita al
-> generatore (7%, non 20%) e **la nuova numerazione dei capitoli**.
+> ✅ **`CONCLUSIONI_TESI.md` aggiornato il 23/09 a `FINAL_V3`** (accuratezza
+> umana 63,3%, collo di bottiglia spostato sul generatore, giudice non
+> validato nemmeno su V3, test oracolo non rimisurato). Scritto per punti, con
+> fonti e cautele: il testo del 6.1 resta da scrivere. La versione precedente,
+> tutta su `FINAL_V2`, è in `archivio/`. I punti da riverificare segnalati il
+> 9/09 (corpus 4.144 documenti, diagnosi di Q01 per ranking, numerazione dei
+> capitoli) sono allineati; la quota del generatore ora è il 27% di V3 (era il
+> 7% di V2).
 
 ---
 

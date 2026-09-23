@@ -1,264 +1,243 @@
 # Conclusioni — MATERIALE DI LAVORO, NON TESTO DA CONSEGNARE
 
-> ⚠️ **Questo file è un appunto tecnico per me (Claude), non una bozza da
-> incollare nella tesi.** L'uso di AI concordato per questo progetto copre lo
-> sviluppo del sistema (codice, benchmark, fix, esperimenti), non la stesura
-> del testo della tesi, che passa per un controllo antiplagio. Il capitolo
-> Conclusioni va scritto da Pietro con le proprie parole; questo documento
-> serve solo a tenere allineati i dati, la struttura logica e cosa ancora
-> manca, cosi' l'aiuto sui numeri e sulla verifica dei fatti resta utile
-> senza sconfinare nella stesura.
+> ⚠️ **Questo file è un appunto tecnico, non una bozza da incollare nella
+> tesi.** L'uso di AI concordato per questo progetto copre lo sviluppo del
+> sistema (codice, benchmark, fix, esperimenti), non la stesura del testo
+> della tesi, che passa per un controllo antiplagio. Il capitolo Conclusioni
+> va scritto da Pietro con le proprie parole; questo documento tiene
+> allineati i dati, la struttura logica e le cautele da dichiarare.
+>
+> Per questo, dal 23/09, il file è scritto per punti: numeri, fonti e
+> ragionamento, non prosa pronta.
 
-> **Nota per la compilazione.** I segnaposto `[X]` vanno sostituiti con i
-> valori prodotti dai run finali. Corrispondenza fra segnaposto e comando:
->
-> | Segnaposto | Fonte |
-> |---|---|
-> | ~~Accuratezza di retrieval e generazione~~ | **fatto** — `results/report_FINAL_V2.md`, n=30, run `FINAL_V2` del 28/08 |
-> | ~~Quota d'errore imputabile al generatore~~ | **fatto** — `results/oracle_context_2026-08-28_14-35.json`: 23,3 punti generatore, 26,7 punti retrieval, n=30, McNemar p=0,115 (non significativo) |
-> | Effetto del reranking sull'accuratezza finale (§1) | `python benchmarks/compare_runs.py` pre/post reranking su risposte generate (§6.3) — l'effetto sul solo retrieval è già in `results/report_ablation_2026-08-27.md` (non significativo, n=30) |
-> | ~~Accordo giudice-umano (§2)~~ | **fatto** — `results/annotations_FINAL_V2.json`, n=30, 02-03/09: kappa medio 0,475 ("moderato"), pertinenza e correttezza sostanziale (0,770 / 0,674), fedeltà nessun accordo (-0,019) — vedi "Il contributo del lavoro" |
-> | Decomposizione dell'errore per stadio (§1) | `python benchmarks/ablation_retrieval.py` + analisi manuale dei fallimenti (§6.4) |
-> | ~~Effetto del filtro di categoria e del reranker~~ | **fatto** — `results/report_ablation_2026-08-27.md`, n=30, non significativo |
->
-> Finché questi run non sono stati eseguiti sul dataset esteso, il capitolo
-> resta una bozza strutturale: l'argomentazione è completa, i numeri no.
-> Il run `FULL1` (10 domande, 24 agosto) è troppo esiguo per fondarci queste
-> affermazioni ed è stato usato solo come prova di funzionamento della
-> pipeline di valutazione, non come risultato finale.
->
-> **Aggiornamento 03/09**: annotazione umana in cieco completata su tutte
-> le 30 domande di `FINAL_V2` e confrontata col giudice automatico — vedi
-> tabella sopra. Con questo, tutti i segnaposto `[X]` del documento sono
-> compilati con dati reali; restano solo i due punti a bassa priorità
-> (effetto reranking isolato, §1) non necessari per rispondere alla
-> domanda di ricerca centrale.
+> **Aggiornamento 23/09/2026.** Il run di riferimento è **`FINAL_V3`**
+> (`results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json`, riepilogo in
+> `results/2026-09-22/RIEPILOGO_FINAL_V3.md`). `FINAL_V2` resta come termine
+> di confronto. La versione precedente di questo file, tutta su `FINAL_V2`, è
+> in `archivio/CONCLUSIONI_TESI_2026-09-03.md`. In fondo c'è l'elenco di cosa
+> è cambiato e perché.
+
+---
+
+## Fonti dei numeri
+
+| Dato | Fonte |
+|---|---|
+| Recupero, generazione, giudice automatico di `FINAL_V3` | `results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json` (`aggregate`) |
+| Accuratezza umana e tassonomia degli errori di `FINAL_V3` | stesso file, `valutazione_umana`; annotazioni in `results/annotations_FINAL_V3_DEFINITIVO.json` |
+| Confronto appaiato `FINAL_V2` → `FINAL_V3` | stesso file, `confronto_vs_FINAL_V2`; tabelle in `RIEPILOGO_FINAL_V3.md` |
+| Accordo giudice-umano di `FINAL_V3` | `results/judge_agreement_2026-09-22.json`; `RIEPILOGO_FINAL_V3.md` §4 |
+| `FINAL_V2` (28/08) | `results/report_FINAL_V2.md`, `results/annotations_FINAL_V2.json` |
+| Test a contesto oracolo | `results/oracle_context_2026-08-28_14-35.json` (**eseguito una sola volta, all'epoca di `FINAL_V2`**) |
+| Come si è arrivati alla configurazione finale | `doc/TEST_RECUPERO_IBRIDO.md` |
+
+Configurazione di `FINAL_V3`: embedding `intfloat/multilingual-e5-small`,
+recupero ibrido (denso + BM25 nativo in Qdrant, RRF k=60), reranker
+`BAAI/bge-reranker-base`, generatore `qwen2.5:3b`, filtro PII disattivato.
+Tag `congelato-2026-09-21-e5`. N=30 domande del golden dataset v2.
 
 ---
 
 ## Risposta alla domanda di ricerca
 
-Questo lavoro ha posto una domanda in due parti: **con quale accuratezza**
-un sistema RAG interamente locale risponde a domande sui dati pubblici del
-Consiglio Nazionale degli Ingegneri, e **quanta parte dell'errore residuo**
-è imputabile ai vincoli hardware dell'esecuzione in locale.
+La domanda ha due parti: **con quale accuratezza** risponde un sistema RAG
+interamente locale sui dati pubblici del CNI, e **quanta parte dell'errore
+residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
 
-Sul primo punto, il sistema realizzato — un'architettura RAG completa
-(crawling mirato del sito `cni.it`, filtro dei dati pubblici, chunking,
-embedding multilingue, indicizzazione vettoriale HNSW, retrieval con
-reranking cross-encoder, generazione con auto-verifica e pipeline
-orchestrata in LangGraph) — raggiunge un'accuratezza di **40,0% [24,6%,
-57,7%]** in Hit@5 sul retrieval (contesto passato al generatore) e un
-punteggio medio di correttezza di **1,33/5 [0,73, 1,97]** (mediana 0)
-sulla generazione, secondo il giudice automatico, su N=30 domande del
-golden dataset v2 (run `FINAL_V2`, 28/08 — dettaglio completo in
-`results/report_FINAL_V2.md`). Questo secondo numero va letto con la sua
-calibrazione nota (si veda la nota metodologica subito sotto): la
-correttezza umana mediata sulle stesse 30 domande è **2,35/5**, quindi il
-giudice automatico sottostima sistematicamente di circa un punto — l'
-*ordinamento* delle risposte è comunque affidabile (kappa 0,674,
-"sostanziale"), solo il livello assoluto no. Questi valori vanno letti
-insieme, non separatamente: la decomposizione dell'errore per stadio
-(§6.4, metodo automatico su rango pre/post-rerank) mostra che il **57%
-delle domande (17/30)** fallisce già al retrieval — la fonte corretta
-non entra mai fra i 25 candidati — contro un 20% (6/30) in cui il
-contesto era corretto ma la generazione ha comunque sbagliato, e un 3%
-(1/30) perso dal reranker. Una seconda decomposizione, indipendente,
-fatta dall'annotatore umano in cieco sulle stesse 30 domande
-(`results/annotations_FINAL_V2.json`, non un calcolo automatico ma una
-lettura diretta di risposta e documenti) converge sullo stesso
-collo di bottiglia ma con proporzioni diverse: **46,7% (14/30)
-retrieval_miss**, **43,3% (13/30) ok**, 6,7% (2/30) generation_miss, 3,3%
-(1/30) reranker_drop. Le due decomposizioni concordano sul fatto
-qualitativo — il retrieval è la causa dominante, il reranker quasi
-irrilevante — ma non sui numeri: il metodo automatico, basato su soglie
-di correttezza e rango, classifica più casi come generation_miss (20%
-contro 6,7% umano) e meno come "ok" (20% contro 43,3% umano). È un
-disaccordo informativo, non un rumore da ignorare: un giudizio umano
-olistico è più indulgente nel decidere se una risposta "ha funzionato"
-di quanto lo sia una soglia numerica rigida. Con entrambe le letture, il
-collo di bottiglia dominante resta comunque a monte della generazione,
-non dentro di essa — un dato che la sola metrica di correttezza finale
-non renderebbe visibile.
+### Parte 1 — accuratezza
 
-> Nota metodologica: l'accordo giudice-umano (§5.5, completato il
-> 02-03/09 su tutte le 30 domande — `results/annotations_FINAL_V2.json`,
-> `results/judge_agreement_2026-09-03.json`) dà un risultato **misto, non
-> uniforme fra le tre metriche**: pertinenza (kappa 0,770) e correttezza
-> (kappa 0,674) hanno un accordo "sostanziale" e sono quindi riportabili
-> con la calibrazione indicata sopra; la **fedeltà** ha un accordo
-> sostanzialmente nullo (kappa -0,019, MAE 2,0 punti) e **i suoi
-> punteggi automatici non vengono riportati come misura affidabile in
-> questo lavoro**. Il kappa medio sulle tre metriche è 0,475
-> ("moderato"), sotto la soglia di utilizzabilità dichiarata a monte
-> (≥0,61) — coerente con l'ipotesi di partenza di un rischio di
-> self-preference bias (giudice e generatore sono lo stesso modello),
-> confermata empiricamente almeno per la fedeltà.
+| Misura (n=30) | FINAL_V2 | **FINAL_V3** | Confronto appaiato |
+|---|---:|---:|---|
+| **Accuratezza umana** (correttezza ≥ 4) | 43,3% (13/30) | **63,3% (19/30)** [45,5%, 78,1%] | +20,0 punti, McNemar p=0,146 |
+| Correttezza umana media (0-5) | 2,35 | **3,57** | +1,30, Wilcoxon p=0,0085 |
+| Hit@5 sul contesto passato al generatore | 40,0% | **60,0%** [42,3%, 75,4%] | +20,0 punti, p=0,070 |
+| MRR | 0,294 | **0,434** [0,284, 0,591] | +0,140, p=0,028 |
+| Risposte che contengono il dato atteso (*must-contain*, metrica deterministica) | 50,0% | **66,7%** [48,8%, 80,8%] | — |
 
-Sul secondo punto — la ragione per cui questa tesi include un test a
-contesto oracolo (§6.5) — il risultato è che, fornendo al generatore il
-documento corretto per costruzione, la quota di risposte corrette
-(must-contain) sale a **76,7% [59,1%, 88,2%]**, contro **50,0%** nella
-pipeline end-to-end (stessa metrica deterministica, stesse 30 domande —
-`results/oracle_context_2026-08-28_14-35.json`). La differenza, **26,7
-punti percentuali**, è la stima diretta di quanto pesa la pipeline di
-retrieval sull'errore complessivo; il residuo che permane anche a
-contesto oracolo, **23,3 punti**, è la stima diretta di quanto pesa il
-modello generativo da 3B parametri eseguito su CPU, senza accelerazione
-hardware. Il test McNemar sulla differenza appaiata non raggiunge la
-significatività a questa numerosità (p=0,115) — coerente con il limite
-di potenza statistica già discusso, e un'ulteriore ragione per leggere
-questi due numeri come stime con margine, non come valori esatti.
-Questa scomposizione — non disponibile confrontando due macchine diverse,
-per le ragioni metodologiche discusse in §6.5 — è ciò che permette di
-rispondere alla seconda parte della domanda di ricerca con un numero
-anziché con un'impressione: **della quota di errore non spiegata dal
-contesto oracolo, poco più della metà (23,3 punti su 50,0 mancanti) è
-imputabile al vincolo hardware sul generatore; il resto (26,7 punti) è
-un limite del retrieval, in linea di principio risolvibile senza cambiare
-la piattaforma.**
+- L'**accuratezza umana** è il risultato principale da riportare. Quella del
+  giudice automatico non è validata (vedi sotto).
+- Nessun confronto è significativo con n=30 nel senso della potenza
+  statistica classica. I p-value sono descrittivi. La differenza sulla
+  correttezza media (p=0,0085) è la più netta, ma resta una misura su 30
+  domande.
+- **Da dichiarare:** `FINAL_V2` girava in realtà con `all-MiniLM-L6-v2`
+  (embedding inglese), non con il modello multilingue dichiarato nel suo
+  `config_snapshot`: una variabile d'ambiente sovrascriveva il YAML
+  (`SISTEMA.md` §11.5). Il confronto V2→V3 cambia quindi più di un fattore:
+  embedding, canale BM25 e filtro PII.
 
-## Il contributo del lavoro
+### Dove sbaglia il sistema — tassonomia degli errori (annotazione umana in cieco)
 
-Il contributo di questa tesi non si esaurisce nel sistema funzionante. Tre
-elementi vanno oltre l'implementazione:
+| Stadio | FINAL_V2 | **FINAL_V3** |
+|---|---:|---:|
+| `ok` | 13 (43%) | **19 (63%)** |
+| `retrieval_miss` (fonte mai fra i candidati) | 14 (47%) | **2 (7%)** |
+| `reranker_drop` (recuperata, scartata dal reranker) | 1 (3%) | **1 (3%)** |
+| `generation_miss` (contesto giusto, risposta sbagliata) | 2 (7%) | **8 (27%)** |
 
-**Un impianto di valutazione che non si fida delle proprie metriche di
-default.** Il benchmark iniziale, basato su keyword matching, giudicava
-"corretta" (MRR = 1.0) la risposta alla domanda "Chi è il presidente del
-CNI?" nello stesso momento in cui il sistema rispondeva di non saperlo: la
-parola "presidente" compariva nel primo chunk recuperato, ma in un
-contesto irrilevante. La diagnosi di questo caso — chunk corretto presente
-nell'indice ma classificato al rango 20-21 dall'embedding, e scartato dal
-reranking perché il cross-encoder in uso era addestrato solo su MS MARCO
-inglese — ha portato a due correzioni verificabili (`top_k` 10→25,
-sostituzione del reranker con un modello multilingue) e a un principio
-metodologico più generale, adottato per il resto del lavoro: **ogni
-metrica va validata contro casi noti prima di essere usata per trarre
-conclusioni**, ed **in un sistema multilingue ogni componente della
-pipeline — non solo l'embedding — va scelto con copertura linguistica
-esplicita**. Il capitolo 5 (§5.3) generalizza questo e altri episodi
-analoghi (ground truth circolare, recall non troncato) in insidie
-metodologiche documentate, non nascoste.
+- **Il collo di bottiglia si è spostato.** In `FINAL_V2` l'errore era quasi
+  tutto a monte: 15 errori di recupero contro 2 di generazione. In `FINAL_V3`
+  è per lo più a valle: 3 contro 8. I `retrieval_miss` scendono da 14 a 2.
+  *Non verificato* se i 2 rimasti siano fra i 14 di V2: per dirlo va fatto
+  il confronto per domanda (tab Confronto della dashboard).
+- Il dato **va letto nel modo giusto**: gli errori di generazione non sono
+  aumentati perché il generatore è peggiorato (è lo stesso modello). Ora
+  arrivano al generatore domande con il contesto giusto che prima fallivano
+  già al recupero, e una parte di queste il modello da 3B non la risolve.
+- Casi rivisti sui dati grezzi, da citare se servono: Q12 è `generation_miss`
+  (dato presente nel contesto, non estratto); Q02 è `reranker_drop` (fonte
+  al rango 22); Q22 e Q24 sono falsi negativi della metrica automatica
+  (`RIEPILOGO_FINAL_V3.md` §5).
 
-**Un giudice automatico che dichiara i propri limiti invece di
-presupporsi affidabile.** Il modello che genera le risposte e il modello
-che le valuta sono, per vincolo hardware, lo stesso modello (`qwen2.5:3b`
-locale): un rischio noto di bias di self-preference. Anziché ignorarlo, il
-lavoro lo misura, confrontando il giudizio automatico con l'annotazione
-umana in cieco sulle stesse 30 domande (`results/annotations_FINAL_V2.json`,
-02-03/09/2026). Il risultato non è uniforme fra le tre metriche, ed è
-proprio questa non uniformità il dato rilevante: su **pertinenza**
-(kappa pesato 0,770, "sostanziale") e **correttezza** (kappa 0,674,
-"sostanziale") il giudice concorda con l'annotatore umano in modo
-solido (r di Pearson 0,80 e 0,79). Su **fedeltà** l'accordo è invece
-sostanzialmente nullo (kappa -0,019, MAE 2,0 punti su scala 0-5): il
-giudice assegna in media 3,1, l'annotatore umano 4,7, con un effetto
-soffitto sul lato umano (28 domande su 30 valutate 5) che il giudice non
-riproduce. Il kappa medio sulle tre metriche è **0,475** ("moderato"),
-sotto la soglia di utilizzabilità dichiarata a monte (≥0,61): **per
-questo lavoro, i punteggi di fedeltà del giudice automatico non vengono
-riportati come misura affidabile**, mentre pertinenza e correttezza sì,
-con l'accordo dichiarato accanto al numero. È l'insufficienza stessa,
-non solo l'eventuale successo, a essere il risultato: un giudice
-automatico non validato a monte avrebbe riportato una fedeltà media
-"buona" (3,1/5) senza che nessuno potesse dire se fosse una misura reale
-o un artefatto del bias di self-preference.
+### Parte 2 — quanto pesa il vincolo hardware
 
-**Una scomposizione causale dell'errore, non solo una sua misura — misurata
-due volte, con due metodi indipendenti.** Sapere che il sistema sbaglia è
-meno utile di sapere *dove* sbaglia: il metodo automatico (rango
-pre/post-rerank + soglia di correttezza, §6.4, `results/report_FINAL_V2.md`)
-attribuisce il 57% degli errori al mancato recupero della fonte, il 3% al
-reranking, il 20% a un generatore che sbaglia pur col contesto giusto, il
-20% restante a risposte corrette. L'annotatore umano in cieco, leggendo
-le stesse 30 domande senza vedere questa classificazione a monte
-(`results/annotations_FINAL_V2.json`), arriva a proporzioni diverse ma
-alla stessa conclusione qualitativa: 46,7% retrieval_miss, 43,3% ok,
-6,7% generation_miss, 3,3% reranker_drop — il retrieval resta la causa
-dominante, il reranker quasi irrilevante, ma il metodo automatico
-sottostima quante risposte "funzionano" nel complesso rispetto a un
-giudizio umano olistico. Questa doppia misura, insieme al test a
-contesto oracolo (§6.5, completato), è ciò che permette di distinguere
-un limite risolvibile con ingegneria (retrieval, reranking — qui il più
-rilevante) da un limite strutturale del vincolo hardware (dimensione del
-modello generativo). Un caso
-concreto emerso da questo run è anche una scoperta a sé: in una risposta
-(Q15) il modello ha ripetuto testualmente l'istruzione di correzione
-iniettata nel system prompt dal nodo di self-check invece di limitarsi a
-correggere — un bug non documentato prima d'ora, e un indizio
-comportamentale del limite del modello da 3B nel seguire istruzioni di
-sistema senza trascriverle nell'output.
+- **Il test a contesto oracolo è stato eseguito una sola volta, il 28/08,
+  con la configurazione di `FINAL_V2`, e non è stato ripetuto.** Risultato:
+  fornendo al generatore il documento giusto per costruzione, il
+  *must-contain* arriva al **76,7% [59,1%, 88,2%]** contro il 50,0% della
+  pipeline di allora (McNemar p=0,115, non significativo).
+- Il test misura il **tetto del generatore** (contesto giusto garantito),
+  che non dipende dal recupero. Con la pipeline di `FINAL_V3` al 66,7% di
+  *must-contain*, la distanza dal tetto scende da 26,7 a circa **10 punti**,
+  mentre i **23,3 punti** che mancano anche col contesto oracolo restano il
+  limite del generatore.
+- **Cautela obbligatoria:** questo confronto accosta due esecuzioni diverse
+  (oracolo del 28/08, pipeline del 22/09) e non è una misura appaiata. Inoltre
+  il test oracolo girava con il filtro PII attivo, che rendeva impossibili
+  Q06 e Q12 (`SISTEMA.md` §11.9): il tetto reale del generatore potrebbe
+  essere un po' più alto. Va presentato come stima indicativa, non come
+  numero misurato.
+- La lettura qualitativa è coerente con la tassonomia umana: in `FINAL_V2`
+  la parte mancante si divideva quasi a metà fra recupero (26,7) e generatore
+  (23,3); dopo il recupero ibrido, la quota imputabile al recupero si riduce
+  e **la parte dominante dell'errore residuo è il generatore da 3B su CPU**,
+  cioè il vincolo hardware della domanda di ricerca.
 
-## Limiti
+---
 
-I limiti del lavoro sono discussi in dettaglio nel capitolo 7; qui vale la
-pena richiamarne la gerarchia. Il più rilevante è la dimensione del golden
-dataset (§5.1): un impianto statistico accurato non compensa un campione
-piccolo, ed è la ragione per cui ogni intervallo di confidenza in questa
-tesi va letto con la sua ampiezza, non solo con il suo punto centrale.
-Non è un'affermazione astratta: l'ablation study sul retrieval (n=30,
-§6.2 — due esecuzioni indipendenti del 27 agosto, riportate per intero in
-`results/report_ablation_2026-08-27.md`) mostra un Hit@5 più alto senza
-filtro di categoria (40,0%) che con filtro (33,3%–36,7% a seconda della
-run), coerente con la decisione presa in configurazione — ma con
-intervalli di confidenza al 95% ampiamente sovrapposti e nessuna
-differenza, su nessuna metrica, che raggiunga la significatività
-statistica (tutte p > 0,05, effetto sempre "trascurabile" per il delta di
-Cliff). La decisione di disattivare il filtro resta comunque motivata,
-ma dall'argomento strutturale — le sei categorie che il classificatore
-non può produrre contengono il 75,8% dei chunk dell'indice — non dalla
-significatività di questo esperimento. È l'evidenza diretta che con
-n=30 il sistema di valutazione non ha la potenza per distinguere
-configurazioni con differenze di questa entità, e che estendere il
-golden dataset non è un rifinimento ma una precondizione per conclusioni
-quantitative difendibili.
+## Il giudice automatico: validato e non affidabile
 
-Il secondo limite è la dipendenza dal giudice automatico, mitigata ma non
-eliminata dalla validazione umana su un sottoinsieme. Il terzo è la
-portata dei risultati: un sistema validato su un solo corpus (i dati
-pubblici del CNI) e su una sola piattaforma hardware non generalizza
-automaticamente ad altri enti o ad altre configurazioni.
+| Metrica | kappa FINAL_V2 | **kappa FINAL_V3** |
+|---|---:|---:|
+| Fedeltà | -0,019 | 0,283 |
+| Pertinenza | 0,770 | **0,865** |
+| Correttezza | 0,674 | **0,471** |
+| Media | 0,475 | **0,54** |
 
-Un limite dichiarato per scelta, non per vincolo, è l'assenza di ricerca
-ibrida (BM25 + densa): la configurazione la prevede ma il retriever
-implementato usa solo ricerca densa con filtro di categoria. È collocata
-fra gli sviluppi futuri (§8.1) invece che presentata come parte del
-sistema, per evitare la discrepanza fra documentazione e sorgenti che nella
-versione precedente dell'indice della tesi era presente.
+- Su `FINAL_V3` il kappa medio è **0,54**, ancora **sotto la soglia di
+  utilizzabilità dichiarata a monte (0,61)**. Solo la pertinenza ha un
+  accordo alto (0,865).
+- **Da correggere rispetto alla versione del 03/09:** allora la correttezza
+  del giudice era "riportabile con calibrazione" (kappa 0,674). Su
+  `FINAL_V3` la correttezza scende a 0,471 e **non è più riportabile** come
+  misura affidabile. Per questo il risultato principale è l'accuratezza
+  umana. La correttezza media del giudice su V3 (1,90/5) resta molto sotto
+  quella umana (3,57/5), come già in V2 (1,33 contro 2,35).
+- Giudice e generatore sono lo stesso modello (`qwen2.5:3b`): il rischio di
+  bias di self-preference era dichiarato a monte ed è confermato dal
+  mancato accordo. Il risultato va presentato come esito della validazione,
+  non nascosto.
 
-Tre estensioni sono state predisposte a livello di strumentazione ma
-deliberatamente non eseguite, per la scarsa incidenza attesa sulla
-risposta alla domanda di ricerca rispetto al tempo richiesto: il cambio
-del modello di embedding in produzione (i dati del confronto in
-`report_compare_embeddings.md` sono direzionalmente favorevoli a
-`e5-small` ma non raggiungono la significatività su n=30, §6.4), il
-confronto fra modelli generativi locali a contesto congelato
-(`benchmarks/compare_generators.py`, script pronto e mai eseguito, misura
-qualità e prestazioni hardware separatamente proprio per non confondere
-le due cose) e un insieme di controllo held-out per verificare che la
-configurazione scelta con l'ablation generalizzi fuori dal golden
-dataset v2 (`config/holdout_v1.json`, scaffold predisposto con 10 id ma
-mai compilato). Sono collocati fra gli sviluppi futuri (§8.1), non fra i
-risultati.
+---
 
-## Chiusura
+## Il contributo del lavoro — punti da sviluppare
 
-Il vincolo di esecuzione locale, posto come premessa del lavoro e non come
-sua giustificazione a posteriori, si è rivelato produttivo proprio perché
-costringe a misurare — non solo ad affermare — quanto costa in accuratezza
-la sovranità del dato quando l'alternativa (inviare dati della pubblica
-amministrazione a un servizio terzo) non è percorribile. Il test a
-contesto oracolo è la risposta diretta a questa domanda: **23,3 punti
-percentuali** di risposte corrette in meno sono il prezzo pagato al
-modello da 3B parametri su CPU, non all'architettura RAG in sé, che a
-parità di contesto corretto risponde correttamente **76,7% delle volte**
-— un tasso che la sola pipeline end-to-end, appesantita anche dal 26,7%
-di errore imputabile al retrieval, non lascia intravedere. È su questa
-distinzione — fra ciò che l'architettura può fare e ciò che l'hardware
-disponibile le permette di fare — che si fonda la risposta finale alla
-domanda di ricerca: il sistema realizzato è più accurato di quanto la
-sua cifra aggregata (50,0% pipeline reale) suggerisca da sola, e la parte
-mancante si divide in modo quasi paritario fra un limite ingegneristico
-(il retrieval, migliorabile) e un limite strutturale (il generatore,
-vincolato dall'hardware).
+1. **Metriche validate prima di essere usate.** Il caso guida è Q01 ("Chi è
+   il presidente del CNI?"): il benchmark a keyword la dava corretta mentre il
+   sistema rispondeva di non saperlo. Da lì viene il principio di validare
+   ogni metrica contro casi noti. Sono seguiti altri episodi dello stesso
+   tipo: ground truth circolare, recall non troncato, match per sottostringa
+   (Q22 e Q24 in `FINAL_V3`). Storia completa in `INDICE_TESI.md`, sezione Q01.
+2. **Una configurazione dichiarata non è una configurazione eseguita.** È la
+   scoperta più forte del lavoro: `FINAL_V2` è stato misurato con un
+   embedding diverso da quello dichiarato. Conseguenza pratica: ogni run ora
+   registra l'embedding effettivo (`embedding_effettivo`) e, dal 23/09, la
+   collection interrogata.
+3. **Un giudice automatico che dichiara i propri limiti.** Misurato due volte
+   contro l'annotazione umana in cieco (V2 e V3), non raggiunge la soglia in
+   nessuna delle due: sarebbe stato facile riportarne i numeri.
+4. **Una scomposizione causale dell'errore che ha guidato un intervento.**
+   La tassonomia di `FINAL_V2` indicava il recupero (47% `retrieval_miss`); la
+   diagnosi successiva ha mostrato che in 13 casi su 14 la fonte non entrava
+   fra i candidati densi, e il termine cercato era quasi sempre lessicale
+   (nomi, codici, date, per esempio il codice fiscale `80057570584`): fuori
+   dalla portata di un embedding (`SISTEMA.md` §12). L'intervento
+   mirato (BM25 fuso con RRF) ha portato l'accuratezza umana dal 43,3% al
+   63,3% e ha spostato il collo di bottiglia sul generatore. È il ciclo
+   misura → diagnosi → intervento → rimisura, non una lista di tentativi.
+5. **Un comportamento anomalo documentato.** In `FINAL_V2`, Q15: il modello
+   ha ripetuto testualmente l'istruzione di correzione del nodo di
+   self-check invece di applicarla. È un indizio dei limiti del 3B nel
+   seguire istruzioni di sistema. *Da verificare se ricorre in `FINAL_V3`
+   prima di citarlo come comportamento stabile.*
+
+---
+
+## Limiti — gerarchia
+
+1. **Dimensione del golden dataset (n=30).** Resta il limite principale:
+   nessun confronto raggiunge la potenza statistica classica, nemmeno il
+   +20 punti di accuratezza V2→V3 (p=0,146). Per una potenza dell'80% serve
+   un dataset di circa 500 domande (`INDICE_TESI.md` §6.3).
+2. **Selezione sul set di valutazione.** La configurazione finale (e5,
+   BM25, reranker) è stata scelta confrontando varianti sulle **stesse 30
+   domande** su cui poi è misurata. Il 63,3% è quindi probabilmente una stima
+   ottimistica. L'insieme di controllo indipendente (`config/holdout_v1.json`)
+   è predisposto ma mai compilato né eseguito.
+3. **Assunzione non verificata sul reranker.** Il confronto fra reranker è
+   stato fatto su un embedding poi cambiato; che la scelta regga anche con
+   e5 è un'assunzione (`TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8, come
+   indicato in `INDICE_TESI.md` §6.2).
+4. **Giudice automatico non validato** (kappa medio 0,54 < 0,61): i risultati
+   poggiano sull'annotazione di un solo annotatore umano.
+5. **Portata:** un solo corpus (dati pubblici CNI) e una sola piattaforma
+   hardware. Il corpus del run (13.784 chunk da 4.144 documenti) non include
+   `/area-cni`, configurata solo per la prossima indicizzazione.
+
+**Limiti della versione precedente che non valgono più (non riportarli):**
+- ~~"assenza di ricerca ibrida"~~: implementata, misurata e adottata il 21-22/09;
+- ~~"cambio dell'embedding in produzione non eseguito"~~: fatto (e5-small);
+- ~~limiti tecnici di `SISTEMA.md` §11.7-§11.10~~: chiusi il 23/09, senza
+  effetto sui numeri (vedi `INDICE_TESI.md` §6.2).
+
+**Ancora non eseguiti, da collocare fra gli sviluppi futuri:** il confronto
+fra generatori locali (`benchmarks/compare_generators.py`, script pronto,
+mai eseguito), l'insieme di controllo held-out, e il boost morbido di
+categoria al posto del filtro rigido.
+
+---
+
+## Chiusura — il filo logico
+
+- La premessa (esecuzione locale per sovranità del dato della pubblica
+  amministrazione) si traduce in una domanda misurabile: quanto costa in
+  accuratezza.
+- **Risposta con i dati finali:** il sistema risponde correttamente al
+  **63,3%** delle domande (giudizio umano). Il recupero, che era il limite
+  dominante, è stato in gran parte risolto con un intervento di ingegneria
+  (BM25 ibrido). **Quello che resta è in prevalenza il limite del generatore
+  da 3B su CPU**, cioè il prezzo del vincolo hardware.
+- Il test oracolo (76,7% col contesto giusto) indica dov'è il tetto del
+  generatore attuale. Va dichiarato che non è stato ripetuto sulla
+  configurazione finale.
+- I tre punti da non perdere nella scrittura: (a) la distinzione fra limite
+  ingegneristico (recupero, risolvibile e risolto in parte) e limite
+  strutturale (generatore, legato all'hardware); (b) l'onestà metodologica
+  (giudice non validato, configurazione dichiarata diversa da quella
+  eseguita, selezione sul set di valutazione); (c) n=30 come limite che
+  qualifica ogni numero.
+
+---
+
+## Cosa è cambiato rispetto alla versione del 03/09
+
+| Punto | Prima (FINAL_V2) | Ora (FINAL_V3) |
+|---|---|---|
+| Run di riferimento | `FINAL_V2`, 28/08 | `FINAL_V3_DEFINITIVO`, 22/09 |
+| Accuratezza da riportare | Hit@5 40,0% e correttezza del giudice 1,33/5 | **accuratezza umana 63,3%** |
+| Collo di bottiglia | recupero (47% `retrieval_miss`) | **generatore** (27% `generation_miss`, recupero al 7%) |
+| Correttezza del giudice | riportabile con calibrazione (kappa 0,674) | **non riportabile** (kappa 0,471) |
+| Test oracolo | 26,7 recupero / 23,3 generatore, misurati | stessi numeri, **da dichiarare non rimisurati**; con V3 la quota del recupero scende a circa 10 punti (stima) |
+| Ricerca ibrida | "limite per scelta, sviluppo futuro" | implementata e adottata |
+| Embedding di V2 | descritto come multilingue | in realtà `all-MiniLM-L6-v2` inglese, **da dichiarare** |
+| Scomposizione automatica per rango (57% / 20% / 3% di V2) | riportata accanto a quella umana | non ricalcolata per V3: usare la tassonomia umana |

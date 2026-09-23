@@ -52,7 +52,7 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 - **LLM**: Qwen 2.5 3B via Ollama (locale, `http://localhost:11434`)
 - **Embeddings**: `intfloat/multilingual-e5-small` (sentence-transformers, 384-dim, prefissi `query:`/`passage:` automatici)
 - **Vector Store**: Qdrant (modalità locale SQLite, `data/qdrant_db`) — recupero ibrido: vettore denso + vettore sparso BM25 nativo, fusi con Reciprocal Rank Fusion
-- **Reranker**: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`
+- **Reranker**: `BAAI/bge-reranker-base` (confrontato con `mmarco-mMiniLMv2-L12-H384-v1` e `bge-reranker-v2-m3`, vedi `doc/TEST_RECUPERO_IBRIDO.md`)
 - **Orchestrator**: LangGraph (Corrective RAG + Self-RAG)
 - **Framework RAG**: LangChain
 
@@ -107,7 +107,8 @@ cni-rag-project/
 ├── tests/                   # Test
 │   ├── unit/
 │   └── integration/
-├── .env.example             # Template variabili ambiente
+├── .env.example             # Variabili d'ambiente facoltative (la configurazione vera è in config/)
+├── archivio/                # File superati, conservati temporaneamente (vedi archivio/README.md)
 ├── frontend/                # Applicazione Angular
 └── requirements.txt
 ```
@@ -310,6 +311,19 @@ Dopo aver eseguito lo script, riavvia normalmente l'API (`./scripts/restart_api.
 macOS/Linux, oppure `python scripts/run_api.py --no-reload` su entrambi — non esiste ancora
 uno `restart_api.ps1` per Windows).
 
+## Aggiornare l'indice senza perdere quello validato
+
+1. Menu impostazioni (⚙️) → **Indicizza Dati**: crawl completo di cni.it e indicizzazione
+   (richiede ore). I dati finiscono in una **collection nuova**
+   (`<collection in uso>_ingest_<data_ora>`); quella in uso non viene toccata.
+2. A fine indicizzazione la collection nuova compare nella sezione **Collection** dello
+   stesso menu, con il numero di chunk.
+3. **Usa** la attiva per chat, statistiche e nuove valutazioni. La scelta viene salvata in
+   `config/qdrant_config.yaml` e resta dopo un riavvio. Per tornare indietro basta attivare
+   di nuovo quella precedente: nessuna collection viene cancellata.
+
+La collection su cui sono stati validati i risultati della tesi è `cni_documents_e5_bm25`.
+
 ## API Endpoints
 
 | Endpoint | Metodo | Descrizione |
@@ -337,15 +351,17 @@ curl -X POST http://localhost:8000/api/v1/query \
 
 ## Branch
 
-| Branch | Descrizione |
+| Branch / tag | Descrizione |
 |--------|-------------|
-| `main` | Base comune |
-| `release/recupero-ibrido` | Sviluppo attivo: recupero ibrido (denso + BM25 nativo), embedding e5, reranker mmarco |
+| `main` | **Versione finale**: recupero ibrido (e5-small + BM25 nativo), reranker `bge-reranker-base`, indicizzazione su collection separata e scelta della collection dal frontend |
+| tag `congelato-2026-09-23` | Versione finale congelata per la tesi |
+| tag `congelato-2026-09-21-e5` | Configurazione con cui è stato misurato il run `FINAL_V3` |
+| tag `sperimentazione-recupero-ibrido` | Implementazione BM25 in memoria usata per la matrice a 6 configurazioni (riproducibilità) |
 
-> `feature/setup-mac` e `feature/setup-windows` sono branch storici, molto indietro rispetto
-> allo stato attuale del codice: non descrivono il setup di oggi. macOS e Windows sono
-> entrambi supportati direttamente da questo branch, con Ollama (non Docker, non LM Studio)
-> — vedi la sezione Setup Rapido qui sopra.
+Gli altri branch (`release/recupero-ibrido`, `feature/*`, `fix/*`, `docs/*`, `exp/*`,
+`config/*`, `backup/*`) sono storici: il loro contenuto utile è già su `main`.
+macOS e Windows sono entrambi supportati da `main`, con Ollama (non Docker, non LM Studio):
+vedi la sezione Setup Rapido qui sopra.
 
 ## Licenza
 
