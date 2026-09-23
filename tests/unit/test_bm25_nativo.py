@@ -248,7 +248,7 @@ def test_il_gestore_qdrant_crea_la_collection_nel_formato_ibrido(monkeypatch):
         modulo.ConfigLoader, "get_qdrant_config",
         classmethod(lambda cls: {"qdrant": {"vectors": {"size": 8, "distance": "Cosine"}}}),
     )
-    manager._ensure_collection()
+    manager.ensure_collection("nuova")
 
     info = c.get_collection("nuova").config.params
     assert info.vectors[DENSE_VECTOR].size == 8

@@ -1018,10 +1018,13 @@ async def ingest():
             downloader = Downloader()
             public_filter = PublicDataFilter()
             quality = QualityChecker()
-            indexer = get_vector_indexer()
-
-            _ingest_status.update({"phase": "clear", "message": "Pulisco indice esistente..."})
-            indexer.clear_index()
+            # Scrive su una collection nuova, mai su quella di produzione: l'indice su
+            # cui sono validati i risultati resta intatto finche' non si cambia a mano
+            # `collection_name` in config/qdrant_config.yaml.
+            production = get_vector_indexer().collection_name
+            target = f"{production}_ingest_{datetime.now():%Y%m%d_%H%M%S}"
+            indexer = VectorIndexer(collection_name=target)
+            _ingest_status.update({"message": f"Nuova collection: {target}"})
 
             _ingest_status.update({"phase": "crawl", "message": "Scarico documenti da cni.it..."})
             new_docs = await crawler.crawl()
@@ -1071,7 +1074,12 @@ async def ingest():
             _ingest_status.update({
                 "running": False,
                 "phase": "done",
-                "message": f"Indicizzazione completata: {indexed_count} chunk indicizzati",
+                "message": (
+                    f"Indicizzazione completata: {indexed_count} chunk nella nuova collection "
+                    f"'{target}'. La collection in uso ('{production}') non e' stata toccata: "
+                    f"per adottare la nuova impostare collection_name in config/qdrant_config.yaml "
+                    f"e riavviare l'API."
+                ),
                 "finished_at": datetime.now(),
             })
         except Exception as e:

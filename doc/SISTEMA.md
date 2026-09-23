@@ -118,12 +118,11 @@ Due funzioni distinte, spesso confuse fra loro nella documentazione precedente:
 > classificare le *domande* dell'utente (§5, nodo `classify`) — è la
 > radice del problema di copertura descritto in §11.
 >
-> **Limite aperto dal 21/09**: `CATEGORY_PATTERNS` non ha voci per i nuovi
-> percorsi aggiunti alla whitelist del crawler (`/area-cni`, `/faq`,
-> `/sezioni-amministrazione-trasparente` e altri, vedi §10) — cadrebbero su
-> `"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto
-> oggi (nessuna ingestion è stata rilanciata), ma va corretto prima della
-> prossima. Vedi §11.7.
+> **Percorsi nuovi della whitelist (corretto il 23/09)**: i percorsi aggiunti
+> al crawler il 21/09 (`/area-cni`, `/faq`, `/sezioni-amministrazione-trasparente`
+> e altri, §10) hanno una categoria in `WHITELIST_PATH_CATEGORIES`, confrontata
+> come prefisso del path e **dopo** `CATEGORY_PATTERNS`: gli URL che già
+> ricevevano una categoria dai pattern la conservano identica. Vedi §11.7.
 
 ### 4.4 Quality check — `src/governance/quality_check.py`
 
@@ -151,7 +150,7 @@ I prefissi `query: `/`passage: ` richiesti da e5 sono applicati in modo traspare
 
 Qdrant locale su SQLite (`data/qdrant_db`), collection `cni_documents_e5_bm25`, dimensione vettori 384. **Dal 21/09 ogni chunk ha due vettori**, non uno: `dense` (denso, distanza coseno, HNSW) e `bm25` (sparso, con modificatore `IDF` calcolato da Qdrant sull'intera collection) — lo schema è definito una sola volta in `src/vectorstore/bm25_sparse.py::collection_schema()` e riusato sia dal gestore Qdrant sia dallo script di costruzione, per evitare che punti diversi del codice creino formati diversi (è successo, vedi §11.6).
 
-Il peso BM25 di ogni chunk dipende dalla lunghezza media dell'intero corpus (`avgdl`): va calcolato in un'unica passata su tutti i chunk, non aggiunto in modo incrementale — vedi il limite noto in §11.8.
+Il peso BM25 di ogni chunk dipende dalla lunghezza media dell'intero corpus (`avgdl`): va calcolato in un'unica passata su tutti i chunk, non aggiunto in modo incrementale. Dal 23/09 `index_chunks()` calcola `avgdl` sull'intero corpus e poi invia i punti a Qdrant a lotti di 256 (§11.8); `VectorIndexer(collection_name=...)` scrive su una collection diversa da quella di produzione, usata dal pulsante "Indicizza Dati" (§11.10).
 
 **Stato corpus (22/09, collection `cni_documents_e5_bm25`):** 13.784 chunk, 14 categorie:
 
@@ -367,23 +366,30 @@ confronto embedding). Motivo dichiarato nel log: allineamento dell'indice a
 `CNICrawler.DENIED_PATTERNS`, introdotto il 2 luglio 2026 ma applicato solo
 al crawl, non retroattivamente all'indice già esistente.
 
-### 11.7 Pattern di categoria mancanti per la whitelist ampliata — **aperto**
+### 11.7 Pattern di categoria mancanti per la whitelist ampliata — **corretto il 23/09**
 
-Vedi §4.3. `CATEGORY_PATTERNS` non copre i nuovi percorsi aggiunti alla
-whitelist del crawler il 21/09 (`/area-cni`, `/faq`, ecc.): finirebbero su
-`"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto sui
-risultati attuali (nessuna ingestion rilanciata), ma andrebbe corretto prima
-della prossima.
+Vedi §4.3. `CATEGORY_PATTERNS` non copriva i nuovi percorsi aggiunti alla
+whitelist del crawler il 21/09 (`/area-cni`, `/faq`, ecc.): sarebbero finiti su
+`"generico"` o su una categoria decisa dal solo contenuto. Aggiunta in
+`src/governance/public_data_filter.py` una mappa `WHITELIST_PATH_CATEGORIES`
+(prefisso di path a segmento intero), consultata solo se nessun pattern
+esistente corrisponde: nessun URL già categorizzato cambia categoria, cosa
+verificata dai test in `tests/unit/test_categorie_e_indicizzazione.py`.
+`/area-cni` → `organi`, trasparenza e `/images` residui → `documenti`, `/faq`
+→ `servizi`, `/evidenza` e `/notizie-internazionali` → `news`. `/it/` resta di
+proposito alla categoria dedotta dal contenuto. Nessun effetto sui risultati
+riportati: vale dalla prossima ingestion.
 
-### 11.8 Indicizzazione senza suddivisione a lotti — **aperto**
+### 11.8 Indicizzazione senza suddivisione a lotti — **corretto il 23/09**
 
 `VectorIndexer.index_chunks()` (§4.8) costruisce tutti i `PointStruct` in
 memoria e li invia a Qdrant in un'unica chiamata `client.upsert()`, senza
 lotti — a differenza di `scripts/build_sparse_collection.py`, che spedisce a
 gruppi di 256. Su un corpus di 13.784+ chunk (destinato a crescere con
 `/area-cni`) questo può essere lento o pesante in memoria su una macchina con
-8 GB condivisi. Non causa errori noti, ma andrebbe messo a lotti per
-robustezza.
+8 GB condivisi. Corretto: `index_chunks()` invia ora lotti di 256 punti.
+`avgdl` resta calcolata sull'intero corpus prima dell'invio, quindi i pesi BM25
+sono identici a quelli di un invio unico (verificato da test).
 
 ### 11.9 Filtro PII mascherava i contatti dell'ente — **risolto il 21/09**
 
@@ -399,7 +405,7 @@ rilanciate con il filtro spento e le risposte riannotate; il run `FINAL_V2`
 resta con il filtro attivo (Q06 lì era classificata `generation_miss`, causa
 in realtà il filtro, non il generatore).
 
-### 11.10 Pulsante "Indicizza Dati" senza conferma sufficiente — **parzialmente aperto**
+### 11.10 Pulsante "Indicizza Dati" senza conferma sufficiente — **corretto il 23/09**
 
 Il pulsante nel menu impostazioni del frontend (`POST /api/v1/ingest`) cancella
 **incondizionatamente** la collection in produzione e rilancia un crawl
@@ -412,6 +418,17 @@ rimandati su richiesta esplicita:
    clic confermato distruggerebbe l'indice su cui sono validati `FINAL_V3` e
    le 90 valutazioni umane, recuperabile solo dal backup manuale in
    `data/qdrant_db.backup_2026-09-22/` (non tracciato da git, solo locale).
+
+**Correzione del 23/09.** Entrambi i limiti sono chiusi: il primo con §11.7;
+il secondo facendo scrivere `POST /api/v1/ingest` su una collection nuova,
+`<collection in uso>_ingest_<AAAAMMGG_HHMMSS>`, senza mai cancellare o
+modificare quella di produzione. Per adottarla si cambia a mano
+`collection_name` in `config/qdrant_config.yaml` e si riavvia l'API; il
+messaggio di fine indicizzazione indica il nome della collection creata. Il
+testo della conferma nel frontend è stato aggiornato di conseguenza. Gli
+script da riga di comando (`scripts/run_ingestion.py`, `scripts/build_index.py`)
+con `--clear` continuano invece a ricostruire la collection configurata: sono
+un'operazione deliberata, non un clic.
 
 ---
 
@@ -451,12 +468,12 @@ rimandati su richiesta esplicita:
   un'eccezione nel controllo di salute veniva inghiottita; `.env.example`
   elencava dieci variabili mai lette dal codice.
 
-**Da fare, in ordine di priorità** (vedi §11.7, §11.8, §11.10 per il dettaglio):
-1. Pattern di categoria per i nuovi percorsi della whitelist.
-2. Indicizzazione a lotti invece di un unico upsert.
-3. Pulsante "Indicizza Dati": scrivere su una collection nuova invece che sovrascrivere quella in produzione.
+**Da fare, in ordine di priorità** (aggiornato al 23/09):
+1. ~~Pattern di categoria per i nuovi percorsi della whitelist~~ — fatto il 23/09 (§11.7).
+2. ~~Indicizzazione a lotti invece di un unico upsert~~ — fatto il 23/09 (§11.8).
+3. ~~Pulsante "Indicizza Dati": scrivere su una collection nuova~~ — fatto il 23/09 (§11.10).
 4. Pulizia finale: rimuovere l'implementazione BM25 in memoria (rimasta sul branch di sviluppo `feature/recupero-ibrido` e nel tag `sperimentazione-recupero-ibrido`, non sul branch di rilascio) — solo con conferma esplicita.
-5. Unione di `release/recupero-ibrido` su `main`, **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
+5. ~~Unione di `release/recupero-ibrido` su `main`~~ — risulta fatta: al 23/09 `main` contiene tutti i commit di `release/recupero-ibrido`. Testo originale: unione **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
 
 **Cosa manca per la tesi:** aggiornare abstract, introduzione e i capitoli con
 i nuovi numeri — la tabella completa è in `results/2026-09-22/RIEPILOGO_FINAL_V3.md`.

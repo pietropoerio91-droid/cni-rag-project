@@ -43,11 +43,12 @@ class QdrantClientManager:
             self.client = QdrantClient(host=host, port=port, prefer_grpc=False)
             logger.info(f"Qdrant connected to {host}:{port} (HTTP mode)")
 
-        self._ensure_collection()
+        self.ensure_collection(self.collection_name)
 
-    def _ensure_collection(self) -> None:
+    def ensure_collection(self, name: str) -> None:
+        """Crea la collection `name` con lo schema del progetto, se non esiste."""
         collections = self.client.get_collections().collections
-        exists = any(c.name == self.collection_name for c in collections)
+        exists = any(c.name == name for c in collections)
 
         if not exists:
             config = ConfigLoader.get_qdrant_config()
@@ -56,7 +57,7 @@ class QdrantClientManager:
             opts_config = qdrant_config.get("optimizers", {})
 
             self.client.create_collection(
-                collection_name=self.collection_name,
+                collection_name=name,
                 **collection_schema(
                     dense_size=vectors_config.get("size", 384),
                     distance=Distance[vectors_config.get("distance", "Cosine").upper()],
@@ -68,9 +69,9 @@ class QdrantClientManager:
                 ),
                 hnsw_config=HnswConfigDiff(m=16, ef_construct=100),
             )
-            logger.info(f"Created collection: {self.collection_name}")
+            logger.info(f"Created collection: {name}")
         else:
-            logger.info(f"Collection '{self.collection_name}' already exists")
+            logger.info(f"Collection '{name}' already exists")
 
     def get_client(self) -> QdrantClient:
         if self._is_closed():
@@ -88,9 +89,10 @@ class QdrantClientManager:
         except Exception:
             return False
 
-    def delete_collection(self) -> None:
-        self.client.delete_collection(self.collection_name)
-        logger.info(f"Deleted collection: {self.collection_name}")
+    def delete_collection(self, name: str | None = None) -> None:
+        name = name or self.collection_name
+        self.client.delete_collection(name)
+        logger.info(f"Deleted collection: {name}")
 
     def reinitialize(self) -> None:
         if self._is_closed():

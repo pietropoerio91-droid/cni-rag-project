@@ -318,7 +318,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   phaseLabels: Record<string, string> = {
     init: 'Avvio...',
-    clear: 'Pulisco indice...',
     crawl: 'Scarico documenti...',
     filter: 'Filtro documenti...',
     save: 'Salvo documenti...',
@@ -372,8 +371,9 @@ export class AppComponent implements OnInit, OnDestroy {
       next: (status) => {
         this.ingestStatus = status;
         if (!status.running && status.phase === 'done') {
+          // chunks_indexed si riferisce alla nuova collection, non a quella in uso:
+          // il conteggio mostrato resta quello del controllo di salute.
           this.lastIndexingDate = new Date();
-          this.documentsIndexed = status.chunks_indexed;
           this.checkHealth();
         }
       },
@@ -383,8 +383,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ingestData() {
     this.menuOpen = true;
     const conferma = window.confirm(
-      "Questa operazione CANCELLA l'indice attuale e lo ricostruisce da zero con un " +
-      "nuovo crawl del sito. Non è annullabile e sovrascrive la collection in uso. Continuare?"
+      "Questa operazione rilancia un crawl completo del sito e costruisce una NUOVA " +
+      "collection (può richiedere ore). L'indice in uso non viene toccato: per adottare " +
+      "quella nuova va cambiato collection_name in config/qdrant_config.yaml. Continuare?"
     );
     if (!conferma) {
       return;
