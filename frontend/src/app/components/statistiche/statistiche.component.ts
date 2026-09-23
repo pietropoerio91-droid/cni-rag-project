@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
-import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse, EvaluationLatest, AblationMatrix } from '../../models/rag.models';
+import { QdrantAnalyticsResponse, QdrantDocument, QdrantDocumentsResponse, QdrantCoverageResponse, BenchmarkResponse, BenchmarkResultItem, BenchmarkFullRun, QueryStatsResponse, QueryMetricsResponse, EvaluationRunSummary, AblationMatrix } from '../../models/rag.models';
 import { Subscription } from 'rxjs';
 import { ValutazioneComponent } from './valutazione.component';
 
@@ -18,23 +18,44 @@ import { ValutazioneComponent } from './valutazione.component';
       </div>
 
       <div class="tabs">
-        <button class="tab-btn" [class.active]="activeTab === 'quantitative'" (click)="activeTab='quantitative'">
+        <button class="tab-btn" [class.active]="activeTab === 'quantitative'" (click)="apriTab('quantitative')">
           Quantitative
         </button>
-        <button class="tab-btn" [class.active]="activeTab === 'qualitative'" (click)="activeTab='qualitative'; refreshQueryStats()">
+        <button class="tab-btn" [class.active]="activeTab === 'qualitative'" (click)="apriTab('qualitative')">
           Qualitative
         </button>
       </div>
 
-      <div class="loading" *ngIf="!analytics && !error">
-        <div class="spinner"></div>
-        <p>Analisi dei documenti in corso...</p>
+      <div class="tabs2">
+        <button *ngFor="let v of vistePerTab[activeTab]" class="t2" [class.on]="vista === v.id"
+                [title]="v.descrizione" (click)="apriVista(v.id)">{{ v.label }}</button>
+      </div>
+      <p class="view-desc">{{ descrizioneVista }}</p>
+
+      <!-- Un solo selettore del run, per tutte le viste che dipendono dal run. -->
+      <div class="runbar" *ngIf="vistaDiRun && runs.length">
+        <label>Run</label>
+        <select [(ngModel)]="runId">
+          <option *ngFor="let r of runs" [value]="r.run_id">
+            {{ r.run_id }} — {{ r.total_questions }} domande — {{ r.run_date | date:'dd/MM HH:mm' }}
+          </option>
+        </select>
+        <a class="export-btn" [href]="csvAnnotazioni()" download>Esporta annotazioni CSV</a>
       </div>
 
-      <div class="error" *ngIf="error">{{ error }}</div>
-
-      <ng-container *ngIf="analytics">
-        <div *ngIf="activeTab === 'quantitative'">
+      <!-- ===== CORPUS: composizione della collection attiva ===== -->
+      <ng-container *ngIf="vista === 'corpus'">
+        <div class="loading" *ngIf="!analytics && !error">
+          <div class="spinner"></div>
+          <p>Analisi dei documenti in corso...</p>
+        </div>
+        <div class="error" *ngIf="error">{{ error }}</div>
+        <div class="empty-note" *ngIf="analytics && !analytics.total_chunks">
+          <b>La collection attiva è vuota.</b> Su questo computer non è ancora stata indicizzata:
+          usa «Indicizza Dati» dal menu impostazioni, oppure attiva un'altra collection dalla
+          sezione Collection dello stesso menu.
+        </div>
+        <ng-container *ngIf="analytics && analytics.total_chunks">
         <div class="summary-grid">
           <div class="summary-card">
             <div class="summary-value">{{ analytics.total_chunks }}</div>
@@ -166,141 +187,14 @@ import { ValutazioneComponent } from './valutazione.component';
           </div>
         </div>
 
-        <!-- Confronto col run precedente. Presente solo per un run costruito unendo
-             piu' esecuzioni (vedi evalLatest.provenienza); per un run "semplice"
-             confronto_vs_final_v2 e' null e questa sezione non appare. -->
-        <ng-container *ngIf="evalLatest as ev">
-          <div class="run-header-card" *ngIf="runConfig as cfg">
-            <h3 class="chart-title">Configurazione del run — {{ ev.run_id }}</h3>
-            <div class="run-config-grid">
-              <div class="run-config-item">
-                <span class="run-config-label">Embedding</span>
-                <span class="run-config-value">{{ cfg.embeddingModel }}</span>
-                <span class="run-config-warn" *ngIf="cfg.embeddingOrigine === 'ambiente'">
-                  ⚠ sovrascritto da variabile d'ambiente, non dal YAML
-                </span>
-              </div>
-              <div class="run-config-item">
-                <span class="run-config-label">Collection</span>
-                <span class="run-config-value">{{ cfg.collection }}</span>
-              </div>
-              <div class="run-config-item">
-                <span class="run-config-label">Recupero ibrido</span>
-                <span class="run-config-value">{{ cfg.hybridEnabled ? 'denso + BM25 (RRF)' : 'solo denso' }}</span>
-              </div>
-              <div class="run-config-item">
-                <span class="run-config-label">Reranker</span>
-                <span class="run-config-value">{{ cfg.reranker }}</span>
-              </div>
-            </div>
-          </div>
+                </ng-container>
+      </ng-container>
 
-          <div class="prov-note" *ngIf="ev.provenienza as prov">
-            {{ prov.descrizione }}
-          </div>
-
-          <div class="chart-card" *ngIf="ev.confronto_vs_final_v2 as cmp">
-            <h3 class="chart-title">
-              Recupero — FINAL_V2 → {{ ev.run_id }}
-              <span class="tooltip-wrap chart-tooltip">
-                <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Contesto passato al generatore (post-reranking), n=30, IC 95%. p &lt; 0,05 indica una differenza distinguibile dal rumore; con n=30 va letta come descrittiva.</span>
-              </span>
-            </h3>
-            <div class="cmp-table-wrap">
-              <table class="cmp-table">
-                <thead>
-                  <tr><th>Metrica</th><th>FINAL_V2</th><th>{{ ev.run_id }}</th><th>Δ</th><th>p</th><th>Effetto</th></tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let m of retrievalMetricRows">
-                    <td class="cmp-label">{{ m.label }}</td>
-                    <ng-container *ngIf="cmp.retrieval[m.key] as r">
-                      <td>{{ fmtPoint(statMean(r, 'FINAL_V2'), m.pct) }}</td>
-                      <td>{{ fmtPoint(statMean(r, 'FINAL_V3'), m.pct) }}</td>
-                      <td [class.sig]="r.significance.p_value < 0.05">{{ r.mean_difference > 0 ? '+' : '' }}{{ r.mean_difference | number:'1.3-3' }}</td>
-                      <td>{{ r.significance.p_value | number:'1.4-4' }}</td>
-                      <td>{{ r.effect_size.magnitude }}</td>
-                    </ng-container>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="chart-card" *ngIf="ev.valutazione_umana as vu">
-            <h3 class="chart-title">
-              Accuratezza umana — FINAL_V2 → {{ ev.run_id }}
-              <span class="tooltip-wrap chart-tooltip">
-                <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Correttezza ≥ 4 su scala 0-5 = risposta corretta. E' l'accuratezza da riportare: il giudice automatico non e' validato (vedi tab Qualitative → Corrispondenza).</span>
-              </span>
-            </h3>
-            <div class="cmp-table-wrap" *ngIf="ev.confronto_vs_final_v2 as cmp">
-              <table class="cmp-table">
-                <thead>
-                  <tr><th>Metrica</th><th>FINAL_V2</th><th>{{ ev.run_id }}</th><th>Δ</th><th>p</th><th>test</th></tr>
-                </thead>
-                <tbody>
-                  <tr *ngIf="cmp.umano['accuratezza_binaria'] as a">
-                    <td class="cmp-label">Accuratezza (correttezza ≥ 4)</td>
-                    <td>{{ fmtPoint(statMean(a, 'FINAL_V2'), true) }}</td>
-                    <td>{{ fmtPoint(statMean(a, 'FINAL_V3'), true) }}</td>
-                    <td [class.sig]="a.significance.p_value < 0.05">{{ a.mean_difference > 0 ? '+' : '' }}{{ a.mean_difference | number:'1.3-3' }}</td>
-                    <td>{{ a.significance.p_value | number:'1.4-4' }}</td>
-                    <td class="dim-cell">{{ a.significance.test }}</td>
-                  </tr>
-                  <tr *ngIf="cmp.umano['correttezza_continua'] as c">
-                    <td class="cmp-label">Correttezza media (0-5)</td>
-                    <td>{{ statMean(c, 'FINAL_V2') | number:'1.2-2' }}</td>
-                    <td>{{ statMean(c, 'FINAL_V3') | number:'1.2-2' }}</td>
-                    <td [class.sig]="c.significance.p_value < 0.05">{{ c.mean_difference > 0 ? '+' : '' }}{{ c.mean_difference | number:'1.3-3' }}</td>
-                    <td>{{ c.significance.p_value | number:'1.4-4' }}</td>
-                    <td class="dim-cell">{{ c.significance.test }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="section-note" style="margin-top:12px">
-              {{ ev.run_id }}: {{ vu.corrette_su_30 }}/{{ vu.n }} corrette
-              ({{ vu.accuratezza | percent:'1.1-1' }},
-              IC [{{ vu.accuratezza_ci[0] | percent:'1.1-1' }}, {{ vu.accuratezza_ci[1] | percent:'1.1-1' }}])
-              · fedeltà media {{ vu.media_fedelta | number:'1.2-2' }}
-              · pertinenza media {{ vu.media_pertinenza | number:'1.2-2' }}
-            </p>
-          </div>
-
-          <div class="chart-card" *ngIf="ev.valutazione_umana as vu2">
-            <h3 class="chart-title">
-              Decomposizione dell'errore per stadio
-              <span class="tooltip-wrap chart-tooltip">
-                <span class="tooltip-icon">i</span>
-                <span class="tooltip-text">Dove si perde la risposta, secondo l'annotazione umana. retrieval_miss/reranker_drop = errore a monte del generatore; generation_miss/hallucination = errore del generatore.</span>
-              </span>
-            </h3>
-            <div class="cmp-table-wrap">
-              <table class="cmp-table">
-                <thead>
-                  <tr><th>Stadio</th><th>FINAL_V2</th><th>{{ ev.run_id }}</th></tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let st of errorStageRows(vu2.tassonomia_errori.conteggi)">
-                    <td class="cmp-label">{{ st.label }}</td>
-                    <td>{{ st.v2 }}</td>
-                    <td>{{ st.v3 }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </ng-container>
-
-        <!-- Ablation: esperimenti che hanno portato alla configurazione finale.
-             Indipendente da evalLatest: sono dati storici degli esperimenti, non
-             del run corrente. File fissi noti, non una scansione di ablation_*.json
-             (che includerebbe anche le verifiche di riproducibilita'). -->
+      <!-- ===== ABLATION: gli esperimenti che hanno portato alla configurazione finale ===== -->
+      <ng-container *ngIf="vista === 'ablation'">
+        <p class="section-note" *ngIf="!ablation">Dati di ablation non disponibili.</p>
         <ng-container *ngIf="ablation as ab">
-          <div class="chart-card" style="margin-top:28px" *ngIf="ab.matrice_embedding?.length">
+          <div class="chart-card" *ngIf="ab.matrice_embedding?.length">
             <h3 class="chart-title">
               Ablation — modello di embedding × BM25
               <span class="tooltip-wrap chart-tooltip">
@@ -373,35 +267,21 @@ import { ValutazioneComponent } from './valutazione.component';
             <p class="section-note">{{ vn.nota }}</p>
           </div>
         </ng-container>
-        </div>
+              </ng-container>
 
-        <div *ngIf="activeTab === 'qualitative'">
-
-          <!-- Valutazione sul golden dataset: metriche reali, annotazione umana,
-               accordo giudice-umano, decomposizione dell'errore per domanda. -->
-          <app-valutazione></app-valutazione>
-
-          <!-- Telemetria delle query dal vivo. Descrittiva: le query degli utenti
-               non hanno fonti attese note, quindi non ammettono metriche IR. -->
-          <div class="qual-section" style="margin-top:44px">
-            <div class="section-header">
-              <h2>Telemetria delle query dal vivo
-                <button class="refresh-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳</button>
-                <button class="export-btn" (click)="exportCsv()" title="Scarica CSV">Esporta CSV</button>
-                <button class="export-btn" (click)="runTest()" [disabled]="testRunning">{{ testRunning ? 'Test in corso...' : 'Test classificatore' }}</button>
-              </h2>
+      <!-- ===== TELEMETRIA: query reali degli utenti ===== -->
+      <ng-container *ngIf="vista === 'telemetria'">
+          <div class="qual-section">
+            <div class="toolbar">
+              <button class="export-btn" (click)="refreshQueryStats()" title="Aggiorna">⟳ Aggiorna</button>
+              <button class="export-btn" (click)="exportCsv()" title="Scarica il log delle query">Esporta CSV</button>
+              <button class="export-btn" (click)="runTest()" [disabled]="testRunning">{{ testRunning ? 'Test in corso...' : 'Test classificatore' }}</button>
             </div>
-
-            <p class="section-note">
-              Grandezze osservabili sulle query reali degli utenti. Non sono metriche di
-              Information Retrieval: senza fonti attese note la rilevanza non e' definibile.
-              Le metriche di retrieval stanno sopra, calcolate sul golden dataset.
-            </p>
 
             <div class="loading" *ngIf="queryStatsLoading"><div class="spinner"></div></div>
 
             <ng-container *ngIf="queryStats">
-              <div class="summary-grid">
+              <div class="summary-grid three">
                 <div class="summary-card">
                   <div class="summary-value">{{ queryStats.total_queries }}</div>
                   <div class="summary-label">Query effettuate</div>
@@ -418,28 +298,27 @@ import { ValutazioneComponent } from './valutazione.component';
                   <div class="summary-value">{{ (queryStats.avg_latency_ms / 1000) | number:'1.0-2' }} s</div>
                   <div class="summary-label">Latenza media</div>
                 </div>
-              </div>
-
-              <div class="metrics-grid" *ngIf="queryMetrics">
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.system_cls_acc !== null ? (queryMetrics.system_cls_acc | number:'1.4') : 'N/A' }}</div>
-                  <div class="metric-label">
-                    Accuratezza classificatore (test set)
+                <div class="summary-card" *ngIf="queryMetrics">
+                  <div class="summary-value">{{ queryMetrics.system_cls_acc !== null ? (queryMetrics.system_cls_acc | percent:'1.0-1') : '—' }}</div>
+                  <div class="summary-label">
+                    Accuratezza classificatore
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Percentuale di domande del test set la cui categoria automatica coincide con quella attesa. Ha una verita' nota, quindi e' una metrica valida.</span>
+                      <span class="tooltip-text">Domande del test set la cui categoria automatica coincide con quella attesa. Ha una verita' nota, quindi e' una metrica valida. Si calcola con «Test classificatore».</span>
                     </span>
                   </div>
+                  <div class="summary-sub" *ngIf="queryMetrics.system_cls_acc === null">test non ancora eseguito</div>
                 </div>
-                <div class="metric-card">
-                  <div class="metric-value">{{ queryMetrics.human_cls_acc !== null ? (queryMetrics.human_cls_acc | number:'1.4') : 'N/A' }}</div>
-                  <div class="metric-label">
-                    Accuratezza percepita (feedback)
+                <div class="summary-card" *ngIf="queryMetrics">
+                  <div class="summary-value">{{ queryMetrics.human_cls_acc !== null ? (queryMetrics.human_cls_acc | percent:'1.0-1') : '—' }}</div>
+                  <div class="summary-label">
+                    Feedback positivi
                     <span class="tooltip-wrap">
                       <span class="tooltip-icon">i</span>
-                      <span class="tooltip-text">Percentuale di feedback positivi degli utenti sulla categorizzazione, dai pollici su/giu' in chat. Campione: {{ queryMetrics.human_cls_acc_n || 0 }} giudizi.</span>
+                      <span class="tooltip-text">Quota di pollici in su dati dagli utenti in chat.</span>
                     </span>
                   </div>
+                  <div class="summary-sub">{{ queryMetrics.human_cls_acc_n || 0 }} giudizi</div>
                 </div>
               </div>
 
@@ -476,11 +355,24 @@ import { ValutazioneComponent } from './valutazione.component';
               <p>Nessuna query ancora registrata.</p>
             </div>
           </div>
-        </div>
       </ng-container>
+
+      <!-- Viste che dipendono dal run (Risultati, Confronto, Per domanda, Giudice,
+           Annotazione): un'unica istanza, nascosta e non distrutta, cosi' un
+           cambio di vista non ricarica i dati ne' perde un'annotazione in corso. -->
+      <app-valutazione [hidden]="!vistaDiRun" [vista]="vista" [runId]="runId"></app-valutazione>
     </div>
   `,
   styles: [`
+    .tabs2 { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+    .view-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; max-width: 78ch; line-height: 1.5; }
+    .runbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .runbar label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; }
+    .runbar select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
+                     background: var(--bg-card); color: var(--text); font-size: 13px; }
+    .t2 { padding: 6px 14px; border: 1px solid var(--border); background: var(--bg-card);
+          color: var(--text-secondary); border-radius: 999px; cursor: pointer; font-size: 13px; }
+    .t2.on { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
     .section-note {
       font-size: 12.5px;
       color: var(--text-secondary);
@@ -579,6 +471,12 @@ import { ValutazioneComponent } from './valutazione.component';
       color: var(--text-secondary);
       margin-top: 4px;
     }
+    .summary-grid.three { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 700px) { .summary-grid.three { grid-template-columns: 1fr 1fr; } }
+    .summary-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; opacity: .8; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .empty-note { padding: 14px 16px; border-left: 3px solid var(--warning); background: rgba(245,158,11,.08);
+                  border-radius: 6px; font-size: 13.5px; line-height: 1.5; color: var(--text); margin-bottom: 18px; }
 
     .metrics-grid {
       display: grid;
@@ -1204,33 +1102,52 @@ export class StatisticheComponent implements OnInit, OnDestroy {
   testRunning = false;
   selectedRunTimestamp = '';
   selectedRun: BenchmarkFullRun | null = null;
-  activeTab: 'quantitative' | 'qualitative' = 'quantitative';
   error = '';
   private sub = new Subscription();
-
-  // Confronto col run precedente (Quantitative): il run piu' recente e la
-  // decomposizione dell'errore di FINAL_V2, presa dall'endpoint di accordo
-  // gia' esistente invece di duplicarne i numeri qui.
-  evalLatest: EvaluationLatest | null = null;
-  private evalV2Stadi: Record<string, number> | null = null;
   ablation: AblationMatrix | null = null;
 
-  readonly retrievalMetricRows: { key: string; label: string; pct: boolean }[] = [
-    { key: 'hit_at_3', label: 'Hit@3', pct: true },
-    { key: 'hit_at_5', label: 'Hit@5', pct: true },
-    { key: 'mrr', label: 'MRR', pct: false },
-    { key: 'recall_at_5', label: 'Recall@5', pct: false },
-    { key: 'ndcg_at_5', label: 'nDCG@5', pct: false },
-  ];
-
-  private readonly STAGE_LABELS: Record<string, string> = {
-    ok: 'Corretta',
-    retrieval_miss: 'Non recuperata',
-    reranker_drop: 'Scartata dal reranker',
-    generation_miss: 'Ignorata dal generatore',
-    corpus_miss: 'Assente dal corpus',
-    hallucination: 'Allucinazione',
+  // --- navigazione: due tab, ognuno con le sue viste; ogni dato compare una volta.
+  // Quantitative = i numeri; Qualitative = il giudizio umano e il dettaglio.
+  readonly vistePerTab: Record<'quantitative' | 'qualitative', { id: string; label: string; descrizione: string }[]> = {
+    quantitative: [
+      { id: 'corpus', label: 'Corpus', descrizione: "Composizione della collection attiva: chunk, categorie, lunghezze, fonti. Cambia se si attiva un'altra collection dal menu impostazioni." },
+      { id: 'risultati', label: 'Risultati', descrizione: 'I numeri del run selezionato sul golden dataset: accuratezza umana, recupero prima e dopo il reranking, generazione.' },
+      { id: 'confronto', label: 'Confronto con FINAL_V2', descrizione: 'Il run selezionato contro FINAL_V2: totali appaiati, dove si perde la risposta, esito domanda per domanda.' },
+      { id: 'ablation', label: 'Ablation', descrizione: 'Gli esperimenti che hanno portato alla configurazione finale: embedding × BM25, reranker, verifica del BM25 nativo.' },
+    ],
+    qualitative: [
+      { id: 'domande', label: 'Per domanda', descrizione: 'Dove si perde la risposta: distribuzione degli stadi di errore e dettaglio domanda per domanda.' },
+      { id: 'giudice', label: 'Giudice vs umano', descrizione: "Validazione del giudice automatico contro l'annotazione umana in cieco: i suoi punteggi e quanto sono affidabili." },
+      { id: 'annota', label: 'Annotazione', descrizione: 'Annotazione umana in cieco delle risposte del run selezionato.' },
+      { id: 'telemetria', label: 'Telemetria dal vivo', descrizione: 'Le query reali fatte in chat: grandezze descrittive, senza fonti attese e quindi senza metriche di recupero.' },
+    ],
   };
+  private readonly VISTE_DI_RUN = new Set(['risultati', 'confronto', 'domande', 'giudice', 'annota']);
+  activeTab: 'quantitative' | 'qualitative' = 'quantitative';
+  /** Ultima vista aperta per ciascun tab, per ritrovarla tornando sul tab. */
+  private vistaPerTab: Record<'quantitative' | 'qualitative', string> = { quantitative: 'corpus', qualitative: 'domande' };
+  vista = 'corpus';
+
+  runs: EvaluationRunSummary[] = [];
+  runId = '';
+
+  get vistaDiRun(): boolean { return this.VISTE_DI_RUN.has(this.vista); }
+  get descrizioneVista(): string {
+    return this.vistePerTab[this.activeTab].find((v) => v.id === this.vista)?.descrizione ?? '';
+  }
+
+  apriTab(tab: 'quantitative' | 'qualitative'): void {
+    this.activeTab = tab;
+    this.apriVista(this.vistaPerTab[tab]);
+  }
+
+  apriVista(id: string): void {
+    this.vista = id;
+    this.vistaPerTab[this.activeTab] = id;
+    if (id === 'telemetria') this.refreshQueryStats();
+  }
+
+  csvAnnotazioni(): string { return this.ragService.annotationsCsvUrl(this.runId || undefined); }
 
   CHART_COLORS = [
     '#1a56db', '#16a34a', '#f59e0b', '#dc2626', '#8b5cf6',
@@ -1279,14 +1196,11 @@ export class StatisticheComponent implements OnInit, OnDestroy {
       })
     );
     this.sub.add(
-      this.ragService.getEvaluationLatest().subscribe({
-        next: (e) => { this.evalLatest = e; },
-        error: () => {},
-      })
-    );
-    this.sub.add(
-      this.ragService.getAgreement('FINAL_V2').subscribe({
-        next: (a) => { this.evalV2Stadi = a.tassonomia_errori?.conteggi ?? null; },
+      this.ragService.getEvaluationRuns().subscribe({
+        next: (r) => {
+          this.runs = r.runs || [];
+          if (this.runs.length) this.runId = this.runs[0].run_id;
+        },
         error: () => {},
       })
     );
@@ -1325,46 +1239,9 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     return n.toLocaleString('it-IT', { maximumFractionDigits: 0 });
   }
 
-  get runConfig(): { embeddingModel: string; embeddingOrigine: string; collection: string; hybridEnabled: boolean; reranker: string } | null {
-    const ev = this.evalLatest;
-    if (!ev) return null;
-    const cfg = ev.config_snapshot as any;
-    return {
-      embeddingModel: ev.embedding_effettivo?.modello ?? cfg?.embedding?.model_name ?? '—',
-      embeddingOrigine: ev.embedding_effettivo?.origine ?? 'yaml',
-      collection: cfg?.vector_store?.collection_name ?? '—',
-      hybridEnabled: !!cfg?.retrieval?.hybrid_search?.enabled,
-      reranker: cfg?.reranking?.model ?? '—',
-    };
-  }
-
   fmtPoint(value: number | undefined | null, pct: boolean): string {
     if (value === undefined || value === null) return '—';
     return pct ? `${(value * 100).toFixed(1)}%` : value.toFixed(3);
-  }
-
-  /** paired_report annida le statistiche puntuali sotto la chiave dell'etichetta
-   *  (es. "FINAL_V2"), che PairedComparison tipizza come `unknown` (index signature
-   *  generica): qui e solo qui si fa l'accesso non tipizzato, invece che nel template. */
-  statMean(pc: Record<string, unknown> | null | undefined, label: string): number | undefined {
-    const entry = pc?.[label] as { mean?: number } | undefined;
-    return entry?.mean;
-  }
-
-  /** Righe della tabella di decomposizione dell'errore: unisce FINAL_V2 (da /evaluation/agreement)
-   *  e il run corrente, nell'ordine in cui conviene leggerle (errore a monte prima). */
-  errorStageRows(v3Conteggi: Record<string, number>): { label: string; v2: string; v3: string }[] {
-    const ordine = ['ok', 'retrieval_miss', 'reranker_drop', 'generation_miss', 'corpus_miss', 'hallucination'];
-    const fmt = (n: number | undefined): string =>
-      n === undefined ? '—' : `${n} (${Math.round((n / 30) * 100)}%)`;
-    const presenti = new Set([...Object.keys(this.evalV2Stadi || {}), ...Object.keys(v3Conteggi || {})]);
-    return ordine
-      .filter((s) => presenti.has(s))
-      .map((s) => ({
-        label: this.STAGE_LABELS[s] || s,
-        v2: fmt(this.evalV2Stadi?.[s]),
-        v3: fmt(v3Conteggi?.[s]),
-      }));
   }
 
   selectRun(timestamp: string) {

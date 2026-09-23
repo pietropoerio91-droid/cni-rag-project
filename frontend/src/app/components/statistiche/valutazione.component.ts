@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RagService } from '../../services/rag.service';
@@ -7,24 +7,24 @@ import {
   AnnotationItem,
   AnnotationQueue,
   EvaluationLatest,
-  EvaluationRunSummary,
   MetricCI,
 } from '../../models/rag.models';
 
 /**
- * Tab qualitativa — valutazione sul golden dataset.
+ * Viste che dipendono da un run di valutazione sul golden dataset.
  *
- * Sostituisce le metriche che l'API calcolava sulle query degli utenti: quelle
- * definivano la rilevanza come "score > soglia", cioè dal punteggio del
- * retriever stesso, e non erano quindi metriche di Information Retrieval.
- * Le query in produzione non hanno fonti attese note; le metriche vere si
- * calcolano solo sul golden dataset.
+ * La navigazione (pillole, selettore del run) sta nel componente padre, che
+ * passa `vista` e `runId`: cosi' un solo selettore del run vale per tutte le
+ * viste, sia in Quantitative sia in Qualitative, e ogni dato compare una volta.
  *
- * Quattro viste:
- *   Risultati      metriche del run con intervalli di confidenza al 95%
- *   Annotazione    valutazione umana IN CIECO, senza vedere i voti del giudice
- *   Corrispondenza accordo umano-giudice (kappa pesato, alfa, matrice)
- *   Per domanda    dove si perde la risposta, stadio per stadio
+ *   risultati   numeri del run: accuratezza umana, recupero, generazione
+ *   confronto   run contro FINAL_V2: totali appaiati, tassonomia, esito per domanda
+ *   domande     dove si perde la risposta: tassonomia e dettaglio per domanda
+ *   giudice     validazione del giudice automatico contro l'annotazione umana
+ *   annota      annotazione umana in cieco
+ *
+ * Le metriche vere si calcolano solo sul golden dataset: le query degli utenti
+ * non hanno fonti attese note (vedi la telemetria nel padre).
  */
 @Component({
   selector: 'app-valutazione',
@@ -33,45 +33,53 @@ import {
   template: `
     <div class="val">
 
-      <!-- selettore del run -->
-      <div class="topbar" *ngIf="runs.length">
-        <label>Run</label>
-        <select [(ngModel)]="runIdSelezionato" (change)="caricaTutto()">
-          <option *ngFor="let r of runs" [value]="r.run_id">
-            {{ r.run_id }} — {{ r.total_questions }} domande — {{ r.run_date | date:'dd/MM HH:mm' }}
-          </option>
-        </select>
-        <a class="btn-ghost" [href]="csvUrl()" download>Esporta CSV</a>
-      </div>
-
-      <div class="tabs2">
-        <button *ngFor="let v of viste" class="t2" [class.on]="vista === v.id" (click)="vista = v.id">
-          {{ v.label }}
-          <span class="badge" *ngIf="v.id === 'annota' && coda">{{ coda.annotate }}/{{ coda.totale }}</span>
-        </button>
-      </div>
-
       <div class="loading" *ngIf="caricando"><div class="spin"></div></div>
       <div class="err" *ngIf="errore">{{ errore }}</div>
 
       <!-- ================= RISULTATI ================= -->
       <ng-container *ngIf="vista === 'risultati' && latest && !caricando">
-        <div class="warn" *ngIf="accordo && accordo.giudice_utilizzabile === false">
-          <b>Giudice automatico: accordo con l'annotazione umana sotto soglia
-             (κ medio {{ accordo.kappa_medio | number:'1.3-3' }}, soglia ≥ 0,61).</b>
-          {{ accordo.conclusione }} Dettaglio per metrica nella tab «Corrispondenza».
+        <div class="kpis">
+          <div class="kpi" *ngIf="accuratezzaUmana as au">
+            <div class="kv">{{ pct(au.valore) }}</div>
+            <div class="kl">Accuratezza umana</div>
+            <div class="kd">{{ au.corrette }}/{{ au.n }} corrette<span *ngIf="au.ci"> · IC [{{ pct(au.ci[0]) }}, {{ pct(au.ci[1]) }}]</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kv">{{ pct(gen('must_contain_pass_rate')) }}</div>
+            <div class="kl">Must-contain</div>
+            <div class="kd">risposte che contengono il dato atteso (controllo automatico)<span *ngIf="genCI('must_contain_ci') as c"> · IC [{{ pct(c[0]) }}, {{ pct(c[1]) }}]</span></div>
+          </div>
+          <div class="kpi">
+            <div class="kv">{{ pct(latest.fallback_rate) }}</div>
+            <div class="kl">Fallback</div>
+            <div class="kd">domande a cui il sistema non ha risposto per documenti poco pertinenti</div>
+          </div>
+          <div class="kpi">
+            <div class="kv">{{ latest.avg_latency_s | number:'1.0-0' }} s</div>
+            <div class="kl">Latenza media</div>
+            <div class="kd">per domanda, su CPU</div>
+          </div>
         </div>
+        <p class="hint" *ngIf="accuratezzaUmana">
+          L'accuratezza umana (correttezza ≥ 4 su 5, annotazione in cieco) è il risultato da riportare.
+        </p>
+        <p class="hint" *ngIf="!accuratezzaUmana">
+          Questo run non è ancora annotato: l'accuratezza umana compare dopo l'annotazione (Qualitative › Annotazione).
+        </p>
 
-        <div class="meta">
-          <span><b>{{ latest.total_questions }}</b> domande</span>
-          <span>dataset <b>{{ latest.dataset_version || latest.dataset }}</b></span>
-          <span>giudice <b>{{ latest.judge_model || '—' }}</b></span>
-          <span>latenza media <b>{{ latest.avg_latency_s }} s</b></span>
+        <div class="cfg">
+          <div class="ci2"><span>Embedding</span><b>{{ cfg.embedding }}</b>
+            <em class="flag" *ngIf="cfg.embeddingDaAmbiente">sovrascritto da variabile d'ambiente</em></div>
+          <div class="ci2"><span>Recupero</span><b>{{ cfg.ibrido ? 'denso + BM25 (RRF)' : 'solo denso' }}</b></div>
+          <div class="ci2"><span>Reranker</span><b>{{ cfg.reranker }}</b></div>
+          <div class="ci2"><span>Collection</span><b>{{ cfg.collection }}</b></div>
+          <div class="ci2"><span>Domande</span><b>{{ latest.total_questions }} · {{ latest.dataset_version || latest.dataset }}</b></div>
         </div>
+        <p class="hint" *ngIf="latest.provenienza as prov">{{ prov.descrizione }}</p>
 
-        <h3>Retrieval — prima e dopo il reranking</h3>
+        <h3>Recupero — prima e dopo il reranking</h3>
         <p class="hint">
-          «candidati» è ciò che produce il retriever denso; «contesto» è ciò che l'LLM
+          «candidati» è ciò che produce il recupero; «contesto» è ciò che il modello
           riceve davvero dopo il reranking. È il secondo che conta.
         </p>
         <table class="tab">
@@ -109,32 +117,12 @@ import {
           </tbody>
         </table>
 
-        <h3>Generazione</h3>
-        <table class="tab">
-          <tbody>
-            <tr>
-              <td>Must-contain superato <small class="dim">(deterministico)</small></td>
-              <td class="strong">{{ pct(gen('must_contain_pass_rate')) }}</td>
-            </tr>
-            <tr>
-              <td>Fallback attivato</td>
-              <td>{{ pct(latest.fallback_rate) }}
-                <small class="dim" *ngIf="latest.fallback_rate_ci">
-                  [{{ pct(latest.fallback_rate_ci[0]) }}, {{ pct(latest.fallback_rate_ci[1]) }}]
-                </small>
-              </td>
-            </tr>
-            <tr *ngFor="let m of metricheGiudice" [class.unvalidated]="metricaAffidabile(m) !== true">
-              <td>{{ etichetta(m) }} <small class="dim">(giudice 0-5)</small></td>
-              <td>{{ fmtCI(ciGen(m), false) }}
-                <small class="flag" *ngIf="metricaAffidabile(m) === false">
-                  sotto soglia — κ={{ acc(m)?.kappa_quadratico | number:'1.3-3' }}
-                </small>
-                <small class="flag" *ngIf="metricaAffidabile(m) === null">accordo non ancora calcolato</small>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <p class="hint">
+          I punteggi del giudice automatico (fedeltà, pertinenza, correttezza) non sono qui perché non
+          sono validati<span *ngIf="accordo?.kappa_medio !== null && accordo?.kappa_medio !== undefined">
+          (κ medio {{ accordo?.kappa_medio | number:'1.2-2' }}, soglia 0,61)</span>: stanno in
+          Qualitative › Giudice vs umano, accanto alla loro validazione.
+        </p>
       </ng-container>
 
       <!-- ================= ANNOTAZIONE ================= -->
@@ -242,7 +230,7 @@ import {
       </ng-container>
 
       <!-- ================= CORRISPONDENZA ================= -->
-      <ng-container *ngIf="vista === 'accordo' && accordo && !caricando">
+      <ng-container *ngIf="vista === 'giudice' && accordo && !caricando">
         <div class="verdict" [class.ko]="accordo.giudice_utilizzabile === false"
                              [class.ok]="accordo.giudice_utilizzabile === true">
           <div class="vnum" *ngIf="accordo.kappa_medio !== null">
@@ -267,7 +255,14 @@ import {
         <table class="tab" *ngIf="accordo.n_domande_confrontabili">
           <thead>
             <tr>
-              <th>Metrica</th><th>n</th><th>media umano</th><th>media giudice</th>
+              <th>Metrica</th><th>n</th><th>media umano</th>
+              <th>media giudice
+                <span class="tooltip-wrap table-tip">
+                  <span class="tooltip-icon">i</span>
+                  <span class="tooltip-text">Punteggio medio del giudice automatico, con IC 95% sull'intero run.
+                    Da non riportare come misura se il κ è sotto 0,61.</span>
+                </span>
+              </th>
               <th>bias
                 <span class="tooltip-wrap table-tip">
                   <span class="tooltip-icon">i</span>
@@ -313,11 +308,13 @@ import {
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let m of metricheGiudice">
+            <tr *ngFor="let m of metricheGiudice" [class.unvalidated]="metricaAffidabile(m) === false">
               <td>{{ etichetta(m) }}</td>
               <td>{{ acc(m)?.n }}</td>
               <td>{{ acc(m)?.media_umano | number:'1.2-2' }}</td>
-              <td>{{ acc(m)?.media_giudice | number:'1.2-2' }}</td>
+              <td>{{ acc(m)?.media_giudice | number:'1.2-2' }}
+                <small class="dim" *ngIf="ciGen(m) as c">[{{ c.ci_low | number:'1.2-2' }}, {{ c.ci_high | number:'1.2-2' }}]</small>
+              </td>
               <td [class.sig]="abs(acc(m)?.bias_giudice) > 0.5">
                 {{ acc(m)?.bias_giudice | number:'1.2-2' }}
               </td>
@@ -355,9 +352,13 @@ import {
           </div>
         </div>
 
-        <ng-container *ngIf="accordo.tassonomia_errori?.totale_codificati">
-          <h3>Tassonomia degli errori</h3>
-          <p class="hint">Distribuzione degli stadi in cui la risposta si perde, codificati a mano.</p>
+      </ng-container>
+
+      <!-- ================= PER DOMANDA ================= -->
+      <ng-container *ngIf="vista === 'domande' && coda && !caricando">
+        <ng-container *ngIf="tassonomia().length">
+          <h3>Dove si perde la risposta</h3>
+          <p class="hint">Stadi codificati a mano durante l'annotazione, su {{ accordo?.tassonomia_errori?.totale_codificati }} domande.</p>
           <div class="bars">
             <div class="brow" *ngFor="let e of tassonomia()">
               <span class="blab">{{ e.label }}</span>
@@ -365,14 +366,10 @@ import {
               <span class="bval">{{ e.n }} ({{ e.pct | number:'1.0-0' }}%)</span>
             </div>
           </div>
+          <h3>Domanda per domanda</h3>
         </ng-container>
-      </ng-container>
-
-      <!-- ================= PER DOMANDA ================= -->
-      <ng-container *ngIf="vista === 'domande' && coda && !caricando">
         <p class="hint">
-          Dove si perde la risposta, domanda per domanda. Lo stadio è dedotto dai dati del run;
-          quello codificato a mano in annotazione ha la precedenza.
+          Lo stadio è quello codificato a mano in annotazione; per le domande non annotate è dedotto dai dati del run.
         </p>
         <table class="tab compact">
           <thead>
@@ -400,7 +397,44 @@ import {
         </ng-container>
         <ng-container *ngIf="runIdSelezionato !== RUN_BASELINE">
           <p class="hint" *ngIf="!codaBaseline">Annotazioni di {{ RUN_BASELINE }} non disponibili: confronto non calcolabile.</p>
+          <ng-container *ngIf="latest?.confronto_vs_final_v2 as cmp">
+            <h3>Totali — {{ RUN_BASELINE }} → {{ latest?.run_id }}</h3>
+            <p class="hint">
+              Stesse 30 domande, confronto appaiato. Con n=30 i p-value sono descrittivi:
+              p &lt; 0,05 indica una differenza distinguibile dal rumore, non una prova.
+            </p>
+            <table class="tab">
+              <thead>
+                <tr><th>Metrica</th><th>{{ RUN_BASELINE }}</th><th>{{ latest?.run_id }}</th><th>Δ</th><th>p</th><th>test / effetto</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of righeConfronto(cmp)">
+                  <td>{{ r.label }}</td>
+                  <td>{{ r.a }}</td>
+                  <td class="strong">{{ r.b }}</td>
+                  <td [class.sig]="r.p !== null && r.p < 0.05">{{ r.delta }}</td>
+                  <td>{{ r.p === null ? '—' : (r.p | number:'1.4-4') }}</td>
+                  <td class="dim">{{ r.nota }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+
+          <ng-container *ngIf="righeStadi().length">
+            <h3>Dove si perde la risposta — {{ RUN_BASELINE }} → {{ latest?.run_id }}</h3>
+            <p class="hint">Stadi codificati a mano nelle due annotazioni in cieco.</p>
+            <table class="tab">
+              <thead><tr><th>Stadio</th><th>{{ RUN_BASELINE }}</th><th>{{ latest?.run_id }}</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let st of righeStadi()">
+                  <td>{{ st.label }}</td><td>{{ st.a }}</td><td class="strong">{{ st.b }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-container>
+
           <ng-container *ngIf="codaBaseline">
+            <h3>Domanda per domanda</h3>
             <p class="hint">
               Correttezza ≥ 4 = risposta corretta, per ciascuna domanda. Confronto fra {{ RUN_BASELINE }}
               e {{ coda?.run_id }}, solo sulle domande annotate su entrambi.
@@ -444,6 +478,17 @@ import {
   `,
   styles: [`
     .val { display: block; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 10px; }
+    .kpi { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .kv { font-size: 26px; font-weight: 700; color: var(--primary); line-height: 1.1; }
+    .kl { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 6px; }
+    .kd { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 20px;
+           background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin: 18px 0 6px; }
+    .ci2 { display: flex; flex-direction: column; min-width: 0; }
+    .ci2 span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); }
+    .ci2 b { font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+    .ci2 em { font-style: normal; }
     .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
     .topbar label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; }
     select, input[type=text] {
@@ -603,17 +648,17 @@ import {
     .esito.down { background: rgba(220,38,38,.12); color: #b91c1c; }
   `],
 })
-export class ValutazioneComponent implements OnInit {
-  viste = [
-    { id: 'risultati', label: 'Risultati' },
-    { id: 'annota', label: 'Annotazione' },
-    { id: 'accordo', label: 'Corrispondenza' },
-    { id: 'domande', label: 'Per domanda' },
-    { id: 'confronto', label: 'Confronto' },
-  ];
-  vista = 'risultati';
+export class ValutazioneComponent {
+  /** Vista da mostrare: 'risultati' | 'confronto' | 'domande' | 'giudice' | 'annota'. */
+  @Input() vista = 'risultati';
 
-  runs: EvaluationRunSummary[] = [];
+  /** Run selezionato nel padre; al cambio si ricaricano i dati. */
+  @Input() set runId(id: string) {
+    if (!id || id === this.runIdSelezionato) return;
+    this.runIdSelezionato = id;
+    this.caricaTutto();
+  }
+
   runIdSelezionato = '';
   latest: EvaluationLatest | null = null;
   coda: AnnotationQueue | null = null;
@@ -622,6 +667,7 @@ export class ValutazioneComponent implements OnInit {
    *  di paragone fisso della vista Confronto. */
   readonly RUN_BASELINE = 'FINAL_V2';
   codaBaseline: AnnotationQueue | null = null;
+  accordoBaseline: AgreementReport | null = null;
 
   caricando = false;
   salvando = false;
@@ -659,16 +705,15 @@ export class ValutazioneComponent implements OnInit {
     ndcg_at_5: 'Discounted Cumulative Gain normalizzato: pesa le fonti rilevanti in base alla posizione in classifica.',
   };
 
-  constructor(private rag: RagService) {}
-
-  ngOnInit(): void {
-    this.rag.getEvaluationRuns().subscribe({
-      next: (r) => {
-        this.runs = r.runs || [];
-        this.runIdSelezionato = this.runs.length ? this.runs[0].run_id : '';
-        this.caricaTutto();
-      },
-      error: () => this.caricaTutto(),
+  constructor(private rag: RagService) {
+    // FINAL_V2 e' il termine di paragone fisso: si carica una volta sola.
+    this.rag.getAnnotationQueue(this.RUN_BASELINE, true).subscribe({
+      next: (d) => { this.codaBaseline = d; },
+      error: () => { this.codaBaseline = null; },
+    });
+    this.rag.getAgreement(this.RUN_BASELINE).subscribe({
+      next: (d) => { this.accordoBaseline = d; },
+      error: () => { this.accordoBaseline = null; },
     });
   }
 
@@ -687,12 +732,91 @@ export class ValutazioneComponent implements OnInit {
     });
     this.rag.getAgreement(id).subscribe({
       next: (d) => (this.accordo = d),
-      error: () => {},
+      error: () => { this.accordo = null; },
     });
-    this.rag.getAnnotationQueue(this.RUN_BASELINE, true).subscribe({
-      next: (d) => { this.codaBaseline = d; },
-      error: () => { this.codaBaseline = null; },
-    });
+  }
+
+  // --- viste Risultati e Confronto -------------------------------------------
+
+  /** Accuratezza umana: quella calcolata nel run (se presente), altrimenti dalle
+   *  annotazioni del run; null se il run non e' annotato. */
+  get accuratezzaUmana(): { valore: number; corrette: number; n: number; ci: [number, number] | null } | null {
+    const vu = this.latest?.valutazione_umana;
+    if (vu) return { valore: vu.accuratezza, corrette: vu.corrette_su_30, n: vu.n, ci: vu.accuratezza_ci };
+    const annotate = (this.coda?.items || []).filter((it) => it.annotazione != null);
+    if (!annotate.length || this.coda?.run_id !== this.latest?.run_id) return null;
+    const corrette = annotate.filter((it) => (it.annotazione?.correctness ?? 0) >= 4).length;
+    return { valore: corrette / annotate.length, corrette, n: annotate.length, ci: null };
+  }
+
+  get cfg(): { embedding: string; embeddingDaAmbiente: boolean; ibrido: boolean; reranker: string; collection: string } {
+    const c = (this.latest?.config_snapshot || {}) as any;
+    return {
+      embedding: this.latest?.embedding_effettivo?.modello ?? c?.embedding?.model_name ?? '—',
+      embeddingDaAmbiente: this.latest?.embedding_effettivo?.origine === 'ambiente',
+      ibrido: !!c?.retrieval?.hybrid_search?.enabled,
+      reranker: c?.reranking?.model ?? '—',
+      // `collection` e' registrata dai run dal 23/09; prima si ricava dal config.
+      collection: this.latest?.collection ?? c?.vector_store?.collection_name ?? '—',
+    };
+  }
+
+  genCI(k: string): [number, number] | null {
+    const v = (this.latest?.generation as any)?.[k];
+    return Array.isArray(v) && v.length === 2 ? [v[0], v[1]] : null;
+  }
+
+  fmtCIpct(v: number | null | undefined, ci: [number, number] | null | undefined): string {
+    if (v === null || v === undefined) return '—';
+    return ci ? `${this.pct(v)} [${this.pct(ci[0])}, ${this.pct(ci[1])}]` : this.pct(v);
+  }
+
+  /** Righe della tabella dei totali appaiati: recupero sul contesto e valutazione umana. */
+  righeConfronto(cmp: { retrieval: Record<string, any>; umano: Record<string, any> }):
+      { label: string; a: string; b: string; delta: string; p: number | null; nota: string }[] {
+    const base = this.RUN_BASELINE;
+    const altro = Object.keys(cmp.retrieval?.['hit_at_5'] || {}).find(
+      (k) => k !== base && typeof (cmp.retrieval['hit_at_5'] as any)[k] === 'object'
+        && (cmp.retrieval['hit_at_5'] as any)[k]?.mean !== undefined) || '';
+    const riga = (label: string, r: any, fmt: (x: number) => string) => {
+      if (!r) return null;
+      const d = r.mean_difference as number;
+      return {
+        label,
+        a: fmt(r[base]?.mean), b: fmt(r[altro]?.mean),
+        delta: (d > 0 ? '+' : '') + fmt(d),
+        p: r.significance?.p_value ?? null,
+        nota: [r.significance?.test, r.effect_size?.magnitude].filter(Boolean).join(' · '),
+      };
+    };
+    const p = (x: number) => this.pct(x);
+    const n3 = (x: number) => (x === undefined || x === null ? '—' : x.toFixed(3));
+    const n2 = (x: number) => (x === undefined || x === null ? '—' : x.toFixed(2));
+    return [
+      riga('Accuratezza umana (correttezza ≥ 4)', cmp.umano?.['accuratezza_binaria'], p),
+      riga('Correttezza umana media (0-5)', cmp.umano?.['correttezza_continua'], n2),
+      riga('Hit@3 sul contesto', cmp.retrieval?.['hit_at_3'], p),
+      riga('Hit@5 sul contesto', cmp.retrieval?.['hit_at_5'], p),
+      riga('MRR sul contesto', cmp.retrieval?.['mrr'], n3),
+      riga('Recall@5 sul contesto', cmp.retrieval?.['recall_at_5'], n3),
+      riga('nDCG@5 sul contesto', cmp.retrieval?.['ndcg_at_5'], n3),
+    ].filter((r): r is NonNullable<typeof r> => r !== null);
+  }
+
+  /** Tassonomia degli errori, FINAL_V2 accanto al run selezionato. */
+  righeStadi(): { label: string; a: string; b: string }[] {
+    const a = this.accordoBaseline?.tassonomia_errori;
+    const b = this.accordo?.tassonomia_errori;
+    if (!a?.totale_codificati || !b?.totale_codificati) return [];
+    const ordine = ['ok', 'retrieval_miss', 'reranker_drop', 'generation_miss', 'corpus_miss', 'hallucination'];
+    const fmt = (n: number | undefined, tot: number) =>
+      n === undefined ? '—' : `${n} (${Math.round((100 * n) / tot)}%)`;
+    const presenti = new Set([...Object.keys(a.conteggi), ...Object.keys(b.conteggi)]);
+    return ordine.filter((s) => presenti.has(s)).map((s) => ({
+      label: this.etichettaStadio(s),
+      a: fmt(a.conteggi[s], a.totale_codificati),
+      b: fmt(b.conteggi[s], b.totale_codificati),
+    }));
   }
 
   /** Righe della vista Confronto: unisce il run selezionato con FINAL_V2 per
@@ -864,5 +988,4 @@ export class ValutazioneComponent implements OnInit {
       .map(([k, n]) => ({ label: t.etichette[k] || k, n, pct: (100 * n) / t.totale_codificati }))
       .sort((a, b) => b.n - a.n);
   }
-  csvUrl(): string { return this.rag.annotationsCsvUrl(this.runIdSelezionato || undefined); }
 }

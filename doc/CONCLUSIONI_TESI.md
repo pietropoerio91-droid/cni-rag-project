@@ -49,11 +49,15 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
 | Misura (n=30) | FINAL_V2 | **FINAL_V3** | Confronto appaiato |
 |---|---:|---:|---|
 | **Accuratezza umana** (correttezza ≥ 4) | 43,3% (13/30) | **63,3% (19/30)** [45,5%, 78,1%] | +20,0 punti, McNemar p=0,146 |
-| Correttezza umana media (0-5) | 2,35 | **3,57** | +1,30, Wilcoxon p=0,0085 |
+| Correttezza umana media (0-5) | 2,27 | **3,57** | +1,30, Wilcoxon p=0,0085 |
 | Hit@5 sul contesto passato al generatore | 40,0% | **60,0%** [42,3%, 75,4%] | +20,0 punti, p=0,070 |
 | MRR | 0,294 | **0,434** [0,284, 0,591] | +0,140, p=0,028 |
 | Risposte che contengono il dato atteso (*must-contain*, metrica deterministica) | 50,0% | **66,7%** [48,8%, 80,8%] | — |
 
+- La correttezza media di V2 nel confronto appaiato è **2,27**: la domanda Q09,
+  annotata senza voto di correttezza, conta 0 come nell'accuratezza (43,3%). Il
+  2,35 che compare altrove è la media sulle sole domande con il voto compilato.
+  In tesi usare 2,27 accanto al Δ +1,30, altrimenti i numeri non tornano.
 - L'**accuratezza umana** è il risultato principale da riportare. Quella del
   giudice automatico non è validata (vedi sotto).
 - Nessun confronto è significativo con n=30 nel senso della potenza

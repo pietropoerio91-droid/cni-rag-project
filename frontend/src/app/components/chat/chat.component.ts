@@ -400,7 +400,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   get isLoading(): boolean { return this.chatState.isLoading; }
   set isLoading(value: boolean) { this.chatState.isLoading = value; }
   stats: { docs: number; categories: number; sources: number } | null = null;
-  currentTip = 'Prova a chiedere "Quali servizi offre il CNI?" per iniziare';
+  currentTip = 'Prova a chiedere "Dove si trova la sede del CNI?" per iniziare';
   displayTitle = '';
   titleTyping = true;
   private tipInterval: ReturnType<typeof setInterval> | null = null;
@@ -408,21 +408,24 @@ export class ChatComponent implements OnInit, OnDestroy {
   private sub = new Subscription();
 
   tips = [
-    'Prova a chiedere "Quali sono gli organi del CNI?" per iniziare',
-    'Puoi fare domande su formazione, servizi e sicurezza sul lavoro',
+    'Prova a chiedere "Dove si trova la sede del CNI?" per iniziare',
+    'Puoi fare domande su organi, professione, normativa e attività internazionali del CNI',
     'Le risposte includono citazioni con link ai documenti originali',
-    'Chiedi "Che cos\'è un near miss?" per temi di sicurezza sul lavoro',
     'I documenti provengono dal sito ufficiale www.cni.it',
-    'Prova "Quali servizi offre il CNI?" per scoprire i servizi agli ingegneri',
   ];
 
+  /** Domande suggerite: tutte dal golden dataset e tutte con il voto massimo
+   *  nell'annotazione umana in cieco del run FINAL_V3 (correttezza, pertinenza e
+   *  fedeltà 5/5) e con il controllo automatico must-contain superato. Una per
+   *  argomento. Il testo e' identico a quello valutato: riformularle vorrebbe dire
+   *  suggerire domande mai verificate. Fonte: results/annotations_FINAL_V3_DEFINITIVO.json */
   suggestions = [
-    'Quali sono gli organi del CNI?',
-    'Quali servizi offre il CNI?',
-    'Come funziona la formazione continua?',
-    'Che cos\'è un near miss per la sicurezza?',
-    'Chi è il presidente del CNI?',
-    'Quali sono i temi trattati dal CNI?',
+    'Dove si trova la sede del CNI?',                                                    // Q05 contatti
+    "Chi è l'attuale presidente del Consiglio Nazionale degli Ingegneri?",               // Q10 organi
+    'Quali sono i compiti istituzionali del CNI?',                                       // Q04 organi
+    'Cosa bisogna superare per diventare un ingegnere professionista in Italia?',        // Q16 professione
+    "Quali norme disciplinano il Consiglio Nazionale degli Ingegneri nell'ordinamento giuridico italiano?", // Q11 normativa
+    'A cosa serve il certificato EUR ING per gli ingegneri?',                            // Q19 internazionale
   ];
 
   constructor(private ragService: RagService, private chatState: ChatStateService) {}
