@@ -29,7 +29,7 @@
 9. [Valutazione e benchmarking](#9-valutazione-e-benchmarking)
 10. [Configurazione attuale, con il perché di ogni valore](#10-configurazione-attuale-con-il-perché-di-ogni-valore)
 11. [Problemi noti e limiti tecnici confermati](#11-problemi-noti-e-limiti-tecnici-confermati)
-12. [Stato del progetto al 22/09/2026 e cosa manca](#12-stato-del-progetto-al-22092026-e-cosa-manca)
+12. [Stato del progetto al 23/09/2026 e cosa manca](#12-stato-del-progetto-al-23092026-e-cosa-manca)
 13. [Come avviare tutto](#13-come-avviare-tutto)
 14. [Mappa verso i capitoli della tesi](#14-mappa-verso-i-capitoli-della-tesi)
 
@@ -453,7 +453,13 @@ di `POST /ingest` con crawler ed embedding simulati.
 
 ---
 
-## 12. Stato del progetto al 22/09/2026 e cosa manca
+## 12. Stato del progetto al 23/09/2026 e cosa manca
+
+**Aggiornamento 23/09 — versione finale congelata su `main`** (PR #8, commit
+`18fbec7`, tag `congelato-2026-09-23`): chiusi i limiti §11.7, §11.8 e §11.10,
+aggiunta la scelta della collection attiva dal frontend. La configurazione in
+`config/` è identica a quella del run `FINAL_V3`: numeri e annotazioni restano
+validi. Da qui il lavoro prosegue solo sulla tesi.
 
 **Aggiornamento 21-22/09 — recupero ibrido, dalla diagnosi alla tesi:**
 - Diagnosticato che in 13 domande fallite su 14 la fonte non entrava fra i

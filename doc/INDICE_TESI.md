@@ -412,11 +412,17 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > «ecco cosa è stato provato, con quale esito, e quali domande restano
 > aperte» — la selezione sul set di valutazione (§5.3), l'assunzione non
 > verificata che il reranker scelto su un embedding poi cambiato regga anche
-> con quello nuovo (`doc/TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8), e i
-> limiti tecnici ancora aperti (`doc/SISTEMA.md` §11.7-§11.10: pattern di
-> categoria mancanti per la whitelist ampliata, indicizzazione senza lotti,
-> pulsante di re-indicizzazione che sovrascrive la produzione). Documentazione
-> completa, un esperimento per sezione: `doc/TEST_RECUPERO_IBRIDO.md`.
+> con quello nuovo (`doc/TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8).
+> Documentazione completa, un esperimento per sezione: `doc/TEST_RECUPERO_IBRIDO.md`.
+>
+> **Limiti tecnici di §11.7-§11.10 di `doc/SISTEMA.md`: chiusi il 23/09, non
+> più aperti.** Pattern di categoria per la whitelist ampliata, indicizzazione a
+> lotti, re-indicizzazione su una collection nuova invece che sulla produzione,
+> e scelta della collection attiva dal frontend. Sono correzioni di ingegneria
+> successive al run `FINAL_V3`: non cambiano la configurazione congelata né i
+> numeri riportati (la collection validata resta `cni_documents_e5_bm25`), e
+> valgono dalla prossima indicizzazione. In tesi vanno eventualmente citate
+> nel capitolo 2 come robustezza del sistema, non in 6.2 come limiti aperti.
 
 > **Sul 6.1.** Bozza completa in `doc/CONCLUSIONI_TESI.md`: argomentazione e
 > struttura definitive, dati reali. Tutti e quattro gli esperimenti pianificati
