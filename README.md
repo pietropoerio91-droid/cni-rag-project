@@ -316,7 +316,10 @@ uno `restart_api.ps1` per Windows).
 |----------|--------|-------------|
 | `/api/v1/query` | POST | Query RAG (domanda → risposta + citazioni) |
 | `/api/v1/query/stream` | POST | Query in streaming SSE |
-| `/api/v1/ingest` | POST | Crawl e indicizzazione |
+| `/api/v1/ingest` | POST | Crawl e indicizzazione su una **collection nuova**; quella in uso non viene toccata |
+| `/api/v1/ingest/status` | GET | Avanzamento dell'indicizzazione |
+| `/api/v1/collections` | GET | Collection presenti, chunk, compatibilità e quale è attiva |
+| `/api/v1/collections/active` | PUT | Cambia la collection attiva (salvato in `config/qdrant_config.yaml`) |
 | `/api/v1/health` | GET | Stato del sistema |
 | `/api/v1/qdrant/stats` | GET | Statistiche collezione Qdrant |
 | `/api/v1/qdrant/analytics` | GET | Analytics avanzati |

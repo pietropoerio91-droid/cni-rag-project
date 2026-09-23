@@ -150,8 +150,9 @@ dei punteggi 5,5·10⁻⁸, **zero** domande con Hit@5 o posizione diversi.
 **Limite tecnico documentato nel codice**: il peso BM25 dipende dalla
 lunghezza media dell'intero corpus (`avgdl`); un'aggiunta incrementale di
 chunk (senza ricostruire la collection) userebbe un `avgdl` sbagliato — va
-sempre ricostruita da zero, mai aggiornata in-place (vedi `SISTEMA.md` §11.8
-per il caso concreto del pulsante di indicizzazione).
+sempre ricostruita da zero, mai aggiornata in-place. Dal 23/09 il pulsante di
+indicizzazione rispetta questo vincolo per costruzione: costruisce ogni volta una
+collection nuova da zero, senza toccare quella in uso (`SISTEMA.md` §11.8, §11.10).
 
 ---
 
