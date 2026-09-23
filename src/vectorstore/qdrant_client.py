@@ -150,6 +150,15 @@ class QdrantClientManager:
 
     def delete_collection(self, name: str | None = None) -> None:
         name = name or self.collection_name
+        if self.mode == "local":
+            # Qdrant locale cancella la cartella della collection senza chiuderne il
+            # file SQLite. Su Windows un file aperto non si cancella (l'errore e'
+            # ignorato) e la collection ricreata con lo stesso nome riapre i vecchi
+            # punti: la si chiude prima, esplicitamente.
+            local = getattr(self.client, "_client", None)
+            collection = getattr(local, "collections", {}).get(name)
+            if collection is not None:
+                collection.close()
         self.client.delete_collection(name)
         logger.info(f"Deleted collection: {name}")
 
