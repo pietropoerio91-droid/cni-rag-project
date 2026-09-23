@@ -122,3 +122,31 @@ def test_una_collection_separata_non_tocca_quella_di_produzione(monkeypatch):
     assert c.count("produzione_ingest_test").count == 2
     c.close()
     shutil.rmtree(path, ignore_errors=True)
+
+
+def test_la_cancellazione_chiude_il_file_della_collection(monkeypatch):
+    """Su Windows un file SQLite aperto non si cancella: senza chiuderlo prima, una
+    collection cancellata e ricreata con lo stesso nome riapre i vecchi punti.
+    Su Linux/macOS il difetto non si vede, quindi si controlla la causa: il file
+    deve risultare chiuso dopo la cancellazione."""
+    import sqlite3
+
+    from src.vectorstore import qdrant_client as modulo
+
+    path = tempfile.mkdtemp()
+    c = QdrantClient(path=path)
+    monkeypatch.setattr(
+        modulo.ConfigLoader, "get_qdrant_config",
+        classmethod(lambda cls: {"qdrant": {"vectors": {"size": 2, "distance": "Cosine"}}}),
+    )
+    manager = modulo.QdrantClientManager.__new__(modulo.QdrantClientManager)
+    manager.client, manager.collection_name, manager.mode = c, "produzione", "local"
+    manager.ensure_collection("da_cancellare")
+    connessione = c._client.collections["da_cancellare"].storage.storage
+
+    manager.delete_collection("da_cancellare")
+
+    with pytest.raises(sqlite3.ProgrammingError):   # connessione chiusa
+        connessione.execute("SELECT 1")
+    c.close()
+    shutil.rmtree(path, ignore_errors=True)
