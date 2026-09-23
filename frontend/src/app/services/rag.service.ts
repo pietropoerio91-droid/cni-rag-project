@@ -4,6 +4,7 @@ import { Observable, Subject, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
   QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus,
+  CollectionInfo, CollectionsResponse,
   QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse,
   QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun,
   QueryStatsResponse, QueryMetricsResponse,
@@ -82,6 +83,18 @@ export class RagService {
   getIngestStatus(): Observable<IngestStatus> {
     return this.http.get<IngestStatus>(`${this.apiUrl}/ingest/status`).pipe(
       catchError(() => throwError(() => new Error('Status non disponibile')))
+    );
+  }
+
+  getCollections(): Observable<CollectionsResponse> {
+    return this.http.get<CollectionsResponse>(`${this.apiUrl}/collections`).pipe(
+      catchError(this.handleError)
+    );
+  }
+
+  setActiveCollection(name: string): Observable<CollectionInfo> {
+    return this.http.put<CollectionInfo>(`${this.apiUrl}/collections/active`, { name }).pipe(
+      catchError(this.handleError)
     );
   }
 

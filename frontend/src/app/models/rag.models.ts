@@ -41,6 +41,22 @@ export interface IngestStatus {
   message: string;
   started_at: string | null;
   finished_at: string | null;
+  collection?: string | null;  // collection nuova in costruzione
+}
+
+export interface CollectionInfo {
+  name: string;
+  points: number;
+  dense_size: number | null;
+  hybrid: boolean;
+  compatible: boolean;
+  incompatible_reason: string | null;
+  active: boolean;
+}
+
+export interface CollectionsResponse {
+  active: string;
+  collections: CollectionInfo[];
 }
 
 export interface ChatMessage {

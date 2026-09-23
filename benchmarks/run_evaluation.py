@@ -514,6 +514,9 @@ def main() -> None:
         # Il YAML dice cosa era dichiarato, non cosa ha girato: la variabile
         # d'ambiente puo' sovrascrivere il modello di embedding.
         "embedding_effettivo": dict(zip(("modello", "origine"), ModelFactory.resolve_embedding_model())),
+        # La collection interrogata: dal 23/09 si puo' cambiare dal frontend,
+        # quindi il run deve dire su quale indice e' stato misurato.
+        "collection": ConfigLoader.get_qdrant_config().get("qdrant", {}).get("collection_name"),
         "git": git_state(),
         "stats_environment": S.describe_environment(),
         "k_values": list(K_VALUES),

@@ -1,5 +1,6 @@
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,49 @@ CATEGORY_PATTERNS: dict[str, list[str]] = {
 }
 
 
+# Percorsi aggiunti alla whitelist del crawler il 21/09 (config/rag_config.yaml,
+# `included_paths`) che nessuna voce di CATEGORY_PATTERNS copre. Si confrontano
+# come prefisso del path e solo dopo CATEGORY_PATTERNS: un URL che oggi riceve una
+# categoria dai pattern la conserva identica, e solo le pagine che finivano sulla
+# categoria dedotta dal contenuto ne ricevono una dal percorso.
+# `/it/` (sezione internazionale) resta di proposito al contenuto: raccoglie
+# pagine di argomento troppo vario per una sola categoria.
+WHITELIST_PATH_CATEGORIES: dict[str, list[str]] = {
+    "organi": [
+        "/area-cni",                    # schede territoriali degli ordini provinciali
+        "/network-cni", "/rete-internazionale", "/ingegneri-e-rappresentanza",
+    ],
+    "documenti": [
+        "/sezioni-amministrazione-trasparente", "/amministrazione-trasparente",
+        "/pubblicazioni-cni", "/note-legali", "/privacy-cookies",
+        "/images",                      # PDF fuori dalle sottocartelle gia' mappate
+    ],
+    "normativa": [
+        "/regolamento-sugli-accessi",
+        "/nuovo-codice-deontologico-degli-ingegneri-italiani",
+        "/bonus-110-chiarimenti-commissione-csllpp",
+    ],
+    "news": [
+        "/evidenza", "/notizie-internazionali",
+    ],
+    "servizi": [
+        "/faq", "/opportunita", "/whistleblowing", "/euring",
+        "/riconoscimento-qualifiche-in-italia",
+    ],
+    "temi": [
+        "/ingegneri-in-italia", "/ingegneri-biomedici-e-clinici",
+    ],
+    "contatti": [
+        "/urp",
+    ],
+}
+
+
+def _path_matches(path: str, prefix: str) -> bool:
+    """Prefisso di percorso intero: `/urp` copre `/urp` e `/urp/...`, non `/urpxyz`."""
+    return path == prefix or path.startswith(prefix + "/")
+
+
 CONTENT_CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "news": ["comunicato stampa", "rassegna stampa", "notizia", "news", "aggiornamento"],
     "normativa": ["legge", "decreto", "regolamento", "normativa", "articolo", "codice"],
@@ -121,6 +165,10 @@ class PublicDataFilter:
             for pattern in patterns:
                 if pattern in url_lower:
                     return category
+        path = urlparse(url_lower).path.rstrip("/")
+        for category, prefixes in WHITELIST_PATH_CATEGORIES.items():
+            if any(_path_matches(path, p) for p in prefixes):
+                return category
         content_lower = content.lower()
         best_cat = "generico"
         best_score = 0

@@ -15,13 +15,17 @@ class VectorRetriever:
         # (denso + sparso); None indica il vettore anonimo delle collection classiche.
         self.vector_name = vector_name
         self.manager = QdrantClientManager()
-        self.collection_name = self.manager.collection_name
         self.embedding_model = embedding_model
 
         config = ConfigLoader.get_rag_config()
         ret_config = config.get("retrieval", {})
         self.top_k = ret_config.get("top_k", 5)
         self.score_threshold = ret_config.get("score_threshold", 0.5)
+
+    @property
+    def collection_name(self) -> str:
+        # Letta a ogni ricerca: segue il cambio di collection fatto dal frontend.
+        return self.manager.collection_name
 
     def retrieve(self, query: str, top_k: int | None = None, filter_condition: dict | None = None) -> list[dict[str, Any]]:
         k = top_k or self.top_k

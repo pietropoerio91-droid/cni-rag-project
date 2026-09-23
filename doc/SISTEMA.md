@@ -118,12 +118,11 @@ Due funzioni distinte, spesso confuse fra loro nella documentazione precedente:
 > classificare le *domande* dell'utente (§5, nodo `classify`) — è la
 > radice del problema di copertura descritto in §11.
 >
-> **Limite aperto dal 21/09**: `CATEGORY_PATTERNS` non ha voci per i nuovi
-> percorsi aggiunti alla whitelist del crawler (`/area-cni`, `/faq`,
-> `/sezioni-amministrazione-trasparente` e altri, vedi §10) — cadrebbero su
-> `"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto
-> oggi (nessuna ingestion è stata rilanciata), ma va corretto prima della
-> prossima. Vedi §11.7.
+> **Percorsi nuovi della whitelist (corretto il 23/09)**: i percorsi aggiunti
+> al crawler il 21/09 (`/area-cni`, `/faq`, `/sezioni-amministrazione-trasparente`
+> e altri, §10) hanno una categoria in `WHITELIST_PATH_CATEGORIES`, confrontata
+> come prefisso del path e **dopo** `CATEGORY_PATTERNS`: gli URL che già
+> ricevevano una categoria dai pattern la conservano identica. Vedi §11.7.
 
 ### 4.4 Quality check — `src/governance/quality_check.py`
 
@@ -151,7 +150,7 @@ I prefissi `query: `/`passage: ` richiesti da e5 sono applicati in modo traspare
 
 Qdrant locale su SQLite (`data/qdrant_db`), collection `cni_documents_e5_bm25`, dimensione vettori 384. **Dal 21/09 ogni chunk ha due vettori**, non uno: `dense` (denso, distanza coseno, HNSW) e `bm25` (sparso, con modificatore `IDF` calcolato da Qdrant sull'intera collection) — lo schema è definito una sola volta in `src/vectorstore/bm25_sparse.py::collection_schema()` e riusato sia dal gestore Qdrant sia dallo script di costruzione, per evitare che punti diversi del codice creino formati diversi (è successo, vedi §11.6).
 
-Il peso BM25 di ogni chunk dipende dalla lunghezza media dell'intero corpus (`avgdl`): va calcolato in un'unica passata su tutti i chunk, non aggiunto in modo incrementale — vedi il limite noto in §11.8.
+Il peso BM25 di ogni chunk dipende dalla lunghezza media dell'intero corpus (`avgdl`): va calcolato in un'unica passata su tutti i chunk, non aggiunto in modo incrementale. Dal 23/09 `index_chunks()` calcola `avgdl` sull'intero corpus e poi invia i punti a Qdrant a lotti di 256 (§11.8); `VectorIndexer(collection_name=...)` scrive su una collection diversa da quella di produzione, usata dal pulsante "Indicizza Dati" (§11.10).
 
 **Stato corpus (22/09, collection `cni_documents_e5_bm25`):** 13.784 chunk, 14 categorie:
 
@@ -238,7 +237,9 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 |---|---|
 | GET | `/health` | Qdrant connesso? LLM raggiungibile? |
 | GET | `/benchmark`, `/benchmark/runs/{timestamp}` | risultati di `run_benchmark.py` |
-| GET | `/ingest/status` | POST | `/ingest` | avvia/segue crawl + indicizzazione |
+| GET | `/ingest/status` | POST | `/ingest` | avvia/segue crawl + indicizzazione, **dal 23/09 su una collection nuova** (§11.10) |
+| GET | `/collections` | **nuovo dal 23/09** — collection presenti in Qdrant: chunk, compatibilità col retriever, quale è attiva |
+| PUT | `/collections/active` | **nuovo dal 23/09** — cambia la collection attiva (rifiutato durante un'indicizzazione o per collection incompatibili) |
 | GET | `/qdrant`, `/qdrant/stats`, `/qdrant/documents`, `/qdrant/documents/{id}`, `/qdrant/analytics`, `/qdrant/coverage` | browser e analytics sulla collezione |
 
 ---
@@ -251,6 +252,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 - **`components/chat/chat.component.ts`** — chat interattiva: storico, suggerimenti, health check, citazioni cliccabili, streaming
 - **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, **due tab**: *quantitativa* (composizione del corpus dall'indice Qdrant, **più, dal 22/09**, la configurazione del run corrente, il confronto appaiato con FINAL_V2 su recupero e accuratezza umana, la decomposizione dell'errore per stadio e la matrice di ablation — tutto visibile solo per un run costruito unendo più esecuzioni, vedi `provenienza`) e *qualitativa* (dati dei run di valutazione, telemetria delle query dal vivo)
 - **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — l'interfaccia di annotazione umana, montata dentro la tab qualitativa. Consuma gli endpoint `/evaluation/*` sopra: mostra la coda di domande da validare in cieco, salva i voti, calcola l'accordo giudice-umano. Cinque viste: Risultati, Annotazione, Corrispondenza, Per domanda, **Confronto (nuovo dal 22/09)** — quest'ultima classifica ogni domanda come migliorata/peggiorata/invariata rispetto a FINAL_V2, sulla soglia di correttezza ≥ 4. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
+- **`app.component.ts`** — intestazione e menu impostazioni: stato della connessione, pulsante "Indicizza Dati" e, **dal 23/09**, la sezione *Collection* per vedere le collection presenti e scegliere quale usare (§11.10)
 - **`services/rag.service.ts`** — client HTTP verso tutti gli endpoint sopra, streaming via XHR (`onprogress`)
 - **`models/rag.models.ts`** — interfacce TypeScript corrispondenti
 
@@ -367,23 +369,30 @@ confronto embedding). Motivo dichiarato nel log: allineamento dell'indice a
 `CNICrawler.DENIED_PATTERNS`, introdotto il 2 luglio 2026 ma applicato solo
 al crawl, non retroattivamente all'indice già esistente.
 
-### 11.7 Pattern di categoria mancanti per la whitelist ampliata — **aperto**
+### 11.7 Pattern di categoria mancanti per la whitelist ampliata — **corretto il 23/09**
 
-Vedi §4.3. `CATEGORY_PATTERNS` non copre i nuovi percorsi aggiunti alla
-whitelist del crawler il 21/09 (`/area-cni`, `/faq`, ecc.): finirebbero su
-`"generico"` o su una categoria decisa dal solo contenuto. Non ha effetto sui
-risultati attuali (nessuna ingestion rilanciata), ma andrebbe corretto prima
-della prossima.
+Vedi §4.3. `CATEGORY_PATTERNS` non copriva i nuovi percorsi aggiunti alla
+whitelist del crawler il 21/09 (`/area-cni`, `/faq`, ecc.): sarebbero finiti su
+`"generico"` o su una categoria decisa dal solo contenuto. Aggiunta in
+`src/governance/public_data_filter.py` una mappa `WHITELIST_PATH_CATEGORIES`
+(prefisso di path a segmento intero), consultata solo se nessun pattern
+esistente corrisponde: nessun URL già categorizzato cambia categoria, cosa
+verificata dai test in `tests/unit/test_categorie_e_indicizzazione.py`.
+`/area-cni` → `organi`, trasparenza e `/images` residui → `documenti`, `/faq`
+→ `servizi`, `/evidenza` e `/notizie-internazionali` → `news`. `/it/` resta di
+proposito alla categoria dedotta dal contenuto. Nessun effetto sui risultati
+riportati: vale dalla prossima ingestion.
 
-### 11.8 Indicizzazione senza suddivisione a lotti — **aperto**
+### 11.8 Indicizzazione senza suddivisione a lotti — **corretto il 23/09**
 
 `VectorIndexer.index_chunks()` (§4.8) costruisce tutti i `PointStruct` in
 memoria e li invia a Qdrant in un'unica chiamata `client.upsert()`, senza
 lotti — a differenza di `scripts/build_sparse_collection.py`, che spedisce a
 gruppi di 256. Su un corpus di 13.784+ chunk (destinato a crescere con
 `/area-cni`) questo può essere lento o pesante in memoria su una macchina con
-8 GB condivisi. Non causa errori noti, ma andrebbe messo a lotti per
-robustezza.
+8 GB condivisi. Corretto: `index_chunks()` invia ora lotti di 256 punti.
+`avgdl` resta calcolata sull'intero corpus prima dell'invio, quindi i pesi BM25
+sono identici a quelli di un invio unico (verificato da test).
 
 ### 11.9 Filtro PII mascherava i contatti dell'ente — **risolto il 21/09**
 
@@ -399,7 +408,7 @@ rilanciate con il filtro spento e le risposte riannotate; il run `FINAL_V2`
 resta con il filtro attivo (Q06 lì era classificata `generation_miss`, causa
 in realtà il filtro, non il generatore).
 
-### 11.10 Pulsante "Indicizza Dati" senza conferma sufficiente — **parzialmente aperto**
+### 11.10 Pulsante "Indicizza Dati" senza conferma sufficiente — **corretto il 23/09**
 
 Il pulsante nel menu impostazioni del frontend (`POST /api/v1/ingest`) cancella
 **incondizionatamente** la collection in produzione e rilancia un crawl
@@ -412,6 +421,35 @@ rimandati su richiesta esplicita:
    clic confermato distruggerebbe l'indice su cui sono validati `FINAL_V3` e
    le 90 valutazioni umane, recuperabile solo dal backup manuale in
    `data/qdrant_db.backup_2026-09-22/` (non tracciato da git, solo locale).
+
+**Correzione del 23/09.** Entrambi i limiti sono chiusi: il primo con §11.7;
+il secondo facendo scrivere `POST /api/v1/ingest` su una collection nuova,
+`<collection in uso>_ingest_<AAAAMMGG_HHMMSS>`, senza mai cancellare o
+modificare quella di produzione. Il messaggio di fine indicizzazione indica
+il nome della collection creata e il testo della conferma nel frontend è stato
+aggiornato di conseguenza. Gli
+script da riga di comando (`scripts/run_ingestion.py`, `scripts/build_index.py`)
+con `--clear` continuano invece a ricostruire la collection configurata: sono
+un'operazione deliberata, non un clic.
+
+**Scelta della collection dal frontend (23/09).** La sezione *Collection* del
+menu impostazioni elenca le collection presenti con il numero di chunk e
+permette di attivarne una (`PUT /collections/active`), con conferma. Il cambio:
+- vale subito per chat, statistiche, health check e nuovi run di valutazione:
+  retriever e indicizzatore leggono la collection attiva a ogni chiamata, non
+  una copia presa all'avvio;
+- è scritto in `config/qdrant_config.yaml` (solo la riga `collection_name`,
+  commenti intatti): il file resta l'unica fonte della configurazione, niente
+  override nascosti come quello del modello di embedding (§11.5);
+- è rifiutato per collection senza vettore BM25 o con dimensione diversa da
+  quella del modello di embedding in uso, e durante un'indicizzazione;
+- non cancella nulla: si torna alla collection precedente dallo stesso menu.
+
+Da questa data ogni run di `run_evaluation.py` registra la collection
+interrogata (campo `collection`, esposto da `/evaluation/runs` e
+`/evaluation/latest`); i run precedenti non la riportano. Test in
+`tests/unit/test_selezione_collection.py`, compresa una prova completa del flusso
+di `POST /ingest` con crawler ed embedding simulati.
 
 ---
 
@@ -451,12 +489,12 @@ rimandati su richiesta esplicita:
   un'eccezione nel controllo di salute veniva inghiottita; `.env.example`
   elencava dieci variabili mai lette dal codice.
 
-**Da fare, in ordine di priorità** (vedi §11.7, §11.8, §11.10 per il dettaglio):
-1. Pattern di categoria per i nuovi percorsi della whitelist.
-2. Indicizzazione a lotti invece di un unico upsert.
-3. Pulsante "Indicizza Dati": scrivere su una collection nuova invece che sovrascrivere quella in produzione.
-4. Pulizia finale: rimuovere l'implementazione BM25 in memoria (rimasta sul branch di sviluppo `feature/recupero-ibrido` e nel tag `sperimentazione-recupero-ibrido`, non sul branch di rilascio) — solo con conferma esplicita.
-5. Unione di `release/recupero-ibrido` su `main`, **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
+**Da fare, in ordine di priorità** (aggiornato al 23/09):
+1. ~~Pattern di categoria per i nuovi percorsi della whitelist~~ — fatto il 23/09 (§11.7).
+2. ~~Indicizzazione a lotti invece di un unico upsert~~ — fatto il 23/09 (§11.8).
+3. ~~Pulsante "Indicizza Dati": scrivere su una collection nuova~~ — fatto il 23/09 (§11.10).
+4. ~~Pulizia finale: rimuovere l'implementazione BM25 in memoria~~ — confermata il 23/09. Verificato che il codice attivo non la contiene più: `src/rag/sparse_index.py`, `src/rag/fusion.py` e `tests/unit/test_sparse_e_fusione.py` esistono solo sul branch `feature/recupero-ibrido`, lasciato com'è: non è usato da nulla e non dà fastidio. Si conserva il tag `sperimentazione-recupero-ibrido` (stesso commit `fa6d0aa`): la matrice a 6 configurazioni riportata in tesi è stata misurata con quell'implementazione e il tag la rende riproducibile. I riferimenti rimasti nel codice attivo sono solo commenti che documentano l'equivalenza nativo/in memoria.
+5. ~~Unione di `release/recupero-ibrido` su `main`~~ — risulta fatta: al 23/09 `main` contiene tutti i commit di `release/recupero-ibrido`. Testo originale: unione **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
 
 **Cosa manca per la tesi:** aggiornare abstract, introduzione e i capitoli con
 i nuovi numeri — la tabella completa è in `results/2026-09-22/RIEPILOGO_FINAL_V3.md`.
