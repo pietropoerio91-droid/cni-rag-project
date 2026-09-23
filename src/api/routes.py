@@ -54,6 +54,7 @@ _ingest_status: dict[str, str | int | float | None] = {
     "message": "",
     "started_at": None,
     "finished_at": None,
+    "collection": None,
 }
 
 
@@ -67,6 +68,11 @@ class IngestStatusResponse(BaseModel):
     message: str
     started_at: str | None = None
     finished_at: str | None = None
+    collection: str | None = None  # collection nuova in costruzione
+
+
+class ActiveCollectionRequest(BaseModel):
+    name: str
 
 
 def get_rag_chain() -> RAGChain:
@@ -307,6 +313,8 @@ async def evaluation_runs():
             "judge_enabled": data.get("judge_enabled"),
             "judge_validated": data.get("judge_validated", False),
             "judge_model": data.get("judge_model"),
+            # Assente nei run precedenti al 23/09: la collection non veniva registrata.
+            "collection": data.get("collection"),
             "hit_at_5_context": ctx.get("hit_at_5"),
             "mrr_context": ctx.get("mrr"),
         })
@@ -353,6 +361,8 @@ async def evaluation_latest(run_id: str | None = None):
         # Il modello davvero usato: .env puo' sovrascrivere il YAML (vedi
         # ModelFactory.resolve_embedding_model). Assente nei run precedenti al 21/09.
         "embedding_effettivo": data.get("embedding_effettivo"),
+        # Collection Qdrant interrogata; None nei run precedenti al 23/09.
+        "collection": data.get("collection"),
         # Presenti solo nel run costruito unendo piu' esecuzioni (vedi provenienza):
         # confronto appaiato con FINAL_V2, accuratezza e tassonomia dall'annotazione
         # umana. None per un run "semplice", il frontend deve gestire l'assenza.
@@ -991,7 +1001,27 @@ async def ingest_status():
         message=_ingest_status.get("message", ""),
         started_at=str(_ingest_status.get("started_at")) if _ingest_status.get("started_at") else None,
         finished_at=str(_ingest_status.get("finished_at")) if _ingest_status.get("finished_at") else None,
+        collection=_ingest_status.get("collection"),
     )
+
+
+@router.get("/collections")
+async def list_collections():
+    """Collection presenti in Qdrant, con numero di chunk e compatibilita'."""
+    manager = get_vector_indexer().manager
+    return {"active": manager.collection_name, "collections": manager.list_collections()}
+
+
+@router.put("/collections/active")
+async def set_active_collection(request: ActiveCollectionRequest):
+    """Cambia la collection usata da chat, dashboard e valutazioni (vedi
+    QdrantClientManager.set_active_collection). Non durante un'indicizzazione."""
+    if _ingest_status.get("running"):
+        raise HTTPException(status_code=409, detail="Indicizzazione in corso: riprova quando e' terminata")
+    try:
+        return get_vector_indexer().manager.set_active_collection(request.name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/ingest", response_model=IngestResponse)
@@ -1009,7 +1039,7 @@ async def ingest():
         from src.governance.quality_check import QualityChecker
 
         try:
-            _ingest_status.update({"running": True, "phase": "init", "progress_pct": 0, "message": "Avvio indicizzazione...", "started_at": datetime.now(), "documents_found": 0})
+            _ingest_status.update({"running": True, "phase": "init", "progress_pct": 0, "message": "Avvio indicizzazione...", "started_at": datetime.now(), "documents_found": 0, "collection": None})
 
             crawler = CNICrawler()
             cleaner = TextCleaner()
@@ -1019,12 +1049,12 @@ async def ingest():
             public_filter = PublicDataFilter()
             quality = QualityChecker()
             # Scrive su una collection nuova, mai su quella di produzione: l'indice su
-            # cui sono validati i risultati resta intatto finche' non si cambia a mano
-            # `collection_name` in config/qdrant_config.yaml.
+            # cui sono validati i risultati resta intatto finche' non si attiva la
+            # nuova (menu impostazioni del frontend, PUT /collections/active).
             production = get_vector_indexer().collection_name
-            target = f"{production}_ingest_{datetime.now():%Y%m%d_%H%M%S}"
+            target = f"{production.split('_ingest_')[0]}_ingest_{datetime.now():%Y%m%d_%H%M%S}"
             indexer = VectorIndexer(collection_name=target)
-            _ingest_status.update({"message": f"Nuova collection: {target}"})
+            _ingest_status.update({"message": f"Nuova collection: {target}", "collection": target})
 
             _ingest_status.update({"phase": "crawl", "message": "Scarico documenti da cni.it..."})
             new_docs = await crawler.crawl()
@@ -1077,8 +1107,7 @@ async def ingest():
                 "message": (
                     f"Indicizzazione completata: {indexed_count} chunk nella nuova collection "
                     f"'{target}'. La collection in uso ('{production}') non e' stata toccata: "
-                    f"per adottare la nuova impostare collection_name in config/qdrant_config.yaml "
-                    f"e riavviare l'API."
+                    f"per adottare la nuova selezionala dal menu impostazioni."
                 ),
                 "finished_at": datetime.now(),
             })

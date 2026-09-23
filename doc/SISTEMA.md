@@ -237,7 +237,9 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 |---|---|
 | GET | `/health` | Qdrant connesso? LLM raggiungibile? |
 | GET | `/benchmark`, `/benchmark/runs/{timestamp}` | risultati di `run_benchmark.py` |
-| GET | `/ingest/status` | POST | `/ingest` | avvia/segue crawl + indicizzazione |
+| GET | `/ingest/status` | POST | `/ingest` | avvia/segue crawl + indicizzazione, **dal 23/09 su una collection nuova** (§11.10) |
+| GET | `/collections` | **nuovo dal 23/09** — collection presenti in Qdrant: chunk, compatibilità col retriever, quale è attiva |
+| PUT | `/collections/active` | **nuovo dal 23/09** — cambia la collection attiva (rifiutato durante un'indicizzazione o per collection incompatibili) |
 | GET | `/qdrant`, `/qdrant/stats`, `/qdrant/documents`, `/qdrant/documents/{id}`, `/qdrant/analytics`, `/qdrant/coverage` | browser e analytics sulla collezione |
 
 ---
@@ -250,6 +252,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 - **`components/chat/chat.component.ts`** — chat interattiva: storico, suggerimenti, health check, citazioni cliccabili, streaming
 - **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, **due tab**: *quantitativa* (composizione del corpus dall'indice Qdrant, **più, dal 22/09**, la configurazione del run corrente, il confronto appaiato con FINAL_V2 su recupero e accuratezza umana, la decomposizione dell'errore per stadio e la matrice di ablation — tutto visibile solo per un run costruito unendo più esecuzioni, vedi `provenienza`) e *qualitativa* (dati dei run di valutazione, telemetria delle query dal vivo)
 - **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — l'interfaccia di annotazione umana, montata dentro la tab qualitativa. Consuma gli endpoint `/evaluation/*` sopra: mostra la coda di domande da validare in cieco, salva i voti, calcola l'accordo giudice-umano. Cinque viste: Risultati, Annotazione, Corrispondenza, Per domanda, **Confronto (nuovo dal 22/09)** — quest'ultima classifica ogni domanda come migliorata/peggiorata/invariata rispetto a FINAL_V2, sulla soglia di correttezza ≥ 4. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
+- **`app.component.ts`** — intestazione e menu impostazioni: stato della connessione, pulsante "Indicizza Dati" e, **dal 23/09**, la sezione *Collection* per vedere le collection presenti e scegliere quale usare (§11.10)
 - **`services/rag.service.ts`** — client HTTP verso tutti gli endpoint sopra, streaming via XHR (`onprogress`)
 - **`models/rag.models.ts`** — interfacce TypeScript corrispondenti
 
@@ -422,13 +425,31 @@ rimandati su richiesta esplicita:
 **Correzione del 23/09.** Entrambi i limiti sono chiusi: il primo con §11.7;
 il secondo facendo scrivere `POST /api/v1/ingest` su una collection nuova,
 `<collection in uso>_ingest_<AAAAMMGG_HHMMSS>`, senza mai cancellare o
-modificare quella di produzione. Per adottarla si cambia a mano
-`collection_name` in `config/qdrant_config.yaml` e si riavvia l'API; il
-messaggio di fine indicizzazione indica il nome della collection creata. Il
-testo della conferma nel frontend è stato aggiornato di conseguenza. Gli
+modificare quella di produzione. Il messaggio di fine indicizzazione indica
+il nome della collection creata e il testo della conferma nel frontend è stato
+aggiornato di conseguenza. Gli
 script da riga di comando (`scripts/run_ingestion.py`, `scripts/build_index.py`)
 con `--clear` continuano invece a ricostruire la collection configurata: sono
 un'operazione deliberata, non un clic.
+
+**Scelta della collection dal frontend (23/09).** La sezione *Collection* del
+menu impostazioni elenca le collection presenti con il numero di chunk e
+permette di attivarne una (`PUT /collections/active`), con conferma. Il cambio:
+- vale subito per chat, statistiche, health check e nuovi run di valutazione:
+  retriever e indicizzatore leggono la collection attiva a ogni chiamata, non
+  una copia presa all'avvio;
+- è scritto in `config/qdrant_config.yaml` (solo la riga `collection_name`,
+  commenti intatti): il file resta l'unica fonte della configurazione, niente
+  override nascosti come quello del modello di embedding (§11.5);
+- è rifiutato per collection senza vettore BM25 o con dimensione diversa da
+  quella del modello di embedding in uso, e durante un'indicizzazione;
+- non cancella nulla: si torna alla collection precedente dallo stesso menu.
+
+Da questa data ogni run di `run_evaluation.py` registra la collection
+interrogata (campo `collection`, esposto da `/evaluation/runs` e
+`/evaluation/latest`); i run precedenti non la riportano. Test in
+`tests/unit/test_selezione_collection.py`, compresa una prova completa del flusso
+di `POST /ingest` con crawler ed embedding simulati.
 
 ---
 

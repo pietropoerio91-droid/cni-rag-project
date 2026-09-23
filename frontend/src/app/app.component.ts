@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { RagService } from './services/rag.service';
-import { IngestStatus } from './models/rag.models';
+import { CollectionInfo, IngestStatus } from './models/rag.models';
 
 @Component({
   selector: 'app-root',
@@ -50,6 +50,26 @@ import { IngestStatus } from './models/rag.models';
                   <span class="tip-trigger" data-tip="Data dell'ultimo aggiornamento dei dati nel sistema">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                   </span>
+                </div>
+                <div class="menu-divider"></div>
+                <div class="collections">
+                  <div class="collections-title">
+                    <span>🗂️ Collection</span>
+                    <span class="tip-trigger" data-tip="Indice interrogato da chat, statistiche e valutazioni. Ogni indicizzazione crea una collection nuova: attivala qui per usarla">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </span>
+                  </div>
+                  <div class="collection-row" *ngFor="let c of collections" [class.active]="c.active"
+                       [title]="c.compatible ? '' : 'Non utilizzabile: ' + c.incompatible_reason">
+                    <div class="collection-info">
+                      <span class="collection-name">{{ c.name }}</span>
+                      <span class="collection-meta">{{ c.points | number }} chunk<span *ngIf="!c.compatible"> · non compatibile</span></span>
+                    </div>
+                    <span class="collection-badge" *ngIf="c.active">in uso</span>
+                    <button class="collection-btn" *ngIf="!c.active" (click)="activateCollection(c)"
+                            [disabled]="!c.compatible || switching || ingestStatus.running">Usa</button>
+                  </div>
+                  <div class="collection-error" *ngIf="collectionError">{{ collectionError }}</div>
                 </div>
                 <div class="menu-divider"></div>
                 <button class="menu-item action" (click)="ingestData()" [disabled]="isIngesting || ingestStatus.running">
@@ -304,6 +324,67 @@ import { IngestStatus } from './models/rag.models';
       font-size: 12px;
       color: var(--success);
     }
+    .collections {
+      padding: 4px 0;
+      max-width: 340px;
+    }
+    .collections-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      font-size: 13px;
+    }
+    .collection-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 6px;
+    }
+    .collection-row.active {
+      background: var(--primary-light);
+    }
+    .collection-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .collection-name {
+      font-size: 12px;
+      font-family: monospace;
+      overflow-wrap: anywhere;
+    }
+    .collection-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .collection-badge {
+      font-size: 11px;
+      color: var(--primary-dark);
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .collection-btn {
+      font-size: 12px;
+      padding: 2px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-card);
+      color: var(--text);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .collection-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .collection-error {
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--error);
+    }
   `]
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -313,6 +394,10 @@ export class AppComponent implements OnInit, OnDestroy {
   lastCheck: Date | null = null;
   menuOpen = false;
   isIngesting = false;
+  collections: CollectionInfo[] = [];
+  collectionError = '';
+  switching = false;
+  private wasIngesting = false;
   ingestStatus: IngestStatus = { running: false, phase: '', progress_pct: 0, documents_found: 0, documents_total: 0, chunks_indexed: 0, message: '', started_at: null, finished_at: null };
   private statusSub: Subscription | null = null;
 
@@ -350,6 +435,50 @@ export class AppComponent implements OnInit, OnDestroy {
 
   toggleMenu() {
     this.menuOpen = !this.menuOpen;
+    if (this.menuOpen) {
+      this.loadCollections();
+    }
+  }
+
+  loadCollections() {
+    this.ragService.getCollections().subscribe({
+      next: (res) => {
+        this.collections = res.collections;
+        this.collectionError = '';
+      },
+      error: (err: Error) => {
+        this.collectionError = err.message;
+      },
+    });
+  }
+
+  activateCollection(c: CollectionInfo) {
+    const conferma = window.confirm(
+      `Usare "${c.name}" (${c.points} chunk) per chat, statistiche e nuove valutazioni?\n\n` +
+      "La scelta viene salvata in config/qdrant_config.yaml. La collection attuale non " +
+      "viene cancellata: puoi tornare indietro da questo stesso menu. I risultati delle " +
+      "valutazioni già salvati non cambiano."
+    );
+    if (!conferma) {
+      return;
+    }
+    this.switching = true;
+    this.ragService.setActiveCollection(c.name).subscribe({
+      next: () => {
+        this.switching = false;
+        this.checkHealth();
+        this.loadCollections();
+        // Le statistiche sono caricate all'apertura della pagina: la si ricarica.
+        if (this.router.url.startsWith('/statistiche')) {
+          this.router.navigateByUrl('/', { skipLocationChange: true })
+            .then(() => this.router.navigate(['/statistiche']));
+        }
+      },
+      error: (err: Error) => {
+        this.switching = false;
+        this.collectionError = err.message;
+      },
+    });
   }
 
   checkHealth() {
@@ -370,6 +499,11 @@ export class AppComponent implements OnInit, OnDestroy {
     this.ragService.getIngestStatus().subscribe({
       next: (status) => {
         this.ingestStatus = status;
+        // A indicizzazione terminata compare la collection nuova nell'elenco.
+        if (this.wasIngesting && !status.running) {
+          this.loadCollections();
+        }
+        this.wasIngesting = status.running;
         if (!status.running && status.phase === 'done') {
           // chunks_indexed si riferisce alla nuova collection, non a quella in uso:
           // il conteggio mostrato resta quello del controllo di salute.
@@ -384,8 +518,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.menuOpen = true;
     const conferma = window.confirm(
       "Questa operazione rilancia un crawl completo del sito e costruisce una NUOVA " +
-      "collection (può richiedere ore). L'indice in uso non viene toccato: per adottare " +
-      "quella nuova va cambiato collection_name in config/qdrant_config.yaml. Continuare?"
+      "collection (può richiedere ore). L'indice in uso non viene toccato: a fine " +
+      "indicizzazione potrai attivare quella nuova dalla sezione Collection di questo menu. Continuare?"
     );
     if (!conferma) {
       return;

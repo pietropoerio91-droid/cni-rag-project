@@ -1,13 +1,16 @@
 import logging
+import re
 from pathlib import Path
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, HnswConfigDiff, OptimizersConfigDiff
 
 from src.core.config_loader import ConfigLoader
-from src.vectorstore.bm25_sparse import collection_schema
+from src.vectorstore.bm25_sparse import DENSE_VECTOR, SPARSE_VECTOR, collection_schema
 
 logger = logging.getLogger(__name__)
+
+QDRANT_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "qdrant_config.yaml"
 
 
 class QdrantClientManager:
@@ -89,6 +92,62 @@ class QdrantClientManager:
         except Exception:
             return False
 
+    def describe_collection(self, name: str) -> dict:
+        """Numero di punti e compatibilita' della collection con il retriever attuale.
+
+        Compatibile = ha il vettore denso della dimensione configurata (quella del
+        modello di embedding in uso) e il vettore sparso BM25 del recupero ibrido.
+        """
+        params = self.client.get_collection(name).config.params
+        vectors = params.vectors if isinstance(params.vectors, dict) else {}
+        dense = vectors.get(DENSE_VECTOR)
+        dense_size = dense.size if dense else None
+        hybrid = SPARSE_VECTOR in (params.sparse_vectors or {})
+        expected = ConfigLoader.get_qdrant_config().get("qdrant", {}).get("vectors", {}).get("size", 384)
+
+        motivo = None
+        if dense_size is None:
+            motivo = f"manca il vettore denso '{DENSE_VECTOR}' (formato precedente al recupero ibrido)"
+        elif dense_size != expected:
+            motivo = f"vettori da {dense_size} dimensioni, il modello di embedding in uso ne produce {expected}"
+        elif not hybrid:
+            motivo = f"manca il vettore sparso '{SPARSE_VECTOR}' del BM25"
+
+        return {
+            "name": name,
+            "points": self.client.count(name).count,
+            "dense_size": dense_size,
+            "hybrid": hybrid,
+            "compatible": motivo is None,
+            "incompatible_reason": motivo,
+            "active": name == self.collection_name,
+        }
+
+    def list_collections(self) -> list[dict]:
+        names = sorted(c.name for c in self.get_client().get_collections().collections)
+        return [self.describe_collection(n) for n in names]
+
+    def set_active_collection(self, name: str) -> dict:
+        """Rende `name` la collection usata da chat, dashboard e valutazioni.
+
+        Il cambio si scrive in config/qdrant_config.yaml: il file resta l'unica
+        fonte della configurazione e un riavvio dell'API riparte dalla stessa
+        collection. Si rifiuta una collection inesistente o incompatibile.
+        """
+        client = self.get_client()
+        if not any(c.name == name for c in client.get_collections().collections):
+            raise ValueError(f"La collection '{name}' non esiste")
+        info = self.describe_collection(name)
+        if not info["compatible"]:
+            raise ValueError(f"La collection '{name}' non e' utilizzabile: {info['incompatible_reason']}")
+
+        previous = self.collection_name
+        _write_collection_name(name)
+        ConfigLoader.get_qdrant_config().setdefault("qdrant", {})["collection_name"] = name
+        self.collection_name = name
+        logger.info(f"Collection attiva: '{previous}' -> '{name}'")
+        return {**info, "active": True, "previous": previous}
+
     def delete_collection(self, name: str | None = None) -> None:
         name = name or self.collection_name
         self.client.delete_collection(name)
@@ -102,3 +161,13 @@ class QdrantClientManager:
         self.client.close()
         self._initialized = False
         self._init_client()
+
+
+def _write_collection_name(name: str, path: Path | None = None) -> None:
+    """Riscrive solo la riga `collection_name:` del YAML, lasciando intatti i commenti."""
+    path = path or QDRANT_CONFIG_PATH
+    text = path.read_text(encoding="utf-8")
+    new, n = re.subn(r"(?m)^(\s*collection_name:\s*).*$", lambda m: m.group(1) + name, text, count=1)
+    if n != 1:
+        raise ValueError(f"Riga 'collection_name:' non trovata in {path}")
+    path.write_text(new, encoding="utf-8")

@@ -26,9 +26,18 @@ class VectorIndexer:
         """`collection_name` scrive su una collection diversa da quella di
         produzione (creata se manca); None usa quella del qdrant_config.yaml."""
         self.manager = QdrantClientManager()
-        self.collection_name = collection_name or self.manager.collection_name
+        self._collection_name = collection_name
         if collection_name:
             self.manager.ensure_collection(collection_name)
+
+    @property
+    def collection_name(self) -> str:
+        # Senza nome esplicito segue la collection attiva, anche dopo un cambio.
+        return self._collection_name or self.manager.collection_name
+
+    @collection_name.setter
+    def collection_name(self, name: str) -> None:
+        self._collection_name = name
 
     def _get_client(self):
         return self.manager.get_client()
