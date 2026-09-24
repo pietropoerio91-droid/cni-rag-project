@@ -302,7 +302,7 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 > dominante dell'errore residuo** — risposta diretta alla seconda metà della
 > domanda di ricerca. Le 9 domande migliorate, le 3 peggiorate e le 18
 > invariate rispetto a `FINAL_V2`, con lo stadio di ciascuna, sono nella
-> dashboard (`/statistiche` → Qualitative → Confronto) e in
+> dashboard (`/statistiche` → Qualitative → Confronto per domanda) e in
 > `results/annotations_FINAL_V3_DEFINITIVO.json`.
 >
 > **Da dichiarare**: l'intervento (BM25 ibrido, embedding e5, tutto §6.2) è

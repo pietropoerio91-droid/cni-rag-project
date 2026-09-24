@@ -49,11 +49,15 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
 | Misura (n=30) | FINAL_V2 | **FINAL_V3** | Confronto appaiato |
 |---|---:|---:|---|
 | **Accuratezza umana** (correttezza ≥ 4) | 43,3% (13/30) | **63,3% (19/30)** [45,5%, 78,1%] | +20,0 punti, McNemar p=0,146 |
-| Correttezza umana media (0-5) | 2,35 | **3,57** | +1,30, Wilcoxon p=0,0085 |
+| Correttezza umana media (0-5) | 2,27 | **3,57** | +1,30, Wilcoxon p=0,0085 |
 | Hit@5 sul contesto passato al generatore | 40,0% | **60,0%** [42,3%, 75,4%] | +20,0 punti, p=0,070 |
 | MRR | 0,294 | **0,434** [0,284, 0,591] | +0,140, p=0,028 |
 | Risposte che contengono il dato atteso (*must-contain*, metrica deterministica) | 50,0% | **66,7%** [48,8%, 80,8%] | — |
 
+- La correttezza media di V2 nel confronto appaiato è **2,27**: la domanda Q09,
+  annotata senza voto di correttezza, conta 0 come nell'accuratezza (43,3%). Il
+  2,35 che compare altrove è la media sulle sole domande con il voto compilato.
+  In tesi usare 2,27 accanto al Δ +1,30, altrimenti i numeri non tornano.
 - L'**accuratezza umana** è il risultato principale da riportare. Quella del
   giudice automatico non è validata (vedi sotto).
 - Nessun confronto è significativo con n=30 nel senso della potenza
@@ -77,9 +81,15 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
 
 - **Il collo di bottiglia si è spostato.** In `FINAL_V2` l'errore era quasi
   tutto a monte: 15 errori di recupero contro 2 di generazione. In `FINAL_V3`
-  è per lo più a valle: 3 contro 8. I `retrieval_miss` scendono da 14 a 2.
-  *Non verificato* se i 2 rimasti siano fra i 14 di V2: per dirlo va fatto
-  il confronto per domanda (tab Confronto della dashboard).
+  è per lo più a valle: 3 contro 8. I `retrieval_miss` scendono da 14 a 2, e
+  i 2 rimasti (Q13, Q22) erano già `retrieval_miss` in V2: **il recupero
+  ibrido ha risolto 12 dei 14 casi senza crearne di nuovi** (verificato il
+  24/09 sulle annotazioni dei due run; vista Qualitative › Confronto per
+  domanda della dashboard).
+- **Non tutto migliora:** domanda per domanda, 9 migliorate, 3 peggiorate, 18
+  invariate. Le 3 peggiorate (Q18, Q21, Q24) sono tutte `generation_miss`
+  in V3: il contesto giusto c'era, la risposta no. È coerente con lo
+  spostamento del collo di bottiglia sul generatore e va dichiarato.
 - Il dato **va letto nel modo giusto**: gli errori di generazione non sono
   aumentati perché il generatore è peggiorato (è lo stesso modello). Ora
   arrivano al generatore domande con il contesto giusto che prima fallivano

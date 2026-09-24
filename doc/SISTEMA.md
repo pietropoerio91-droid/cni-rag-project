@@ -29,7 +29,7 @@
 9. [Valutazione e benchmarking](#9-valutazione-e-benchmarking)
 10. [Configurazione attuale, con il perché di ogni valore](#10-configurazione-attuale-con-il-perché-di-ogni-valore)
 11. [Problemi noti e limiti tecnici confermati](#11-problemi-noti-e-limiti-tecnici-confermati)
-12. [Stato del progetto al 23/09/2026 e cosa manca](#12-stato-del-progetto-al-23092026-e-cosa-manca)
+12. [Stato del progetto al 24/09/2026 e cosa manca](#12-stato-del-progetto-al-24092026-e-cosa-manca)
 13. [Come avviare tutto](#13-come-avviare-tutto)
 14. [Mappa verso i capitoli della tesi](#14-mappa-verso-i-capitoli-della-tesi)
 
@@ -211,7 +211,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 
 ## 7. API
 
-`src/api/main.py`: prefix `/api/v1`, CORS per `http://localhost:4200`. Due router montati: `routes.py` (20 endpoint) e `qdrant_browser.py` (6 endpoint, prefix `/qdrant`) — **26 endpoint in totale**, molti più dei 4 documentati nelle versioni precedenti (query/stream/health/ingest): l'interfaccia di annotazione e la dashboard qualitativa ne hanno aggiunti la maggior parte.
+`src/api/main.py`: prefix `/api/v1`, CORS per `http://localhost:4200`. Due router montati: `routes.py` (23 endpoint) e `qdrant_browser.py` (6 endpoint, prefix `/qdrant`) — **29 endpoint in totale** (i 3 più recenti, dal 23/09, sono `/collections`, `/collections/active` e il campo `collection` in `/ingest/status`; vedi sotto), molti più dei 4 documentati nelle versioni precedenti (query/stream/health/ingest): l'interfaccia di annotazione e la dashboard qualitativa ne hanno aggiunti la maggior parte.
 
 **Query e streaming**
 | Metodo | Path |
@@ -249,9 +249,21 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 `frontend/src/app/`:
 
 - **`app.routes.ts`** — due rotte: `/` (chat) e `/statistiche`
-- **`components/chat/chat.component.ts`** — chat interattiva: storico, suggerimenti, health check, citazioni cliccabili, streaming
-- **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, **due tab**: *quantitativa* (composizione del corpus dall'indice Qdrant, **più, dal 22/09**, la configurazione del run corrente, il confronto appaiato con FINAL_V2 su recupero e accuratezza umana, la decomposizione dell'errore per stadio e la matrice di ablation — tutto visibile solo per un run costruito unendo più esecuzioni, vedi `provenienza`) e *qualitativa* (dati dei run di valutazione, telemetria delle query dal vivo)
-- **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — l'interfaccia di annotazione umana, montata dentro la tab qualitativa. Consuma gli endpoint `/evaluation/*` sopra: mostra la coda di domande da validare in cieco, salva i voti, calcola l'accordo giudice-umano. Cinque viste: Risultati, Annotazione, Corrispondenza, Per domanda, **Confronto (nuovo dal 22/09)** — quest'ultima classifica ogni domanda come migliorata/peggiorata/invariata rispetto a FINAL_V2, sulla soglia di correttezza ≥ 4. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
+- **`components/chat/chat.component.ts`** — chat interattiva: storico, suggerimenti, health check, citazioni cliccabili, streaming. **Dal 24/09** le 6 domande suggerite sono domande del golden dataset con voto massimo (5/5 su correttezza, pertinenza e fedeltà) nell'annotazione umana di `FINAL_V3` e must-contain superato, una per argomento, con il testo identico a quello valutato (Q05, Q10, Q04, Q16, Q11, Q19)
+- **`components/statistiche/statistiche.component.ts`** — pagina `/statistiche`, riorganizzata il 24/09 perché ogni dato compaia una volta sola. Due tab, ciascuno con le sue viste e una riga di descrizione per vista; **un solo selettore del run** vale per tutte le viste che dipendono dal run:
+
+  | Tab | Vista | Contenuto |
+  |---|---|---|
+  | Quantitative | Corpus | composizione della collection attiva (chunk, categorie, lunghezze, fonti, copertura); avviso se la collection è vuota |
+  | | Risultati | accuratezza umana, must-contain, fallback, latenza; configurazione del run; recupero prima e dopo il reranking |
+  | | Confronto con FINAL_V2 | totali appaiati (recupero e valutazione umana) e tassonomia degli errori V2 contro il run |
+  | | Ablation | matrice embedding × BM25, confronto reranker, verifica BM25 nativo contro in memoria |
+  | Qualitative | Per domanda | distribuzione degli stadi di errore e dettaglio per domanda (rank, must-contain, stadio, latenza) |
+  | | Confronto per domanda | ogni domanda contro FINAL_V2: migliorata, peggiorata o invariata (correttezza ≥ 4), con lo stadio nei due run |
+  | | Giudice vs umano | validazione del giudice: κ, bias, MAE, α, matrici di confusione; unico posto dove compaiono i punteggi del giudice |
+  | | Annotazione | annotazione umana in cieco |
+  | | Telemetria dal vivo | grandezze descrittive sulle query reali della chat |
+- **`components/statistiche/valutazione.component.ts`** (`<app-valutazione>`) — le viste che dipendono dal run (Risultati, Confronto con FINAL_V2, Per domanda, Confronto per domanda, Giudice vs umano, Annotazione). Riceve dal padre la vista e il run selezionato; consuma gli endpoint `/evaluation/*`. È lo strumento con cui si esegue la validazione descritta in §5.5 della tesi
 - **`app.component.ts`** — intestazione e menu impostazioni: stato della connessione, pulsante "Indicizza Dati" e, **dal 23/09**, la sezione *Collection* per vedere le collection presenti e scegliere quale usare (§11.10)
 - **`services/rag.service.ts`** — client HTTP verso tutti gli endpoint sopra, streaming via XHR (`onprogress`)
 - **`models/rag.models.ts`** — interfacce TypeScript corrispondenti
@@ -451,13 +463,32 @@ interrogata (campo `collection`, esposto da `/evaluation/runs` e
 `tests/unit/test_selezione_collection.py`, compresa una prova completa del flusso
 di `POST /ingest` con crawler ed embedding simulati.
 
+### 11.11 Su Windows la cancellazione di una collection locale non svuotava i dati — **corretto il 23/09**
+
+Qdrant in modalità locale cancella la cartella di una collection senza chiuderne
+prima il file SQLite. Su Windows un file aperto non si cancella: l'errore è
+ignorato (`rmtree` con `ignore_errors=True`) e la collection ricreata con lo
+stesso nome riapre i vecchi punti. Colpiva `clear_index()`, cioè gli script
+`run_ingestion.py` e `build_index.py` con `--clear`, che su Windows non
+svuotavano la collection e duplicavano i chunk. Non colpiva il pulsante
+"Indicizza Dati" (crea sempre una collection con nome nuovo) né Linux e macOS.
+Emerso eseguendo `pytest` su Windows; corretto in
+`QdrantClientManager.delete_collection`, che ora chiude il file prima di
+cancellare (PR #11), con un test che ne controlla la causa su ogni sistema.
+
 ---
 
-## 12. Stato del progetto al 23/09/2026 e cosa manca
+## 12. Stato del progetto al 24/09/2026 e cosa manca
 
-**Aggiornamento 23/09 — versione finale congelata su `main`** (PR #8, commit
-`18fbec7`, tag `congelato-2026-09-23`): chiusi i limiti §11.7, §11.8 e §11.10,
-aggiunta la scelta della collection attiva dal frontend. La configurazione in
+**Aggiornamento 24/09 — dashboard e chat.** Pagina Statistiche riorganizzata
+senza dati ripetuti (§8), domande suggerite della chat sostituite con quelle
+verificate dall'annotazione umana (§8). Solo frontend: nessun effetto su
+configurazione, risultati o numeri della tesi.
+
+**Aggiornamento 23/09 — versione finale congelata su `main`** (PR #8-#11, tag
+`congelato-2026-09-23` su `8f3f422`): chiusi i limiti §11.7, §11.8 e §11.10,
+aggiunta la scelta della collection attiva dal frontend, corretta la
+cancellazione delle collection su Windows (§11.11). La configurazione in
 `config/` è identica a quella del run `FINAL_V3`: numeri e annotazioni restano
 validi. Da qui il lavoro prosegue solo sulla tesi.
 

@@ -254,6 +254,8 @@ export interface EvaluationLatest {
   // Il modello di embedding realmente in uso (.env puo' sovrascrivere il YAML).
   // Assente nei run precedenti al 21/09/2026.
   embedding_effettivo: { modello: string; origine: 'yaml' | 'ambiente' } | null;
+  // Collection Qdrant interrogata; registrata dai run dal 23/09/2026.
+  collection?: string | null;
   // Presenti solo nel run costruito unendo piu' esecuzioni (vedi provenienza.descrizione).
   confronto_vs_final_v2: {
     retrieval: Record<string, PairedComparison>;
