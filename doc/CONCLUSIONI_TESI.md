@@ -81,9 +81,15 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
 
 - **Il collo di bottiglia si è spostato.** In `FINAL_V2` l'errore era quasi
   tutto a monte: 15 errori di recupero contro 2 di generazione. In `FINAL_V3`
-  è per lo più a valle: 3 contro 8. I `retrieval_miss` scendono da 14 a 2.
-  *Non verificato* se i 2 rimasti siano fra i 14 di V2: per dirlo va fatto
-  il confronto per domanda (tab Confronto della dashboard).
+  è per lo più a valle: 3 contro 8. I `retrieval_miss` scendono da 14 a 2, e
+  i 2 rimasti (Q13, Q22) erano già `retrieval_miss` in V2: **il recupero
+  ibrido ha risolto 12 dei 14 casi senza crearne di nuovi** (verificato il
+  24/09 sulle annotazioni dei due run; vista Qualitative › Confronto per
+  domanda della dashboard).
+- **Non tutto migliora:** domanda per domanda, 9 migliorate, 3 peggiorate, 18
+  invariate. Le 3 peggiorate (Q18, Q21, Q24) sono tutte `generation_miss`
+  in V3: il contesto giusto c'era, la risposta no. È coerente con lo
+  spostamento del collo di bottiglia sul generatore e va dichiarato.
 - Il dato **va letto nel modo giusto**: gli errori di generazione non sono
   aumentati perché il generatore è peggiorato (è lo stesso modello). Ora
   arrivano al generatore domande con il contesto giusto che prima fallivano
