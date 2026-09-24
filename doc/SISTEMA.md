@@ -29,7 +29,7 @@
 9. [Valutazione e benchmarking](#9-valutazione-e-benchmarking)
 10. [Configurazione attuale, con il perché di ogni valore](#10-configurazione-attuale-con-il-perché-di-ogni-valore)
 11. [Problemi noti e limiti tecnici confermati](#11-problemi-noti-e-limiti-tecnici-confermati)
-12. [Stato del progetto al 23/09/2026 e cosa manca](#12-stato-del-progetto-al-23092026-e-cosa-manca)
+12. [Stato del progetto al 24/09/2026 e cosa manca](#12-stato-del-progetto-al-24092026-e-cosa-manca)
 13. [Come avviare tutto](#13-come-avviare-tutto)
 14. [Mappa verso i capitoli della tesi](#14-mappa-verso-i-capitoli-della-tesi)
 
@@ -478,7 +478,7 @@ cancellare (PR #11), con un test che ne controlla la causa su ogni sistema.
 
 ---
 
-## 12. Stato del progetto al 23/09/2026 e cosa manca
+## 12. Stato del progetto al 24/09/2026 e cosa manca
 
 **Aggiornamento 24/09 — dashboard e chat.** Pagina Statistiche riorganizzata
 senza dati ripetuti (§8), domande suggerite della chat sostituite con quelle
