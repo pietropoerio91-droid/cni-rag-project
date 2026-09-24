@@ -1112,17 +1112,18 @@ export class StatisticheComponent implements OnInit, OnDestroy {
     quantitative: [
       { id: 'corpus', label: 'Corpus', descrizione: "Composizione della collection attiva: chunk, categorie, lunghezze, fonti. Cambia se si attiva un'altra collection dal menu impostazioni." },
       { id: 'risultati', label: 'Risultati', descrizione: 'I numeri del run selezionato sul golden dataset: accuratezza umana, recupero prima e dopo il reranking, generazione.' },
-      { id: 'confronto', label: 'Confronto con FINAL_V2', descrizione: 'Il run selezionato contro FINAL_V2: totali appaiati, dove si perde la risposta, esito domanda per domanda.' },
+      { id: 'confronto', label: 'Confronto con FINAL_V2', descrizione: 'Il run selezionato contro FINAL_V2: totali appaiati e dove si perde la risposta. Il dettaglio per domanda è in Qualitative.' },
       { id: 'ablation', label: 'Ablation', descrizione: 'Gli esperimenti che hanno portato alla configurazione finale: embedding × BM25, reranker, verifica del BM25 nativo.' },
     ],
     qualitative: [
       { id: 'domande', label: 'Per domanda', descrizione: 'Dove si perde la risposta: distribuzione degli stadi di errore e dettaglio domanda per domanda.' },
+      { id: 'confronto_domande', label: 'Confronto per domanda', descrizione: 'Ogni domanda nel run selezionato contro FINAL_V2: migliorata, peggiorata o invariata, con lo stadio di errore nei due run.' },
       { id: 'giudice', label: 'Giudice vs umano', descrizione: "Validazione del giudice automatico contro l'annotazione umana in cieco: i suoi punteggi e quanto sono affidabili." },
       { id: 'annota', label: 'Annotazione', descrizione: 'Annotazione umana in cieco delle risposte del run selezionato.' },
       { id: 'telemetria', label: 'Telemetria dal vivo', descrizione: 'Le query reali fatte in chat: grandezze descrittive, senza fonti attese e quindi senza metriche di recupero.' },
     ],
   };
-  private readonly VISTE_DI_RUN = new Set(['risultati', 'confronto', 'domande', 'giudice', 'annota']);
+  private readonly VISTE_DI_RUN = new Set(['risultati', 'confronto', 'domande', 'confronto_domande', 'giudice', 'annota']);
   activeTab: 'quantitative' | 'qualitative' = 'quantitative';
   /** Ultima vista aperta per ciascun tab, per ritrovarla tornando sul tab. */
   private vistaPerTab: Record<'quantitative' | 'qualitative', string> = { quantitative: 'corpus', qualitative: 'domande' };

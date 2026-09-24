@@ -18,7 +18,8 @@ import {
  * viste, sia in Quantitative sia in Qualitative, e ogni dato compare una volta.
  *
  *   risultati   numeri del run: accuratezza umana, recupero, generazione
- *   confronto   run contro FINAL_V2: totali appaiati, tassonomia, esito per domanda
+ *   confronto          run contro FINAL_V2: totali appaiati e tassonomia degli errori
+ *   confronto_domande  run contro FINAL_V2, domanda per domanda
  *   domande     dove si perde la risposta: tassonomia e dettaglio per domanda
  *   giudice     validazione del giudice automatico contro l'annotazione umana
  *   annota      annotazione umana in cieco
@@ -396,7 +397,9 @@ import {
           <p class="hint">FINAL_V2 e' il termine di paragone: seleziona un altro run per vedere il confronto.</p>
         </ng-container>
         <ng-container *ngIf="runIdSelezionato !== RUN_BASELINE">
-          <p class="hint" *ngIf="!codaBaseline">Annotazioni di {{ RUN_BASELINE }} non disponibili: confronto non calcolabile.</p>
+          <p class="hint" *ngIf="!latest?.confronto_vs_final_v2 && !righeStadi().length">
+            Per questo run non c'è un confronto appaiato con {{ RUN_BASELINE }}.
+          </p>
           <ng-container *ngIf="latest?.confronto_vs_final_v2 as cmp">
             <h3>Totali — {{ RUN_BASELINE }} → {{ latest?.run_id }}</h3>
             <p class="hint">
@@ -433,11 +436,20 @@ import {
             </table>
           </ng-container>
 
+          <p class="hint">L'esito domanda per domanda è in Qualitative › Confronto per domanda.</p>
+        </ng-container>
+      </ng-container>
+
+      <!-- ================= CONFRONTO PER DOMANDA ================= -->
+      <ng-container *ngIf="vista === 'confronto_domande' && !caricando">
+        <ng-container *ngIf="runIdSelezionato === RUN_BASELINE">
+          <p class="hint">{{ RUN_BASELINE }} è il termine di paragone: seleziona un altro run per vedere il confronto.</p>
+        </ng-container>
+        <ng-container *ngIf="runIdSelezionato !== RUN_BASELINE">
+          <p class="hint" *ngIf="!codaBaseline">Annotazioni di {{ RUN_BASELINE }} non disponibili: confronto non calcolabile.</p>
           <ng-container *ngIf="codaBaseline">
-            <h3>Domanda per domanda</h3>
             <p class="hint">
-              Correttezza ≥ 4 = risposta corretta, per ciascuna domanda. Confronto fra {{ RUN_BASELINE }}
-              e {{ coda?.run_id }}, solo sulle domande annotate su entrambi.
+              Correttezza ≥ 4 = risposta corretta. Solo le domande annotate su entrambi i run sono confrontabili.
             </p>
             <div class="meta">
               <span><b class="sig">{{ confrontoConteggi['migliorata'] }}</b> migliorate</span>
