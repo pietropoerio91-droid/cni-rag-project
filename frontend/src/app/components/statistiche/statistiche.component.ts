@@ -229,23 +229,35 @@ import { ValutazioneComponent } from './valutazione.component';
           </div>
 
           <div class="chart-card" style="margin-top:20px" *ngIf="ab.confronto_reranker as cr">
-            <h3 class="chart-title">Ablation — confronto reranker</h3>
-            <div class="cmp-table-wrap">
-              <table class="cmp-table">
-                <thead>
-                  <tr><th>Reranker</th><th>Hit&#64;5</th><th>MRR</th><th>s/domanda</th></tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let rr of cr.righe">
-                    <td class="cmp-label">{{ rr.reranker }}</td>
-                    <td>{{ fmtPoint(rr.hit_at_5, true) }}</td>
-                    <td>{{ rr.mrr | number:'1.3-3' }}</td>
-                    <td>{{ rr.s_per_domanda | number:'1.1-1' }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="section-note">{{ cr.nota }}</p>
+            <h3 class="chart-title">
+              Ablation — confronto reranker
+              <span class="tooltip-wrap chart-tooltip">
+                <span class="tooltip-icon">i</span>
+                <span class="tooltip-text">Hit&#64;5 e MRR sul contesto, stesse 30 domande, denso + BM25. Il confronto e' stato fatto due volte: prima e dopo il cambio di embedding.</span>
+              </span>
+            </h3>
+            <ng-container *ngFor="let g of cr.gruppi; let ultimo = last">
+              <h4 class="group-title">{{ g.titolo }}</h4>
+              <div class="cmp-table-wrap">
+                <table class="cmp-table">
+                  <thead>
+                    <tr><th>Reranker</th><th>Hit&#64;5</th><th>MRR</th><th>s/domanda</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let rr of g.righe" [class.prod-row]="rr.produzione">
+                      <td class="cmp-label">
+                        {{ rr.reranker }}
+                        <span class="prod-tag" *ngIf="rr.produzione">PRODUZIONE</span>
+                      </td>
+                      <td>{{ fmtPoint(rr.hit_at_5, true) }}</td>
+                      <td>{{ rr.mrr | number:'1.3-3' }}</td>
+                      <td>{{ rr.s_per_domanda | number:'1.1-1' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="section-note" [style.margin-bottom.px]="ultimo ? 0 : 22">{{ g.nota }}</p>
+            </ng-container>
           </div>
 
           <div class="chart-card" style="margin-top:20px" *ngIf="ab.verifica_bm25_nativo as vn">
@@ -365,6 +377,7 @@ import { ValutazioneComponent } from './valutazione.component';
   `,
   styles: [`
     .tabs2 { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+    .group-title { font-size: 13px; font-weight: 600; color: var(--text); margin: 14px 0 6px; }
     .view-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; max-width: 78ch; line-height: 1.5; }
     .runbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .runbar label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; }

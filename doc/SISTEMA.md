@@ -310,7 +310,7 @@ Da `config/rag_config.yaml`, con la ragione **reale** dietro ogni scelta (non qu
 | `retrieval.hybrid_search.rrf_k` | 60 | costante di attenuazione della Reciprocal Rank Fusion, valore convenzionale |
 | `retrieval.hybrid_search.dense_top_k` / `sparse_top_k` | 50 / 50 | candidati pescati da ciascun canale prima della fusione; il taglio a `top_k=25` avviene dopo, quindi la latenza del reranker non cambia |
 | `retrieval.hybrid_search.bm25.k1` / `b` | 1.2 / 0.75 | valori convenzionali di Robertson e Zaragoza |
-| `reranking.model` | `BAAI/bge-reranker-base` | confrontato con `mmarco-mMiniLMv2-L12-H384-v1` e `bge-reranker-v2-m3` su 30 domande (§9): nessuno supera la regola di adozione fissata a priori (guadagno ≥ 2 domande e latenza entro il doppio), quindi resta quello di partenza |
+| `reranking.model` | `BAAI/bge-reranker-base` | scelto in due passi sulle stesse 30 domande. Con l'embedding multilingue: mmarco +1 domanda e −40% di latenza, adottato come deviazione dichiarata dalla regola (guadagno ≥ 2 domande, latenza entro il doppio); v2-m3 escluso per latenza (3,7×). Con e5, confronto ripetuto: mmarco 16/30, **bge-reranker-base 18/30**, adottato. Dettagli in `TEST_RECUPERO_IBRIDO.md` §5 e §8 |
 | `reranking.allow_fallback` | **false** | **nuovo dal 21/09**: se il modello non si carica il sistema si ferma invece di proseguire in silenzio senza reranking (era un degrado non visibile) |
 | `reranking.top_k` | 5 | numero di documenti finali passati al LLM |
 | `governance.pii_filter.enabled` | **false** | **nuovo dal 21/09**: il corpus è interamente pubblico, il filtro mascherava anche i contatti istituzionali del CNI senza proteggere nulla (vedi §11.9) |

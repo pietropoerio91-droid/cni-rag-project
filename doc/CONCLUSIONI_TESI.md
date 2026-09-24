@@ -194,10 +194,15 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
    domande** su cui poi è misurata. Il 63,3% è quindi probabilmente una stima
    ottimistica. L'insieme di controllo indipendente (`config/holdout_v1.json`)
    è predisposto ma mai compilato né eseguito.
-3. **Assunzione non verificata sul reranker.** Il confronto fra reranker è
-   stato fatto su un embedding poi cambiato; che la scelta regga anche con
-   e5 è un'assunzione (`TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8, come
-   indicato in `INDICE_TESI.md` §6.2).
+3. **Scelta del reranker, in due passi.** Con l'embedding multilingue era
+   stato adottato mmarco (+1 domanda, −40% di latenza), come deviazione
+   dichiarata dalla regola fissata a priori. Passati a e5, il confronto è stato
+   ripetuto: mmarco scende a 16/30, bge-reranker-base arriva a 18/30, quindi
+   resta bge-reranker-base. Solo `bge-reranker-v2-m3` non è stato ripetuto con
+   e5, perché già escluso per latenza. Il limite vero è lo stesso del punto 2:
+   la scelta è fatta sulle stesse 30 domande (`TEST_RECUPERO_IBRIDO.md` §5 e
+   §8). *Corretto il 24/09: prima qui si leggeva che la scelta non era stata
+   ripetuta con e5.*
 4. **Giudice automatico non validato** (kappa medio 0,54 < 0,61): i risultati
    poggiano sull'annotazione di un solo annotatore umano.
 5. **Portata:** un solo corpus (dati pubblici CNI) e una sola piattaforma

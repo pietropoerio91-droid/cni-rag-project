@@ -707,30 +707,57 @@ async def evaluation_ablation_matrix():
         },
     ]
 
-    reranker_file = r / "ablation_reranker.json"
-    confronto_reranker = None
-    if reranker_file.exists():
-        rd = json.loads(reranker_file.read_text(encoding="utf-8"))
-        confronto_reranker = {
+    def _righe_reranker(path: Path, solo_ibrido: bool, produzione: str | None = None) -> list[dict]:
+        if not path.exists():
+            return []
+        dati = json.loads(path.read_text(encoding="utf-8"))
+        righe = []
+        for rr in dati.get("risultati", []):
+            if solo_ibrido and not rr["config"].get("ibrido"):
+                continue
+            nome = rr["config"]["reranker"].split("/")[-1]
+            righe.append({
+                "reranker": nome,
+                "hit_at_5": rr["punto_context"]["hit_at_5"],
+                "mrr": rr["punto_context"]["mrr"],
+                "s_per_domanda": rr["s_per_domanda"],
+                "produzione": nome == produzione,
+            })
+        return righe
+
+    # Due passi, non uno: il confronto fra reranker e' stato fatto prima con
+    # l'embedding multilingue e poi ripetuto (mmarco contro bge-reranker-base)
+    # con e5, l'embedding finale. v2-m3 non e' stato ripetuto con e5: era gia'
+    # escluso dalla latenza (3,7 volte quella di partenza).
+    gruppi = [
+        {
+            "titolo": "Passo 1 — paraphrase-multilingual + BM25",
+            "righe": _righe_reranker(r / "ablation_reranker.json", solo_ibrido=False),
             "nota": (
-                "Misurato su denso+BM25 con paraphrase-multilingual, prima di riconsiderare "
-                "l'embedding per il troncamento. La produzione finale usa e5 con "
-                "bge-reranker-base (il reranker di partenza, non mmarco): la scelta del "
-                "reranker non e' stata ripetuta con e5. Nessuno dei tre supera la regola "
-                "di adozione fissata a priori (guadagno >= 2 domande su 30 e latenza entro "
-                "il doppio), quindi il reranker resta quello di partenza."
+                "mmarco supera bge-reranker-base di 1 domanda su 30 ed e' il 40% piu' veloce: "
+                "sotto la regola di adozione fissata a priori (guadagno >= 2 domande, latenza "
+                "entro il doppio), fu adottato lo stesso per dominanza su tutte le metriche, "
+                "come deviazione dichiarata. bge-reranker-v2-m3 guadagna 2 domande ma con 3,7 "
+                "volte la latenza: escluso."
             ),
-            "embedding_usato": rd.get("embedding_effettivo"),
-            "righe": [
-                {
-                    "reranker": rr["config"]["reranker"].split("/")[-1],
-                    "hit_at_5": rr["punto_context"]["hit_at_5"],
-                    "mrr": rr["punto_context"]["mrr"],
-                    "s_per_domanda": rr["s_per_domanda"],
-                }
-                for rr in rd.get("risultati", [])
-            ],
-        }
+        },
+        {
+            "titolo": "Passo 2 — multilingual-e5-small + BM25 (configurazione finale)",
+            "righe": (
+                _righe_reranker(r / "ablation_e5_bm25_mmarco.json", solo_ibrido=True)
+                + _righe_reranker(r / "ablation_e5_bm25_bge_nativo.json", solo_ibrido=True,
+                                  produzione="bge-reranker-base")
+            ),
+            "nota": (
+                "Cambiato l'embedding per eliminare il troncamento, il confronto e' stato ripetuto: "
+                "con e5 mmarco scende a 16/30 e bge-reranker-base arriva a 18/30. Con mmarco il "
+                "BM25 non aggiunge nulla (16/30 anche senza), con bge-reranker-base porta da 14 a "
+                "18: mmarco scarta i documenti che il BM25 porta fra i candidati. In produzione "
+                "resta quindi bge-reranker-base."
+            ),
+        },
+    ]
+    confronto_reranker = {"gruppi": [g for g in gruppi if g["righe"]]} if any(g["righe"] for g in gruppi) else None
 
     bm25_file = r / "ablation_bm25_nativo.json"
     verifica_nativo = None

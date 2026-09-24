@@ -410,9 +410,12 @@ venivano presentati senza mai stabilire perché fossero credibili.*
 >
 > **Cosa scrivere in 6.2 ora**: non più «ecco cosa si potrebbe provare», ma
 > «ecco cosa è stato provato, con quale esito, e quali domande restano
-> aperte» — la selezione sul set di valutazione (§5.3), l'assunzione non
-> verificata che il reranker scelto su un embedding poi cambiato regga anche
-> con quello nuovo (`doc/TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8).
+> aperte» — la selezione sul set di valutazione (§5.3) e la scelta del
+> reranker in due passi: mmarco adottato con l'embedding multilingue, poi,
+> ripetuto il confronto con e5, sostituito da bge-reranker-base (16/30 contro
+> 18/30; `doc/TEST_RECUPERO_IBRIDO.md`, esperimenti §5 e §8). *Corretto il
+> 24/09: prima qui si parlava di un'assunzione non verificata, ma il
+> confronto con e5 era stato fatto.*
 > Documentazione completa, un esperimento per sezione: `doc/TEST_RECUPERO_IBRIDO.md`.
 >
 > **Limiti tecnici di §11.7-§11.10 di `doc/SISTEMA.md`: chiusi il 23/09, non

@@ -24,7 +24,7 @@ esperimenti che il piano originale non prevedeva.
 | 2 | e5-small, denso vs +BM25 | idem, con `EMBEDDING_MODEL` forzato | `exp/embedding-e5` @ `193a20a` | `ablation_e5_passi_2_3.json` | Hit@5 46,7%→60,0% |
 | 3 | Multilingue dichiarato, denso vs +BM25 | idem | `exp/embedding-multilingual` | `ablation_multiling_passi_2_3.json` | Hit@5 50,0%→63,3% |
 | 4 | Verifica di riproducibilità (nessuna variabile forzata) | idem, dal repository così com'è | `feature/recupero-ibrido` | `ablation_verifica_integrazione.json` | numeri identici a #3 |
-| 5 | Confronto 3 reranker | `ablation_retrieval.py --preset reranker` | `feature/recupero-ibrido` @ `74e932f` | `ablation_reranker.json` | nessuno supera la regola |
+| 5 | Confronto 3 reranker | `ablation_retrieval.py --preset reranker` | `feature/recupero-ibrido` @ `74e932f` | `ablation_reranker.json` | mmarco adottato come deviazione dichiarata (`e46fcc8`) |
 | 6 | BM25 nativo vs in memoria (equivalenza) | script dedicato, vedi §8 | `exp/bm25-nativo` @ `17a32a3` | `ablation_bm25_nativo.json` | punteggi identici (Δ 5,5·10⁻⁸) |
 | 7 | e5 + BM25 nativo + reranker `mmarco` | idem | `exp/e5-nativo` (primo tentativo) | `ablation_e5_bm25_mmarco.json` | scartato, sotto soglia |
 | 8 | e5 + BM25 nativo + `bge-reranker-base` (adottato) | idem | `exp/e5-nativo` @ `9abbe82` | `ablation_e5_bm25_bge_nativo.json` | Hit@5 46,7%→60,0%, adottato |
@@ -122,12 +122,18 @@ su 30 e latenza entro il doppio di quella attuale.
 | mmarco-mMiniLMv2-L12-H384-v1 | 66,7% | 0,522 | 9,9 |
 | bge-reranker-v2-m3 | 70,0% | 0,541 | 60,2 |
 
-**Esito**: nessuno supera la regola (mmarco guadagna 1 domanda; v2-m3 ne
-guadagna 2 ma con 3,7× la latenza). Il reranker resta `bge-reranker-base`.
+**Esito**: nessuno supera la regola alla lettera (mmarco guadagna 1 domanda;
+v2-m3 ne guadagna 2 ma con 3,7× la latenza, quindi escluso). **mmarco fu
+comunque adottato** (commit `e46fcc8`, 21/09 mattina) per dominanza su tutte le
+metriche, −40% di latenza e addestramento su dati che includono l'italiano,
+come **deviazione dalla regola dichiarata nel commit**. È rimasto in
+produzione fino al cambio di embedding (§8), dove il confronto è stato
+ripetuto e ha dato l'esito opposto.
 
-**Limite**: la scelta non è stata ripetuta dopo aver adottato e5 — è
-un'assunzione non verificata che l'ordine dei reranker resti lo stesso con un
-embedding diverso. Da dichiarare in tesi.
+*Correzione del 24/09*: fino a questa data qui si leggeva «Il reranker resta
+`bge-reranker-base`» e «la scelta non è stata ripetuta dopo aver adottato
+e5». Entrambe le frasi erano sbagliate: mmarco era stato adottato, e con e5 il
+confronto mmarco/bge è stato rifatto (§8). Vedi i commit `e46fcc8` e `9abbe82`.
 
 ---
 
@@ -188,19 +194,31 @@ Branch `exp/e5-nativo`. Due tentativi, non uno:
 
 | Reranker | Fonte nei 25 candidati | Hit@5 dopo reranker |
 |---|---:|---:|
-| `mmarco` (quello scelto al §5) | 24/30 | 16/30 — **sotto la soglia di adozione**, scartato |
-| `bge-reranker-base` (quello di partenza) | 24/30 | 18/30 — **adottato** |
+| `mmarco` (quello scelto al §5) | 24/30 | 16/30 (MRR 0,412, 8,7 s/domanda) — **sotto la soglia di adozione**, scartato |
+| `bge-reranker-base` (quello di partenza) | 24/30 | 18/30 (MRR 0,434, 17,6 s/domanda) — **adottato** |
 
-**Perché è stato adottato nonostante `multilingue+mmarco` avesse un punteggio
-nominalmente più alto** (20/30 = 66,7% contro 18/30 = 60,0%): decisione di
-progetto (eliminare il troncamento, un solo parametro cambiato per volta —
-qui cambia solo l'embedding, il reranker resta quello di partenza), non una
-soglia numerica. La differenza di 2 domande su 30 non è distinguibile dal
-rumore. Verificato con BM25 nativo: **60,0% / 0,434**, identico alla misura
-con BM25 in memoria del passo 2 (§3).
+File dei risultati: `results/ablation_e5_bm25_mmarco.json` (portato su `main`
+il 24/09; prima era solo sul branch `exp/e5-nativo`) e
+`results/ablation_e5_bm25_bge_nativo.json`.
 
-**Limite**: è la stessa assunzione non verificata del §5 — il reranker scelto
-al passo 5 su un embedding diverso non è stato ri-testato qui.
+**Con e5 l'ordine dei due reranker si inverte.** Con mmarco il BM25 non
+aggiunge nulla (16/30 con e senza BM25), con bge-reranker-base porta da 14/30 a
+18/30: su questi candidati mmarco scarta proprio i documenti che il canale
+lessicale recupera. Per questo in produzione resta bge-reranker-base.
+
+**Perché la configurazione finale è stata preferita a `multilingue+mmarco`**,
+che aveva un punteggio nominalmente più alto (20/30 = 66,7% contro 18/30 =
+60,0%): decisione di progetto, eliminare il troncamento dell'81,9% dei chunk
+(§7), non una soglia numerica. La differenza di 2 domande su 30 non è
+distinguibile dal rumore. Va dichiarato che, rispetto a quella configurazione,
+cambiano due componenti (embedding e reranker), non uno. Verificato con BM25
+nativo: **60,0% / 0,434**, identico alla misura con BM25 in memoria del passo 2
+(§3).
+
+**Limite**: `bge-reranker-v2-m3` non è stato ripetuto con e5. Era già escluso
+per la latenza (3,7 volte quella di partenza), che dipende dal reranker e non
+dall'embedding. Resta invece il limite generale: anche questa scelta è fatta
+sulle stesse 30 domande su cui poi è misurato il sistema.
 
 ---
 

@@ -403,9 +403,11 @@ export interface AblationMatrix {
     produzione?: boolean;
   }[];
   confronto_reranker: {
-    nota: string;
-    embedding_usato: { modello: string; origine: string } | null;
-    righe: { reranker: string; hit_at_5: number; mrr: number; s_per_domanda: number }[];
+    gruppi: {
+      titolo: string;
+      nota: string;
+      righe: { reranker: string; hit_at_5: number; mrr: number; s_per_domanda: number; produzione: boolean }[];
+    }[];
   } | null;
   verifica_bm25_nativo: {
     nota: string;
