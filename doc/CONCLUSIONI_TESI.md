@@ -112,11 +112,16 @@ residuo** è dovuta ai vincoli hardware dell'esecuzione in locale.
   mentre i **23,3 punti** che mancano anche col contesto oracolo restano il
   limite del generatore.
 - **Cautela obbligatoria:** questo confronto accosta due esecuzioni diverse
-  (oracolo del 28/08, pipeline del 22/09) e non è una misura appaiata. Inoltre
-  il test oracolo girava con il filtro PII attivo, che rendeva impossibili
-  Q06 e Q12 (`SISTEMA.md` §11.9): il tetto reale del generatore potrebbe
-  essere un po' più alto. Va presentato come stima indicativa, non come
-  numero misurato.
+  (oracolo del 28/08, pipeline del 22/09) e non è una misura appaiata. Va
+  presentato come stima indicativa, non come numero misurato.
+- *Corretto l'8/10*: qui si leggeva che il filtro PII, attivo all'epoca,
+  rendeva impossibili Q06 e Q12 anche nel test oracolo e che il tetto reale
+  del generatore potesse quindi essere più alto. È falso: il test oracolo
+  passa il chunk direttamente al generatore senza attraversare la pipeline
+  (`benchmarks/oracle_context.py` non usa `PIIFilter`), e nei suoi risultati
+  Q06 (email) e Q12 (codice fiscale) sono **corrette**. Il filtro PII ha
+  penalizzato solo la pipeline end-to-end, per cui Q06 e Q12 sono state
+  rilanciate a filtro spento nel run finale (`SISTEMA.md` §11.9).
 - La lettura qualitativa è coerente con la tassonomia umana: in `FINAL_V2`
   la parte mancante si divideva quasi a metà fra recupero (26,7) e generatore
   (23,3); dopo il recupero ibrido, la quota imputabile al recupero si riduce
