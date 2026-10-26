@@ -21,7 +21,7 @@ Metriche qualitative (LLM-as-judge, scala 0-5):
   - correctness:       la risposta e' coerente con la reference answer?
 
 ATTENZIONE: i punteggi del judge non sono utilizzabili finche' il judge non
-e' stato validato contro giudizio umano. Vedi `compute_judge_agreement.py`.
+e' stato validato contro giudizio umano. Vedi `agreement.py`.
 Ogni run riporta `judge_validated: false` finche' quella validazione manca.
 
 Tutte le medie aggregate sono accompagnate da un intervallo di confidenza al
@@ -506,7 +506,7 @@ def main() -> None:
         "dataset_version": dataset_meta,
         "judge_enabled": not args.no_judge,
         # I punteggi del judge non sono riportabili finche' non e' dimostrato
-        # l'accordo con giudizio umano (compute_judge_agreement.py). Il flag
+        # l'accordo con giudizio umano (agreement.py). Il flag
         # resta False finche' quella validazione non e' agli atti.
         "judge_validated": False,
         "judge_model": ConfigLoader.get_rag_config().get("llm", {}).get("model"),
@@ -581,8 +581,8 @@ def main() -> None:
             "\n[yellow]I punteggi del judge NON sono validati.[/yellow] "
             f"Il giudice e' [bold]{run_data['judge_model']}[/bold]; se coincide con il modello "
             "che genera le risposte c'e' bias di autovalutazione.\n"
-            "Prima di riportarli: [cyan]python benchmarks/export_validation_sheet.py[/cyan] -> "
-            "compila i voti umani -> [cyan]python benchmarks/compute_judge_agreement.py --sheet <csv>[/cyan]"
+            "Prima di riportarli: annota le risposte dal frontend -> "
+            "accordo giudice-umano dall'endpoint [cyan]/evaluation/agreement[/cyan]"
         )
 
     console.print(f"\n[green]Dettaglio salvato in:[/green] {run_file}")
