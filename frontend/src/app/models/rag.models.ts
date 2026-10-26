@@ -123,50 +123,6 @@ export interface QdrantCoverageResponse {
   sections: CoverageSection[];
 }
 
-export interface BenchmarkMetrics {
-  mrr: number;
-  recall_at_1: number;
-  recall_at_3: number;
-  recall_at_5: number;
-  precision_at_1: number;
-  precision_at_3: number;
-  classification_accuracy: number;
-}
-
-export interface BenchmarkResultItem {
-  config_name: string;
-  metrics: BenchmarkMetrics;
-  avg_latency_ms: number;
-  total_queries: number;
-  config: Record<string, unknown>;
-}
-
-export interface BenchmarkRun {
-  timestamp: string;
-  run_date: string;
-  file: string;
-  total_queries: number;
-  configs: number;
-  best_config: string;
-  best_mrr: number;
-}
-
-export interface BenchmarkFullRun {
-  run_date: string;
-  timestamp: string;
-  best_config: string;
-  best_mrr: number;
-  results: BenchmarkResultItem[];
-}
-
-export interface BenchmarkResponse {
-  available: boolean;
-  message?: string;
-  runs: BenchmarkRun[];
-  latest: BenchmarkFullRun | null;
-  best_overall: BenchmarkFullRun | null;
-}
-
 export interface QueryLogEntry {
   question: string;
   category: string;
@@ -213,7 +169,7 @@ export interface QueryMetricsResponse {
 // ---------------------------------------------------------------------------
 // Valutazione sul golden dataset
 // ---------------------------------------------------------------------------
-// Queste interfacce sostituiscono BenchmarkMetrics/QueryMetricsResponse per la
+// Queste interfacce sostituiscono QueryMetricsResponse per la
 // parte qualitativa: quelle esponevano metriche calcolate sulle query degli
 // utenti, che non hanno fonti attese note e quindi non ammettono metriche di
 // Information Retrieval. Le metriche vere vengono dai run sul golden dataset.

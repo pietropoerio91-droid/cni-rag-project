@@ -6,7 +6,7 @@ import {
   QueryRequest, QueryResponse, HealthResponse, IngestResponse, IngestStatus,
   CollectionInfo, CollectionsResponse,
   QdrantStatsResponse, QdrantDocumentsResponse, QdrantAnalyticsResponse,
-  QdrantCoverageResponse, BenchmarkResponse, BenchmarkFullRun,
+  QdrantCoverageResponse,
   QueryStatsResponse, QueryMetricsResponse,
   EvaluationLatest, EvaluationRunSummary, AnnotationQueue, AgreementReport, AblationMatrix,
 } from '../models/rag.models';
@@ -121,18 +121,6 @@ export class RagService {
     if (search) params += `&search=${encodeURIComponent(search)}`;
     return this.http.get<QdrantDocumentsResponse>(`${this.apiUrl}/qdrant/documents${params}`).pipe(
       catchError(this.handleError)
-    );
-  }
-
-  getBenchmarkResults(): Observable<BenchmarkResponse> {
-    return this.http.get<BenchmarkResponse>(`${this.apiUrl}/benchmark`).pipe(
-      catchError(() => throwError(() => new Error('Benchmark non disponibile')))
-    );
-  }
-
-  getBenchmarkRun(timestamp: string): Observable<BenchmarkFullRun> {
-    return this.http.get<BenchmarkFullRun>(`${this.apiUrl}/benchmark/runs/${timestamp}`).pipe(
-      catchError(() => throwError(() => new Error('Run non trovato')))
     );
   }
 

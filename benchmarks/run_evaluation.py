@@ -2,8 +2,7 @@
 """
 Valutazione end-to-end del sistema RAG CNI (retrieval + generazione).
 
-A differenza di run_benchmark.py (che valuta solo il retrieval con keyword
-matching), questo harness valuta la qualita' della risposta generata tramite
+Questo harness valuta la qualita' della risposta generata tramite
 LLM-as-judge (qwen2.5:3b locale) e calcola le metriche di retrieval contro le
 fonti attese del golden dataset.
 

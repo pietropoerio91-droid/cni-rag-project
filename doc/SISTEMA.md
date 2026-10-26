@@ -14,8 +14,10 @@
 > segnalate esplicitamente.
 >
 > **Revisione 26 ottobre 2026** (tesi consegnata, tag `v1.0-tesi`): rimasto il solo
-> branch `main`, aggiornati i riferimenti a branch e file rimossi (§4.1, §12). Codice
-> e configurazione non sono cambiati dal 23/09: i numeri restano validi.
+> branch `main`, aggiornati i riferimenti a branch e file rimossi (§4.1, §12). Pipeline
+> RAG e configurazione non sono cambiate dal 23/09: i numeri restano validi. Rimosso
+> `benchmarks/run_benchmark.py` (retrieval a keyword matching, mai usato per la tesi)
+> con i due endpoint `/benchmark`, i cui dati il frontend non mostrava.
 
 ---
 
@@ -214,7 +216,7 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 
 ## 7. API
 
-`src/api/main.py`: prefix `/api/v1`, CORS per `http://localhost:4200`. Due router montati: `routes.py` (23 endpoint) e `qdrant_browser.py` (6 endpoint, prefix `/qdrant`) — **29 endpoint in totale** (i 3 più recenti, dal 23/09, sono `/collections`, `/collections/active` e il campo `collection` in `/ingest/status`; vedi sotto), molti più dei 4 documentati nelle versioni precedenti (query/stream/health/ingest): l'interfaccia di annotazione e la dashboard qualitativa ne hanno aggiunti la maggior parte.
+`src/api/main.py`: prefix `/api/v1`, CORS per `http://localhost:4200`. Due router montati: `routes.py` (21 endpoint) e `qdrant_browser.py` (6 endpoint, prefix `/qdrant`) — **27 endpoint in totale** (i 3 più recenti, dal 23/09, sono `/collections`, `/collections/active` e il campo `collection` in `/ingest/status`; vedi sotto), molti più dei 4 documentati nelle versioni precedenti (query/stream/health/ingest): l'interfaccia di annotazione e la dashboard qualitativa ne hanno aggiunti la maggior parte.
 
 **Query e streaming**
 | Metodo | Path |
@@ -239,7 +241,6 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 | Metodo | Path |
 |---|---|
 | GET | `/health` | Qdrant connesso? LLM raggiungibile? |
-| GET | `/benchmark`, `/benchmark/runs/{timestamp}` | risultati di `run_benchmark.py` |
 | GET | `/ingest/status` | POST | `/ingest` | avvia/segue crawl + indicizzazione, **dal 23/09 su una collection nuova** (§11.10) |
 | GET | `/collections` | **nuovo dal 23/09** — collection presenti in Qdrant: chunk, compatibilità col retriever, quale è attiva |
 | PUT | `/collections/active` | **nuovo dal 23/09** — cambia la collection attiva (rifiutato durante un'indicizzazione o per collection incompatibili) |
@@ -275,11 +276,10 @@ classify → retrieve → rerank → grade_docs ─┬─► build_prompt → ge
 
 ## 9. Valutazione e benchmarking
 
-Tre strumenti distinti, non intercambiabili — usare quello giusto per la domanda giusta:
+Strumenti distinti, non intercambiabili — usare quello giusto per la domanda giusta:
 
 | Script | Cosa misura | Richiede LLM? | Stato dati raccolti |
 |---|---|---|---|
-| `benchmarks/run_benchmark.py` | retrieval con keyword matching | no | **limite noto**: dà punteggi alti anche quando il sistema non sa rispondere (vedi caso "presidente del CNI" in §11). Da non usare per risultati di tesi |
 | `benchmarks/run_evaluation.py` | pipeline end-to-end (retrieval + generazione), contro `config/golden_dataset*.json`, con LLM-as-judge | sì | **fatto due volte**: `FINAL_V2` (n=30, 28/08, modello di embedding reale `all-MiniLM-L6-v2` — mai dichiarato, vedi §11.5) e `FINAL_V3` (n=30, 21/09, configurazione congelata e5+BM25 nativo+bge-reranker-base). Il run "definitivo" per la tesi è `results/2026-09-22/eval_FINAL_V3_DEFINITIVO.json`, costruito unendo `FINAL_V3` con due domande rilanciate a filtro PII spento (vedi §11.9) — riepilogo leggibile in `results/2026-09-22/RIEPILOGO_FINAL_V3.md` |
 | `benchmarks/ablation_retrieval.py` | solo retrieval/reranking, nessuna generazione — isola l'effetto di `top_k`, reranker, filtro categoria, embedding, BM25 | no | **fatto molte volte**: preset `ibrido` (denso vs denso+BM25, per 3 modelli di embedding) e `reranker` (3 cross-encoder a confronto), tutti in `results/ablation_*.json`, riassunti dall'endpoint `/evaluation/ablation-matrix` (§7) |
 | `benchmarks/oracle_context.py` | quota d'errore imputabile al generatore (contesto perfetto per costruzione) | sì | **fatto**: n=30, 28/08 — `results/report_oracle_context.md` |
