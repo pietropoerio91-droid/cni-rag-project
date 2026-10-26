@@ -81,9 +81,9 @@ Sistema RAG (Retrieval-Augmented Generation) per l'estrazione e la consultazione
 
 ```
 cni-rag-project/
-├── config/                  # Configurazioni YAML
+├── benchmarks/              # Script di valutazione (run_evaluation, ablation, oracolo, embedding) e librerie metriche/statistiche
+├── config/                  # Configurazioni YAML e dataset di valutazione (golden_dataset_v2, holdout)
 │   ├── logging_config.yaml
-│   ├── model_config.yaml
 │   ├── qdrant_config.yaml
 │   └── rag_config.yaml
 ├── data/                    # Dati (gitignorati)
@@ -91,11 +91,17 @@ cni-rag-project/
 │   ├── processed/           # Documenti processati
 │   ├── chunks/              # Chunk testuali
 │   └── qdrant_db/           # Database vettoriale (SQLite)
+├── doc/                     # Documentazione tecnica (SISTEMA, GUIDA_ESPERIMENTI, TEST_RECUPERO_IBRIDO, PIANO_RECUPERO_IBRIDO)
+├── notebooks/               # Analisi esplorativa dei dati e demo
+├── results/                 # Risultati degli esperimenti citati nella tesi (run, ablation, annotazioni, report)
 ├── scripts/                 # Script CLI
 │   ├── run_crawler.py       # Crawl del sito CNI
 │   ├── run_ingestion.py     # Pipeline di ingestion
 │   ├── build_index.py       # Ricostruzione indice
-│   └── run_api.py           # Avvio API server
+│   ├── build_sparse_collection.py  # Costruzione della collection ibrida (denso + BM25)
+│   ├── purge_english_chunks.py     # Rimozione dei chunk in inglese dall'indice
+│   ├── run_api.py           # Avvio API server
+│   └── restart_api.sh       # Riavvio robusto dell'API (macOS/Linux)
 ├── src/                     # Codice sorgente Python
 │   ├── api/                 # FastAPI endpoints
 │   ├── core/                # Config, logging, factory
@@ -352,13 +358,15 @@ curl -X POST http://localhost:8000/api/v1/query \
 
 | Branch / tag | Descrizione |
 |--------|-------------|
-| `main` | **Versione finale**: recupero ibrido (e5-small + BM25 nativo), reranker `bge-reranker-base`, indicizzazione su collection separata e scelta della collection dal frontend |
+| `main` | **Unico branch.** Versione finale: recupero ibrido (e5-small + BM25 nativo), reranker `bge-reranker-base`, indicizzazione su collection separata e scelta della collection dal frontend |
+| tag `v1.0-tesi` | Stato del repository alla consegna della tesi, prima della pulizia del 26/10/2026 (contiene ancora appunti di stesura e script rimossi) |
 | tag `congelato-2026-09-23` | Versione finale congelata per la tesi |
 | tag `congelato-2026-09-21-e5` | Configurazione con cui è stato misurato il run `FINAL_V3` |
 | tag `sperimentazione-recupero-ibrido` | Implementazione BM25 in memoria usata per la matrice a 6 configurazioni (riproducibilità) |
 
-Gli altri branch (`release/recupero-ibrido`, `feature/*`, `fix/*`, `docs/*`, `exp/*`,
-`config/*`, `backup/*`) sono storici: il loro contenuto utile è già su `main`.
+I branch di lavoro (`release/*`, `feature/*`, `fix/*`, `docs/*`, `exp/*`, `config/*`,
+`backup/*`) sono stati eliminati il 26/10/2026: il loro contenuto è su `main` o nei tag
+sopra, e i commit citati in `doc/TEST_RECUPERO_IBRIDO.md` restano tutti raggiungibili.
 macOS e Windows sono entrambi supportati da `main`, con Ollama (non Docker, non LM Studio):
 vedi la sezione Setup Rapido qui sopra.
 

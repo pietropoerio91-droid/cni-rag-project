@@ -31,6 +31,14 @@ esperimenti che il piano originale non prevedeva.
 | 9 | Run end-to-end `FINAL_V3` | `run_evaluation.py --dataset config/golden_dataset_v2.json --run-id FINAL_V3` | `release/recupero-ibrido` @ `c3e6460` | `2026-09-21/eval_14-53-16.json` | accuratezza umana 63,3% |
 | 10 | Run definitivo (unione con filtro PII spento) | script Python dedicato, vedi §10 | `release/recupero-ibrido` @ `e91d460` | `2026-09-22/eval_FINAL_V3_DEFINITIVO.json` | numero riportabile in tesi |
 
+> **Dove si trovano oggi i commit citati** (26/10/2026, rimasto il solo branch `main`):
+> `feature/recupero-ibrido` e `exp/bm25-nativo` → tag `sperimentazione-recupero-ibrido`
+> (`02a36ed`, `74e932f`, `e46fcc8`, `17a32a3`); `exp/e5-nativo` (`9abbe82`) e
+> `config/whitelist-crawler` (`3780a0a`) → nella storia di `main`, uniti senza
+> modificare file; `release/recupero-ibrido` (`c3e6460`, `e91d460`) → `main`.
+> `193a20a` (`exp/embedding-e5`) non è più disponibile: il branch era stato eliminato
+> prima; i risultati restano in `results/ablation_e5_passi_2_3.json`.
+
 Tutti i comandi vanno lanciati con l'API di produzione **ferma** (Qdrant in
 locale prende un lock esclusivo di processo) e Ollama attivo.
 

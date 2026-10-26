@@ -25,10 +25,6 @@ class ConfigLoader:
         return cls.load("rag_config")
 
     @classmethod
-    def get_model_config(cls) -> dict[str, Any]:
-        return cls.load("model_config")
-
-    @classmethod
     def get_qdrant_config(cls) -> dict[str, Any]:
         return cls.load("qdrant_config")
 

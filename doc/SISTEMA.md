@@ -12,6 +12,10 @@
 > (configurazione congelata, tag `congelato-2026-09-21-e5`). Aggiorna la versione
 > del 3 settembre dopo il lavoro sul recupero ibrido: le sezioni toccate sono
 > segnalate esplicitamente.
+>
+> **Revisione 26 ottobre 2026** (tesi consegnata, tag `v1.0-tesi`): rimasto il solo
+> branch `main`, aggiornati i riferimenti a branch e file rimossi (§4.1, §12). Codice
+> e configurazione non sono cambiati dal 23/09: i numeri restano validi.
 
 ---
 
@@ -94,7 +98,7 @@ Crawler asincrono su `httpx` + `BeautifulSoup`, 5 worker concorrenti su una
 coda (`asyncio.Queue`), partendo da `https://www.cni.it`.
 
 - `max_depth: 8`, `max_pages: 15000`, `delay: 0.2s`, `timeout: 15s`, `max_links_per_page: 300`
-- `included_paths`: `/media-ing`, `/cni`, `/temi`, `/contatti`, `/servizi` — solo questi vengono seguiti
+- `included_paths`: 32 percorsi — i 5 originali (`/media-ing`, `/cni`, `/temi`, `/contatti`, `/servizi`) più quelli aggiunti il 21/09 (elenco e motivazione in §10)
 - `priority_paths` + `priority_max_depth: 12` per dare priorità a `/media-ing` e `/cni`
 - `DENIED_PATTERNS`: blocca `/administrator` e **`/en/`** (versione inglese del sito, esclusa — vedi §11)
 - PDF: estratti con PyMuPDF, scartati se < 50 caratteri
@@ -478,6 +482,14 @@ cancellare (PR #11), con un test che ne controlla la causa su ogni sistema.
 
 ## 12. Stato del progetto al 24/09/2026 e cosa manca
 
+**Aggiornamento 26/10 — tesi consegnata, repository ripulito.** Tag `v1.0-tesi` sullo
+stato alla consegna. Rimossi gli appunti di stesura (indice, conclusioni, note sui
+capitoli 1-2, cartella `archivio/`) e due script obsoleti della validazione via CSV
+(§9). Eliminati tutti i branch tranne `main`: `feature/recupero-ibrido` coincide con il
+tag `sperimentazione-recupero-ibrido`; i commit di `exp/e5-nativo` e
+`config/whitelist-crawler` sono stati uniti a `main` senza modificare file, per
+conservarli nella storia.
+
 **Aggiornamento 24/09 — dashboard e chat.** Pagina Statistiche riorganizzata
 senza dati ripetuti (§8), domande suggerite della chat sostituite con quelle
 verificate dall'annotazione umana (§8). Solo frontend: nessun effetto su
@@ -528,10 +540,10 @@ validi. Da qui il lavoro prosegue solo sulla tesi.
 1. ~~Pattern di categoria per i nuovi percorsi della whitelist~~ — fatto il 23/09 (§11.7).
 2. ~~Indicizzazione a lotti invece di un unico upsert~~ — fatto il 23/09 (§11.8).
 3. ~~Pulsante "Indicizza Dati": scrivere su una collection nuova~~ — fatto il 23/09 (§11.10).
-4. ~~Pulizia finale: rimuovere l'implementazione BM25 in memoria~~ — confermata il 23/09. Verificato che il codice attivo non la contiene più: `src/rag/sparse_index.py`, `src/rag/fusion.py` e `tests/unit/test_sparse_e_fusione.py` esistono solo sul branch `feature/recupero-ibrido`, lasciato com'è: non è usato da nulla e non dà fastidio. Si conserva il tag `sperimentazione-recupero-ibrido` (stesso commit `fa6d0aa`): la matrice a 6 configurazioni riportata in tesi è stata misurata con quell'implementazione e il tag la rende riproducibile. I riferimenti rimasti nel codice attivo sono solo commenti che documentano l'equivalenza nativo/in memoria.
-5. ~~Unione di `release/recupero-ibrido` su `main`~~ — risulta fatta: al 23/09 `main` contiene tutti i commit di `release/recupero-ibrido`. Testo originale: unione **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Backup del `main` precedente in `backup/main-2026-09-21`.
+4. ~~Pulizia finale: rimuovere l'implementazione BM25 in memoria~~ — confermata il 23/09. Verificato che il codice attivo non la contiene più: `src/rag/sparse_index.py`, `src/rag/fusion.py` e `tests/unit/test_sparse_e_fusione.py` esistono solo nel tag `sperimentazione-recupero-ibrido` (il branch `feature/recupero-ibrido` è stato eliminato il 26/10). Si conserva il tag `sperimentazione-recupero-ibrido` (stesso commit `fa6d0aa`): la matrice a 6 configurazioni riportata in tesi è stata misurata con quell'implementazione e il tag la rende riproducibile. I riferimenti rimasti nel codice attivo sono solo commenti che documentano l'equivalenza nativo/in memoria.
+5. ~~Unione di `release/recupero-ibrido` su `main`~~ — risulta fatta: al 23/09 `main` contiene tutti i commit di `release/recupero-ibrido`. Testo originale: unione **solo con conferma esplicita**: `main` resta la configurazione precedente finché non arriva quel via libera. Il branch di backup `backup/main-2026-09-21` è stato eliminato il 26/10: il suo contenuto è nella storia di `main`.
 
-**Cosa manca per la tesi:** aggiornare abstract, introduzione e i capitoli con
+**Cosa mancava per la tesi** (completato, tesi consegnata): aggiornare abstract, introduzione e i capitoli con
 i nuovi numeri — la tabella completa è in `results/2026-09-22/RIEPILOGO_FINAL_V3.md`.
 Dichiarare esplicitamente in tesi: (a) `FINAL_V2` girava con un modello di
 embedding diverso da quello dichiarato; (b) la matrice a 6 configurazioni è

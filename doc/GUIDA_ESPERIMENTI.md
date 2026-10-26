@@ -5,6 +5,10 @@
 > completi, con intervalli di confidenza e test statistici, sono nei
 > quattro report in `results/report_*.md`; qui c'è la spiegazione e il
 > collegamento fra le parti.
+>
+> **Copre gli esperimenti fino al 28/08 (`FINAL_V2`).** Il recupero ibrido e il run
+> finale `FINAL_V3`, che sono i numeri riportati in tesi, sono documentati in
+> `doc/TEST_RECUPERO_IBRIDO.md` e `results/2026-09-22/RIEPILOGO_FINAL_V3.md`.
 
 ---
 
