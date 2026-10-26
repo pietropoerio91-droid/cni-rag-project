@@ -52,7 +52,7 @@ introdotto regressioni prima di misurare l'effetto del BM25.
 
 **Limite**: la diagnosi che ha motivato il BM25 è stata fatta guardando gli
 errori di queste stesse 30 domande — va dichiarato come selezione sul set di
-valutazione, non come generalizzazione provata (vedi `CONCLUSIONI_TESI.md`).
+valutazione, non come generalizzazione provata (vedi i limiti dichiarati nella tesi).
 
 ---
 

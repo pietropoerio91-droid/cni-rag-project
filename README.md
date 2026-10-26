@@ -108,7 +108,6 @@ cni-rag-project/
 │   ├── unit/
 │   └── integration/
 ├── .env.example             # Variabili d'ambiente facoltative (la configurazione vera è in config/)
-├── archivio/                # File superati, conservati temporaneamente (vedi archivio/README.md)
 ├── frontend/                # Applicazione Angular
 └── requirements.txt
 ```

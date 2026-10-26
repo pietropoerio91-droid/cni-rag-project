@@ -11,8 +11,7 @@
 > **Ultima verifica:** 22 settembre 2026, contro il branch `release/recupero-ibrido`
 > (configurazione congelata, tag `congelato-2026-09-21-e5`). Aggiorna la versione
 > del 3 settembre dopo il lavoro sul recupero ibrido: le sezioni toccate sono
-> segnalate esplicitamente. Per la tesi vera e propria: `INDICE_TESI.md`
-> (struttura a 6 capitoli, su `origin/main`) e `CONCLUSIONI_TESI.md`.
+> segnalate esplicitamente.
 
 ---
 
@@ -290,7 +289,7 @@ Tre strumenti distinti, non intercambiabili — usare quello giusto per la doman
 
 Golden dataset: `config/golden_dataset.json` (v1, 10 domande) e `config/golden_dataset_v2.json` (v2.0-draft, **30 domande**, usato da tutti e quattro gli esperimenti completati).
 
-`config/holdout_v1.json` è un **scaffold vuoto** (10 id, tutti i campi da compilare): l'idea è un insieme di controllo scritto senza guardare l'indice, per stimare se la configurazione scelta con l'ablation generalizza fuori dal golden dataset v2. Non è mai stato compilato né eseguito — trattato come lavoro futuro (vedi §12 e i limiti in `CONCLUSIONI_TESI.md`).
+`config/holdout_v1.json` è un **scaffold vuoto** (10 id, tutti i campi da compilare): l'idea è un insieme di controllo scritto senza guardare l'indice, per stimare se la configurazione scelta con l'ablation generalizza fuori dal golden dataset v2. Non è mai stato compilato né eseguito — trattato come lavoro futuro (vedi §12 e i limiti dichiarati nella tesi).
 
 **Aggiornamento 22/09 — esito del recupero ibrido.** Sulle stesse 30 domande, `all-MiniLM-L6-v2 + BM25` porta Hit@5 dal 40,0% al 66,7%; la configurazione adottata (`e5-small + BM25 nativo + bge-reranker-base`) porta il **contesto passato al generatore** dal 40,0% al 60,0% (MRR 0,294→0,434) e **l'accuratezza umana** dal 43,3% al 63,3% (13→19 su 30, Wilcoxon su correttezza continua p=0,0085). La decomposizione per stadio si sposta: `retrieval_miss` 14→2, `generation_miss` 2→8 — il collo di bottiglia passa dal recupero al generatore. L'accordo giudice-umano resta sotto soglia (kappa medio 0,540, come in `FINAL_V2`): l'accuratezza da citare è quella umana. Scripts e file usati per ogni esperimento: vedi `doc/PIANO_RECUPERO_IBRIDO.md` (diagnosi e piano originale) e `results/2026-09-22/RIEPILOGO_FINAL_V3.md` (numeri finali con IC 95%).
 
@@ -554,9 +553,9 @@ Sezione precedente, lasciata per riferimento storico — superata dal §12 sopra
 - Tutti e quattro gli esperimenti pianificati sono stati eseguiti su n=30 (`golden_dataset_v2.json`): ablation study, valutazione end-to-end (`FINAL_V2`), test a contesto oracolo, confronto fra modelli di embedding — ciascuno con un report dedicato in `results/report_*.md` e una spiegazione discorsiva in `doc/GUIDA_ESPERIMENTI.md`
 - Bug scoperto e corretto in `compare_embeddings.py`: il modello "attuale" veniva interrogato con `SentenceTransformer(...).encode()` invece di `ModelFactory.create_embeddings()`, producendo vettori incoerenti con l'indice e un MRR baseline artificialmente basso (0,17 invece di 0,294) — rieseguito dopo il fix, numeri coerenti con `FINAL_V2`
 - Verificata la correttezza di `metrics.py` e `stats.py` (le formule che producono i numeri della tesi)
-- Documentato il troncamento dell'embedding (§11.1): 128 token max, mediana chunk 266 token, 82,2% dei chunk troncati — riportato come limite dichiarato in `CONCLUSIONI_TESI.md`, non ancora corretto in produzione (cambio di modello valutato e rimandato, vedi sotto)
+- Documentato il troncamento dell'embedding (§11.1): 128 token max, mediana chunk 266 token, 82,2% dei chunk troncati — riportato come limite dichiarato nella tesi, non ancora corretto in produzione (cambio di modello valutato e rimandato, vedi sotto)
 - Documentato il purge dei chunk inglesi (§11.6): 17.145 → 13.784 chunk, 27/08
-- `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`, `doc/NOTE_CAP1_CAP2.md`, `doc/CONCLUSIONI_TESI.md` creati come materiale di riferimento consolidato
+- `doc/SISTEMA.md` e `doc/GUIDA_ESPERIMENTI.md` creati come materiale di riferimento consolidato
 - **Validazione umana in cieco completata** (02-03/09) su tutte le 30 domande di `FINAL_V2` — `results/annotations_FINAL_V2.json`, `results/report_judge_agreement.md`. Risultato: giudice automatico utilizzabile per pertinenza (kappa 0,770) e correttezza (kappa 0,674, con bias -0,966 punti da correggere), non per fedeltà (kappa -0,019). Un secondo caso concreto emerso durante l'annotazione (Q01, presidente CNI: il generatore ha risposto "Armando Zambrano" invece di "Angelo Domenico Perrini") ha confermato via ricerca diretta nell'indice (`/qdrant`) che l'informazione corretta è nel corpus ma non è mai stata recuperata — `retrieval_miss` verificato, non un'allucinazione da fonte assente
 
 **Deliberatamente rimandato (non necessario per rispondere alla domanda di ricerca, tempo limitato fino al 13/10):**
@@ -570,8 +569,8 @@ Sezione precedente, lasciata per riferimento storico — superata dal §12 sopra
 Nessun'altra attività tecnica è necessaria per rispondere alla domanda di
 ricerca — il progetto è chiuso lato esperimenti e dati. Resta solo:
 
-1. **Scrittura dei capitoli 1-4 della tesi** — materiale di riferimento pronto in `doc/NOTE_CAP1_CAP2.md`, `doc/SISTEMA.md`, `doc/GUIDA_ESPERIMENTI.md`, `doc/CONCLUSIONI_TESI.md` (quest'ultimo con tutti i numeri reali, nessun placeholder `[X]` residuo).
-2. Citare i punti deliberatamente rimandati sopra come "sviluppi futuri" nel capitolo delle conclusioni — già presente come paragrafo nei Limiti di `doc/CONCLUSIONI_TESI.md`.
+1. **Scrittura dei capitoli 1-4 della tesi** — materiale di riferimento in `doc/SISTEMA.md` e `doc/GUIDA_ESPERIMENTI.md`.
+2. Citare i punti deliberatamente rimandati sopra come "sviluppi futuri" nel capitolo delle conclusioni — già presente come paragrafo nei Limiti della tesi.
 
 ---
 
@@ -608,8 +607,7 @@ curl -X POST http://localhost:8000/api/v1/query -H "Content-Type: application/js
 
 ## 14. Mappa verso i capitoli della tesi
 
-**La tesi è a 6 capitoli** (`doc/INDICE_TESI.md` su `origin/main`, non gli 8
-di versioni precedenti di questo indice): capitoli 1-2 descrivono il sistema,
+**La tesi è a 6 capitoli**: capitoli 1-2 descrivono il sistema,
 3-5 lo misurano e discutono i limiti, 6 conclude.
 
 | Sezione di questo documento | Capitolo tesi |
