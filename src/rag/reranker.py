@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 from src.core.config_loader import ConfigLoader
+from src.rag.recency import apply_recency
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ class Reranker:
         # rispondere senza reranking in silenzio abbassa la qualita' senza che
         # nessun risultato lo mostri.
         self.allow_fallback = rerank_config.get("allow_fallback", False)
+        # Peso dato alla data fra i candidati gia' valutati (src/rag/recency.py).
+        # 0 = ordine del solo reranker, comportamento precedente.
+        self.recency_weight = float(rerank_config.get("recency_weight", 0.0) or 0.0)
         self._model = None
 
     def _load_model(self):
@@ -53,5 +57,7 @@ class Reranker:
             result["rerank_score"] = float(score)
 
         reranked = sorted(results, key=lambda r: r.get("rerank_score", 0), reverse=True)
+        if self.recency_weight > 0:
+            reranked = apply_recency(reranked, self.recency_weight)
         logger.debug(f"Reranked {len(results)} results, keeping top {self.top_k}")
         return reranked[:self.top_k]

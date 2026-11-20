@@ -151,6 +151,9 @@ def test_prova_completa_indicizzazione_su_collection_nuova_e_attivazione(ambient
     monkeypatch.setattr(embedder.EmbeddingGenerator, "__init__", lambda self, embedding_model=None: None)
     monkeypatch.setattr(embedder.EmbeddingGenerator, "process_chunks",
                         lambda self, chunks: [{**c, "embedding": [0.5, 0.5]} for c in chunks])
+    # Niente rete nei test: la mappa delle date dalla ricerca di cni.it e' finta.
+    from src.ingestion import site_dates
+    monkeypatch.setattr(site_dates, "refresh_site_dates", lambda: {})
     monkeypatch.setattr(routes, "_vector_indexer", VectorIndexer())
     monkeypatch.setattr(routes, "_ingest_status", dict(routes._ingest_status, running=False))
 

@@ -21,6 +21,8 @@ from src.governance.public_data_filter import PublicDataFilter
 from src.governance.quality_check import QualityChecker
 from src.ingestion.chunker import DocumentChunker
 from src.ingestion.cleaner import TextCleaner
+from src.ingestion.date_extractor import extract_document_date
+from src.ingestion.site_dates import load_site_dates, site_dates_settings
 from src.ingestion.crawler import CNICrawler
 from src.ingestion.downloader import Downloader
 from src.ingestion.embedder import EmbeddingGenerator
@@ -62,6 +64,9 @@ def run_ingestion(crawl: bool, max_pages: int, clear: bool, input_dir: str):
     cleaner = TextCleaner()
 
     console.print("[yellow]Phase 2: Filtering and cleaning...[/yellow]")
+    # Date di pubblicazione dalla ricerca di cni.it (scripts/fetch_site_dates.py).
+    site_dates = load_site_dates(site_dates_settings()["path"], site_dates_settings()["sections"])
+    console.print(f"[green]  Mappa delle date: {len(site_dates)} pagine[/green]")
     valid_docs = []
     for doc in documents:
         url = doc.get("url", "")
@@ -72,6 +77,9 @@ def run_ingestion(crawl: bool, max_pages: int, clear: bool, input_dir: str):
         if not ok:
             logger.warning(f"Filtered by quality check for {url}: {issues}")
             continue
+        # La data si ricava prima della pulizia: la firma dei comunicati
+        # ("Roma, 16 novembre 2026") e' in chiusura del testo.
+        doc["meta"].update(extract_document_date(doc, input_dir, site_dates=site_dates))
         doc["content"] = cleaner.clean(doc.get("content", ""))
         doc["meta"]["category"] = public_filter.categorize(url, doc.get("content", ""))
         valid_docs.append(doc)

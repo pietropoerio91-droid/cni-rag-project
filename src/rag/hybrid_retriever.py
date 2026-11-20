@@ -98,6 +98,8 @@ class HybridRetriever:
                 "score": p.score,
                 "chunk_index": p.payload.get("chunk_index", 0),
                 "category": p.payload.get("category", ""),
+                "date": p.payload.get("date", ""),
+                "date_precision": p.payload.get("date_precision", ""),
             }
             for p in points
         ]

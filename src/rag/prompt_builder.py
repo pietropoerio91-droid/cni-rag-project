@@ -19,20 +19,55 @@ Domanda: {question}
 
 Rispondi basandoti esclusivamente sui documenti sopra riportati."""
 
+    DATE_RULE = """DATE DEI DOCUMENTI: accanto al titolo di alcuni documenti e' indicata la data. Se due documenti riportano informazioni diverse sullo stesso argomento (ad esempio cariche, nomine, scadenze o norme aggiornate), considera valida quella del documento piu' recente e indica la data della fonte che usi."""
+
+    _MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
+             "agosto", "settembre", "ottobre", "novembre", "dicembre")
+
     @staticmethod
-    def build_prompt(question: str, results: list[dict[str, Any]]) -> list[dict[str, str]]:
+    def format_date(value: str, precision: str = "day") -> str:
+        """Formatta la data per il prompt: "2022-11-15" -> "15/11/2022"; con precisione mensile o annuale "novembre 2022" / "2022"."""
+        if not value or len(value) < 10:
+            return ""
+        y, m, d = value[:4], value[5:7], value[8:10]
+        if precision == "year":
+            return y
+        if precision == "month":
+            try:
+                return f"{PromptBuilder._MESI[int(m) - 1]} {y}"
+            except (ValueError, IndexError):
+                return y
+        return f"{d}/{m}/{y}"
+
+    @staticmethod
+    def _context(results: list[dict[str, Any]]) -> str:
         context_parts = []
         for i, r in enumerate(results, 1):
             source = r.get("source", "Sconosciuta")
             title = r.get("title", "Senza titolo")
             content = r.get("content", "")
-            context_parts.append(f"[Posizione {i} - {title}]\nFonte: {source}\n{content}\n")
+            data = PromptBuilder.format_date(r.get("date", ""), r.get("date_precision") or "day")
+            header = f"[Posizione {i} - {title} - data: {data}]" if data else f"[Posizione {i} - {title}]"
+            context_parts.append(f"{header}\nFonte: {source}\n{content}\n")
+        return "\n---\n".join(context_parts)
 
-        context = "\n---\n".join(context_parts)
+    @staticmethod
+    def _system_text(context: str, question: str, results: list[dict[str, Any]]) -> str:
+        text = PromptBuilder.SYSTEM_TEMPLATE.format(context=context, question=question)
+        # La regola sulle date compare solo se almeno un documento e' datato: con un
+        # indice senza date il prompt resta identico a quello valutato nella tesi.
+        if any(r.get("date") for r in results):
+            marker = "Documenti di riferimento (USA SOLO QUESTI):"
+            text = text.replace(marker, f"{PromptBuilder.DATE_RULE}\n\n{marker}", 1)
+        return text
+
+    @staticmethod
+    def build_prompt(question: str, results: list[dict[str, Any]]) -> list[dict[str, str]]:
+        context = PromptBuilder._context(results)
 
         system_msg = {
             "role": "system",
-            "content": PromptBuilder.SYSTEM_TEMPLATE.format(context=context, question=question),
+            "content": PromptBuilder._system_text(context, question, results),
         }
 
         user_msg = {
@@ -44,13 +79,6 @@ Rispondi basandoti esclusivamente sui documenti sopra riportati."""
 
     @staticmethod
     def build_stream_prompt(question: str, results: list[dict[str, Any]]) -> str:
-        context_parts = []
-        for i, r in enumerate(results, 1):
-            source = r.get("source", "Sconosciuta")
-            title = r.get("title", "Senza titolo")
-            content = r.get("content", "")
-            context_parts.append(f"[Posizione {i} - {title}]\nFonte: {source}\n{content}\n")
+        context = PromptBuilder._context(results)
 
-        context = "\n---\n".join(context_parts)
-
-        return PromptBuilder.SYSTEM_TEMPLATE.format(context=context, question=question)
+        return PromptBuilder._system_text(context, question, results)

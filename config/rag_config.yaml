@@ -58,6 +58,12 @@ reranking:
   top_k: 5
   model: BAAI/bge-reranker-base
   allow_fallback: false   # true = se il modello non si carica si risponde senza reranking
+  # Peso della data fra i candidati valutati dal reranker (src/rag/recency.py):
+  #   finale = (1 - w) * pertinenza + w * recenza
+  # La recenza e' relativa ai candidati della domanda (il piu' vecchio 0, il piu'
+  # recente 1; documenti senza data 0,5). 0 = ordine del solo reranker, come nella
+  # tesi. Richiede un indice con le date (scripts/add_document_dates.py).
+  recency_weight: 0.0
 
 fallback:
   score_threshold: 0.5
@@ -138,6 +144,26 @@ crawler:
     - /servizi
   priority_max_depth: 12
   max_links_per_page: 300
+
+# Date di pubblicazione (src/ingestion/site_dates.py). Le pagine di cni.it non
+# mostrano la data, la ricerca interna del sito si': si scarica una mappa
+# URL -> data una volta per ingestione (circa 3 minuti) e la si salva su file.
+dates:
+  site_dates_file: data/dates/site_dates.json
+  refresh_on_ingest: true      # POST /ingest aggiorna la mappa dopo il crawl
+  search_delay: 0.5            # pausa fra le richieste alla ricerca del sito
+  search_terms: [ingegneri, cni, consiglio, ingegneria, nazionale, presidente, ordine, professione]
+  # La ricerca riporta la data di CREAZIONE della pagina. Vale come data di
+  # pubblicazione solo per i contenuti che una volta pubblicati non cambiano
+  # (notizie, comunicati, eventi). Le pagine istituzionali vengono aggiornate
+  # senza cambiare data (/cni/consiglio risulta del 2016 ma mostra il Consiglio
+  # attuale): restano senza data, cioe' neutre per la recenza.
+  dated_sections:
+    - /media-ing
+    - /evidenza
+    - /notizie-internazionali
+    - /il-giornale-dell-ingegnere
+    - /area-cni/200-elezioni-ordini-provinciali
 
 quality:
   min_content_length: 50

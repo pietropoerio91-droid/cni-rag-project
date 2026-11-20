@@ -78,6 +78,10 @@ class VectorIndexer:
             }
             if metadata.get("category", ""):
                 payload["category"] = metadata["category"]
+            # Data del documento (src/ingestion/date_extractor.py), quando ricavata.
+            for key in ("date", "date_source", "date_precision"):
+                if metadata.get(key):
+                    payload[key] = metadata[key]
             payloads.append(payload)
 
         tokens = [tokenize(indexed_text(p, include_title)) for p in payloads]

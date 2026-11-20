@@ -1010,6 +1010,8 @@ async def ingest():
         from src.ingestion.chunker import DocumentChunker
         from src.ingestion.cleaner import TextCleaner
         from src.ingestion.crawler import CNICrawler
+        from src.ingestion.date_extractor import extract_document_date
+        from src.ingestion.site_dates import load_site_dates, refresh_site_dates, site_dates_settings
         from src.ingestion.downloader import Downloader
         from src.ingestion.embedder import EmbeddingGenerator
         from src.governance.public_data_filter import PublicDataFilter
@@ -1046,6 +1048,13 @@ async def ingest():
                     seen_urls.add(url)
             _ingest_status.update({"documents_total": len(existing_docs), "progress_pct": 30})
 
+            # Date di pubblicazione: la ricerca del sito le riporta, le pagine no.
+            if site_dates_settings()["refresh_on_ingest"]:
+                _ingest_status.update({"phase": "dates", "message": "Leggo le date di pubblicazione dalla ricerca di cni.it..."})
+                site_dates = await asyncio.to_thread(refresh_site_dates)
+            else:
+                site_dates = load_site_dates(site_dates_settings()["path"], site_dates_settings()["sections"])
+
             _ingest_status.update({"phase": "filter", "message": "Filtro e pulisco documenti..."})
             processed_docs = []
             for i, doc in enumerate(existing_docs):
@@ -1054,6 +1063,7 @@ async def ingest():
                 ok, _ = quality.check(doc.get("content", ""))
                 if not ok:
                     continue
+                doc.setdefault("meta", {}).update(extract_document_date(doc, downloader.output_dir, site_dates=site_dates))
                 cleaned = cleaner.clean(doc.get("content", ""))
                 doc["content"] = cleaned
                 doc["meta"]["category"] = public_filter.categorize(doc.get("url", ""), cleaned)
