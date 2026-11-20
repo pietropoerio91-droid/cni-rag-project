@@ -32,6 +32,8 @@ class CitationBuilder:
                 "excerpt": self._extract_excerpt(content, 200),
                 "content_overlap": round(overlap, 3),
             }
+            if doc.get("date"):
+                citation["date"] = doc["date"]
 
             source_key = source.split("/")[-1] if source else ""
             if source_key not in used_sources and has_relevance:

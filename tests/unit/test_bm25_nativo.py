@@ -189,7 +189,8 @@ def test_con_ibrido_il_lessicale_porta_dentro_cio_che_il_denso_manca(client):
 
 def test_il_risultato_ha_la_forma_attesa_dal_resto_della_pipeline(client):
     doc = _retriever(client, True).retrieve("codice fiscale 80057570584")[0]
-    assert set(doc) == {"content", "source", "title", "score", "chunk_index", "category"}
+    # date e date_precision sono vuote per le collection senza date (scripts/add_document_dates.py).
+    assert set(doc) == {"content", "source", "title", "score", "chunk_index", "category", "date", "date_precision"}
 
 
 def test_top_k_limita_i_candidati(client):

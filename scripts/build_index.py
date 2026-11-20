@@ -11,6 +11,8 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 from src.core.logging import setup_logging
 from src.ingestion.chunker import DocumentChunker
 from src.ingestion.cleaner import TextCleaner
+from src.ingestion.date_extractor import extract_document_date
+from src.ingestion.site_dates import load_site_dates, site_dates_settings
 from src.ingestion.downloader import Downloader
 from src.ingestion.embedder import EmbeddingGenerator
 from src.governance.public_data_filter import PublicDataFilter
@@ -44,6 +46,7 @@ def build_index(input_dir: str, clear: bool):
     quality = QualityChecker()
     cleaner = TextCleaner()
 
+    site_dates = load_site_dates(site_dates_settings()["path"], site_dates_settings()["sections"])
     valid_docs = []
     for doc in documents:
         if not public_filter.is_public(doc.get("url", ""), doc.get("content", "")):
@@ -51,6 +54,7 @@ def build_index(input_dir: str, clear: bool):
         ok, _ = quality.check(doc.get("content", ""))
         if not ok:
             continue
+        doc.setdefault("meta", {}).update(extract_document_date(doc, input_dir, site_dates=site_dates))
         doc["content"] = cleaner.clean(doc.get("content", ""))
         valid_docs.append(doc)
     console.print(f"[green]  Valid documents: {len(valid_docs)}[/green]")

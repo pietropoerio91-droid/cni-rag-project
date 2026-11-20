@@ -50,6 +50,8 @@ class VectorRetriever:
                 "score": scored_point.score,
                 "chunk_index": scored_point.payload.get("chunk_index", 0),
                 "category": scored_point.payload.get("category", ""),
+                "date": scored_point.payload.get("date", ""),
+                "date_precision": scored_point.payload.get("date_precision", ""),
             })
 
         logger.debug(f"Retrieved {len(results)} results for query (k={k})")
