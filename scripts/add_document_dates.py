@@ -125,6 +125,7 @@ def main() -> None:
 
     if not args.target:
         print("\nAnteprima: nessuna collection creata. Aggiungi --target per creare la copia con le date.")
+        client.close()
         return
 
     vectors = points[0].vector
@@ -144,6 +145,7 @@ def main() -> None:
             batch.append(models.PointStruct(id=p.id, vector=p.vector, payload=payload))
         client.upsert(collection_name=args.target, points=batch)
     print(f"\n'{args.target}': {client.count(args.target).count} punti (attesi {len(points)})")
+    client.close()
 
 
 if __name__ == "__main__":

@@ -87,3 +87,14 @@ def test_pagine_istituzionali_restano_senza_data(tmp_path):
     # Una sezione aggiunta in configurazione vale senza riscaricare la mappa.
     assert sd.lookup(sd.load_site_dates(path, ("/media-ing", "/cni")), consiglio)["date"] == "2016-05-26"
     assert not sd.in_dated_section("https://www.cni.it/media-ingegneria/x")
+
+
+def test_date_future_della_ricerca_non_sono_pubblicazioni():
+    evento = "https://www.cni.it/evidenza/5344-le-macchine-dalla-direttiva"
+    passato = "https://www.cni.it/evidenza/5346-lorganizzazione-del-cantiere"
+    mappa = {sd.url_key(evento): {"url": evento, "date": "2026-12-04"},
+             sd.url_key(passato): {"url": passato, "date": "2026-11-20"}}
+    assert sd.lookup(mappa, evento, OGGI) == {}
+    assert sd.lookup(mappa, passato, OGGI)["date"] == "2026-11-20"
+    doc = {"url": evento, "content": "", "meta": {"source": evento}}
+    assert extract_document_date(doc, oggi=OGGI, site_dates=mappa) == {}

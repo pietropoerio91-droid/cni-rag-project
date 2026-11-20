@@ -94,13 +94,19 @@ _JSONLD = re.compile(r"\"date(?:Modified|Published)\"\s*:\s*\"(?P<v>[^\"]+)\"")
 
 
 def _valida(y: int, m: int, d: int, oggi: date | None = None) -> date | None:
+    """Data plausibile come data di pubblicazione: dal 1990 a oggi, mai nel futuro.
+
+    Una data futura nel nome di un file o nel testo e' una scadenza o un periodo
+    ("Piano_triennale_2025-2027.pdf"), non la pubblicazione.
+    """
     oggi = oggi or date.today()
-    if not (ANNO_MINIMO <= y <= oggi.year + 1):
+    if not (ANNO_MINIMO <= y <= oggi.year):
         return None
     try:
-        return date(y, m, d)
+        found = date(y, m, d)
     except ValueError:
         return None
+    return found if found <= oggi else None
 
 
 def parse_date(text: str, oggi: date | None = None) -> date | None:
@@ -129,8 +135,11 @@ def _risultato(d: date, fonte: str, precisione: str) -> dict[str, str]:
 
 
 def _anno(y: int, fonte: str, oggi: date | None) -> dict[str, str]:
-    d = _valida(y, 7, 1, oggi)
-    return _risultato(d, fonte, "year") if d else {}
+    """Solo l'anno: data convenzionale al 1 luglio, o oggi se luglio non e' ancora arrivato."""
+    oggi = oggi or date.today()
+    if not (ANNO_MINIMO <= y <= oggi.year):
+        return {}
+    return _risultato(min(date(y, 7, 1), oggi), fonte, "year")
 
 
 def date_from_meta(meta: dict[str, Any], oggi: date | None = None) -> dict[str, str]:
@@ -162,7 +171,7 @@ def year_from_url(url: str, oggi: date | None = None) -> int | None:
     # ("/2017-titolo") che non e' un anno. I nomi dei PDF hanno una regola a parte.
     cartelle = path.rsplit("/", 1)[0] if "." in path.rsplit("/", 1)[-1] else path
     anni = [int(m["y"]) for m in _ANNO_SEGMENTO.finditer(cartelle)]
-    anni = [a for a in anni if ANNO_MINIMO <= a <= (oggi or date.today()).year + 1]
+    anni = [a for a in anni if ANNO_MINIMO <= a <= (oggi or date.today()).year]
     return anni[-1] if anni else None
 
 
@@ -194,8 +203,9 @@ def date_from_filename(url: str, oggi: date | None = None) -> dict[str, str]:
         if d:
             return _risultato(d, "pdf:nome_file", "month")
     anni = [int(x["y"]) for x in _ANNO_FILE.finditer(nome)]
-    anni = [a for a in anni if ANNO_MINIMO <= a <= (oggi or date.today()).year + 1]
-    return _anno(anni[-1], "pdf:nome_file", oggi) if anni else {}
+    # "2025-2027": l'anno piu' recente che non sia nel futuro.
+    anni = [a for a in anni if ANNO_MINIMO <= a <= (oggi or date.today()).year]
+    return _anno(max(anni), "pdf:nome_file", oggi) if anni else {}
 
 
 def date_from_pdf_bytes(content: bytes, oggi: date | None = None) -> dict[str, str]:
@@ -246,7 +256,7 @@ def extract_document_date(document: dict[str, Any], raw_dir: str | Path | None =
 
     from src.ingestion.site_dates import lookup
 
-    found = lookup(site_dates, url)
+    found = lookup(site_dates, url, oggi)
     if found:
         return found
     found = date_from_meta(meta, oggi)

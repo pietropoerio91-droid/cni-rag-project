@@ -12,7 +12,9 @@ frequenti e scorrendo tutte le pagine dei risultati (100 per pagina); a ogni
 domanda non serve nessuna chiamata al sito.
 
 Note sui contenuti:
-  - /evidenza/ (eventi): la data e' quella dell'evento, anche futura. Si tiene.
+  - /evidenza/ (eventi): per gli eventi futuri la ricerca riporta la data
+    dell'evento. Una data nel futuro non e' una data di pubblicazione: si scarta
+    e il documento resta senza data (neutro per la recenza).
   - contenitori annuali ("Rassegna stampa 2022"): data convenzionale al 1 gennaio.
   - pagine istituzionali (/cni/consiglio, /temi/...): la data e' quella di
     creazione, ma il contenuto viene aggiornato. Si usa la data solo per le
@@ -144,12 +146,16 @@ def in_dated_section(url: str, sections: tuple[str, ...] | None = None) -> bool:
                for s in (sections or DEFAULT_SECTIONS))
 
 
-def lookup(site_dates: dict[str, dict[str, str]] | None, url: str) -> dict[str, str]:
-    """Data di `url` nella mappa (gia' ristretta alle sezioni datate da load_site_dates)."""
+def lookup(site_dates: dict[str, dict[str, str]] | None, url: str,
+           oggi: date | None = None) -> dict[str, str]:
+    """Data di `url` nella mappa (gia' ristretta alle sezioni datate da load_site_dates).
+
+    Le date nel futuro (eventi in programma) non sono date di pubblicazione: {}.
+    """
     if not site_dates or not url:
         return {}
     hit = site_dates.get(url_key(url))
-    if not hit:
+    if not hit or hit["date"] > (oggi or date.today()).isoformat():
         return {}
     return {"date": hit["date"], "date_source": "sito:ricerca", "date_precision": "day"}
 

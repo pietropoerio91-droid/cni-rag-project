@@ -109,3 +109,19 @@ def test_lettura_dei_file_salvati_dal_crawler(tmp_path):
     dates = de.load_document_dates(tmp_path, oggi=OGGI)
     assert dates["https://www.cni.it/temi/a"]["date"] == "2018-02-01"
     assert dates["https://www.cni.it/cni/consiglio"] == {}
+
+
+def test_nessuna_data_di_pubblicazione_nel_futuro():
+    pdf = {"type": "pdf"}
+    # Periodo nel nome del file: si prende l'anno piu' recente non futuro.
+    got = de.extract_document_date(_doc("https://www.cni.it/images/Piano_triennale_2025-2027.pdf", meta=pdf), oggi=OGGI)
+    assert got["date"] == "2025-07-01"
+    assert de.extract_document_date(_doc("https://www.cni.it/images/Bilancio_preventivo_2027.pdf", meta=pdf), oggi=OGGI) == {}
+    assert de.parse_date("Roma, 16 dicembre 2026", OGGI) is None
+    assert de.parse_date("Roma, 16 novembre 2026", OGGI) is not None
+
+
+def test_anno_corrente_prima_di_luglio_vale_oggi():
+    url = "https://www.cni.it/media-ing/news/294-2026/5000-x"
+    assert de.extract_document_date(_doc(url), oggi=date(2026, 3, 10))["date"] == "2026-03-10"
+    assert de.extract_document_date(_doc(url), oggi=OGGI)["date"] == "2026-07-01"
