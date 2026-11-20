@@ -44,15 +44,35 @@ def test_stessa_data_per_tutti_conta_solo_la_pertinenza():
 
 def test_prompt_senza_date_identico_a_quello_della_tesi():
     docs = [{"source": "u", "title": "T", "content": "c"}]
-    testo = PromptBuilder.build_stream_prompt("q", docs)
+    testo = PromptBuilder.build_stream_prompt("q", docs, show_dates=True)
     assert "DATE DEI DOCUMENTI" not in testo
     assert "[Posizione 1 - T]\nFonte: u" in testo
+
+
+def test_con_show_in_prompt_false_le_date_non_entrano_nel_prompt():
+    docs = [{"source": "u", "title": "T", "content": "c", "date": "2022-07-01", "date_precision": "year"}]
+    datato = PromptBuilder.build_stream_prompt("q", docs, show_dates=False)
+    assert datato == PromptBuilder.build_stream_prompt("q", [{"source": "u", "title": "T", "content": "c"}],
+                                                       show_dates=False)
+
+
+def test_date_nel_prompt_solo_se_tutti_i_documenti_sono_datati():
+    datati = [{"source": "u", "title": "T", "content": "c", "date": "2016-12-15"},
+              {"source": "v", "title": "S", "content": "d", "date": "2022-12-07"}]
+    misti = [datati[0], {"source": "w", "title": "Consiglio", "content": "e"}]
+    assert PromptBuilder.dates_in_prompt(datati, "all_dated")
+    assert not PromptBuilder.dates_in_prompt(misti, "all_dated")
+    testo = PromptBuilder.build_stream_prompt("q", misti, show_dates="all_dated")
+    assert "DATE DEI DOCUMENTI" not in testo and "15/12/2016" not in testo
+    testo = PromptBuilder.build_stream_prompt("q", datati, show_dates="all_dated")
+    assert "DATE DEI DOCUMENTI" in testo and "data: 07/12/2022" in testo
+    assert not PromptBuilder.dates_in_prompt([], "all_dated")
 
 
 def test_prompt_con_date_mostra_la_data_e_la_regola():
     docs = [{"source": "u", "title": "T", "content": "c", "date": "2022-07-01", "date_precision": "year"},
             {"source": "v", "title": "S", "content": "d", "date": "2026-11-16", "date_precision": "day"}]
-    testo = PromptBuilder.build_prompt("q", docs)[0]["content"]
+    testo = PromptBuilder.build_prompt("q", docs, show_dates=True)[0]["content"]
     assert "DATE DEI DOCUMENTI" in testo
     assert "[Posizione 1 - T - data: 2022]" in testo
     assert "[Posizione 2 - S - data: 16/11/2026]" in testo

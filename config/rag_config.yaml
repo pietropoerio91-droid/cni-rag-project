@@ -153,6 +153,14 @@ dates:
   refresh_on_ingest: true      # POST /ingest aggiorna la mappa dopo il crawl
   search_delay: 0.5            # pausa fra le richieste alla ricerca del sito
   search_terms: [ingegneri, cni, consiglio, ingegneria, nazionale, presidente, ordine, professione]
+  # Date nel prompt (accanto al titolo, con la regola "vale il piu' recente"):
+  #   all_dated  solo se TUTTI i documenti forniti al modello hanno una data
+  #   true       sempre, quando almeno un documento ha una data
+  #   false      mai: la data agisce solo sull'ordine (reranking.recency_weight)
+  # Non "true": con documenti datati e non datati insieme il modello 3B preferisce
+  # quello datato anche se superato a una pagina istituzionale aggiornata ma senza
+  # data (es. /cni/consiglio).
+  show_in_prompt: all_dated
   # La ricerca riporta la data di CREAZIONE della pagina. Vale come data di
   # pubblicazione solo per i contenuti che una volta pubblicati non cambiano
   # (notizie, comunicati, eventi). Le pagine istituzionali vengono aggiornate
